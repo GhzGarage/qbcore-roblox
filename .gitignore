@@ -1,2 +1,3 @@
 .rojo-serve.*.log
 *.rbxlx
+*.code-workspace
