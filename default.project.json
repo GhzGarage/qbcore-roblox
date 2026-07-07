@@ -1,0 +1,85 @@
+{
+  "name": "qbcore-roblox",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "QBShared": {
+        "$path": "src/ReplicatedStorage/QBShared"
+      },
+      "QBRemoteNames": {
+        "$path": "src/ReplicatedStorage/QBRemoteNames.lua"
+      },
+      "QBRemotes": {
+        "$path": "src/ReplicatedStorage/QBRemotes.lua"
+      },
+      "QBCoreClient": {
+        "$path": "src/ReplicatedStorage/QBCoreClient.lua"
+      }
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$ignoreUnknownInstances": true,
+      "QBWeaponTools": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      },
+      "QBVehicleModels": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
+      "QBCore": {
+        "$path": "src/ServerScriptService/QBCore"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "QBAppearance": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBAppearance.client.lua"
+        },
+        "QBCoreClient": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBCoreClient.client.lua"
+        },
+        "QBHUD": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBHUD.client.lua"
+        },
+        "QBInventory": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBInventory.client.lua"
+        },
+        "QBAdmin": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBAdmin.client.lua"
+        },
+        "QBMenu": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBMenu.client.lua"
+        },
+        "QBStageMusic": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBStageMusic.client.lua"
+        },
+        "QBEmotes": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBEmotes.client.lua"
+        },
+        "QBAmbulance": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBAmbulance.client.lua"
+        },
+        "QBNotify": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBNotify.client.lua"
+        },
+        "QBTimeCycle": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBTimeCycle.client.lua"
+        },
+        "QBWeather": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBWeather.client.lua"
+        },
+        "QBWeaponAmmo": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBWeaponAmmo.client.lua"
+        }
+      }
+    }
+  }
+}
