@@ -260,7 +260,13 @@ local function mutateSociety(organizationName, delta, statement, organizationTyp
 		end)
 	end)
 	if not ok then
-		warn(("[QBCore.BankingService] Society update failed for %s:%s: %s"):format(organizationType, organizationName, tostring(storeErr)))
+		warn(
+			("[QBCore.BankingService] Society update failed for %s:%s: %s"):format(
+				organizationType,
+				organizationName,
+				tostring(storeErr)
+			)
+		)
 		return false, "The society account is temporarily unavailable."
 	end
 	return table.unpack(outcome or { false, "The society account could not be updated." })
@@ -273,7 +279,13 @@ local function getSocietyRecord(organizationName, organizationType)
 		record = societyStore:GetAsync(organizationStoreKey(organizationType, organizationName))
 	end)
 	if not ok then
-		warn(("[QBCore.BankingService] Society read failed for %s:%s: %s"):format(organizationType, organizationName, tostring(err)))
+		warn(
+			("[QBCore.BankingService] Society read failed for %s:%s: %s"):format(
+				organizationType,
+				organizationName,
+				tostring(err)
+			)
+		)
 		return nil, "The society account is temporarily unavailable."
 	end
 	return reconcileSociety(record, organizationName, organizationType)
@@ -653,17 +665,12 @@ local function transfer(player, playerObj, payload, access)
 	end
 
 	if targetPlayer and isActivePlayer(targetPlayer, targetObj) then
-		local ok, debitErr = debitAccount(
-			playerObj,
-			account,
-			amount,
-			{
-				kind = "transfer_out",
-				reason = senderReason,
-				counterparty = targetName,
-				counterpartyCitizenId = targetCitizenId,
-			}
-		)
+		local ok, debitErr = debitAccount(playerObj, account, amount, {
+			kind = "transfer_out",
+			reason = senderReason,
+			counterparty = targetName,
+			counterpartyCitizenId = targetCitizenId,
+		})
 		if not ok then
 			return false, debitErr
 		end
@@ -694,17 +701,12 @@ local function transfer(player, playerObj, payload, access)
 		warn(("[QBCore.BankingService] Transfer queue failed: %s"):format(tostring(queueErr)))
 		return false, "The recipient account is temporarily unavailable."
 	end
-	local ok, debitErr = debitAccount(
-		playerObj,
-		account,
-		amount,
-		{
-			kind = "transfer_out",
-			reason = senderReason,
-			counterparty = targetName,
-			counterpartyCitizenId = targetCitizenId,
-		}
-	)
+	local ok, debitErr = debitAccount(playerObj, account, amount, {
+		kind = "transfer_out",
+		reason = senderReason,
+		counterparty = targetName,
+		counterpartyCitizenId = targetCitizenId,
+	})
 	if not ok then
 		removeQueuedTransfer(targetCitizenId, transferId)
 		return false, debitErr

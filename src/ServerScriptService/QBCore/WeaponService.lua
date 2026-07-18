@@ -252,11 +252,13 @@ local function getOrCreateToolConfiguration(tool)
 			return config
 		end
 
-		warn(("[WeaponService] %s has a %q child that is a %s, not a Configuration."):format(
-			tool:GetFullName(),
-			CONFIGURATION_NAME,
-			config.ClassName
-		))
+		warn(
+			("[WeaponService] %s has a %q child that is a %s, not a Configuration."):format(
+				tool:GetFullName(),
+				CONFIGURATION_NAME,
+				config.ClassName
+			)
+		)
 		return nil
 	end
 
@@ -278,20 +280,19 @@ local function setWeaponConfigValue(config, valueName, value)
 
 	local className = getConfigValueClass(value)
 	if not className then
-		warn(("[WeaponService] Ignoring unsupported weapon config %q (%s)."):format(
-			valueName,
-			typeof(value)
-		))
+		warn(("[WeaponService] Ignoring unsupported weapon config %q (%s)."):format(valueName, typeof(value)))
 		return
 	end
 
 	local valueObj = config:FindFirstChild(valueName)
 	if valueObj and not valueObj:IsA("ValueBase") then
-		warn(("[WeaponService] Ignoring weapon config %q because %s is a %s, not a ValueBase."):format(
-			valueName,
-			valueObj:GetFullName(),
-			valueObj.ClassName
-		))
+		warn(
+			("[WeaponService] Ignoring weapon config %q because %s is a %s, not a ValueBase."):format(
+				valueName,
+				valueObj:GetFullName(),
+				valueObj.ClassName
+			)
+		)
 		return
 	end
 
@@ -305,11 +306,13 @@ local function setWeaponConfigValue(config, valueName, value)
 		valueObj.Value = value
 	end)
 	if not ok then
-		warn(("[WeaponService] Could not set weapon config %q on %s: %s"):format(
-			valueName,
-			valueObj:GetFullName(),
-			tostring(err)
-		))
+		warn(
+			("[WeaponService] Could not set weapon config %q on %s: %s"):format(
+				valueName,
+				valueObj:GetFullName(),
+				tostring(err)
+			)
+		)
 	end
 end
 
@@ -460,9 +463,11 @@ local function equipWeapon(playerObj, item, definition)
 	local template, expectedName = findToolTemplate(definition)
 	if not template then
 		return false,
-			(
-				"%s tool is not installed. Add a Tool named %q to ServerStorage > %s, or place it in Workspace once so QBCore can store it."
-			):format(definition.label or definition.name, tostring(expectedName), TOOL_FOLDER_NAME)
+			("%s tool is not installed. Add a Tool named %q to ServerStorage > %s, or place it in Workspace once so QBCore can store it."):format(
+				definition.label or definition.name,
+				tostring(expectedName),
+				TOOL_FOLDER_NAME
+			)
 	end
 
 	clearPlayerWeaponTools(player)

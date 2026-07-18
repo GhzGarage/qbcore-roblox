@@ -693,7 +693,9 @@ function VehicleShopService.Start(vehicleService)
 			for ownershipId, vehicle in pairs(activeOwnedVehicles) do
 				if vehicle and vehicle:GetAttribute("QBOwnerUserId") == player.UserId then
 					activeOwnedVehicles[ownershipId] = nil
-					if vehicle.Parent then vehicle:Destroy() end
+					if vehicle.Parent then
+						vehicle:Destroy()
+					end
 				end
 			end
 		end

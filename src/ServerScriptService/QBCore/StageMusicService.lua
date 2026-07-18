@@ -645,13 +645,28 @@ function StageMusicService.Start()
 			playTrackDefinition(player, state, track)
 		elseif action == "stop" then
 			stopTrack(player, state)
-			openMenuSnapshot(player, state, distance, payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil)
+			openMenuSnapshot(
+				player,
+				state,
+				distance,
+				payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil
+			)
 		elseif action == "volume_up" then
 			adjustVolume(player, state, StageMusic.Defaults.VolumeStep)
-			openMenuSnapshot(player, state, distance, payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil)
+			openMenuSnapshot(
+				player,
+				state,
+				distance,
+				payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil
+			)
 		elseif action == "volume_down" then
 			adjustVolume(player, state, -StageMusic.Defaults.VolumeStep)
-			openMenuSnapshot(player, state, distance, payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil)
+			openMenuSnapshot(
+				player,
+				state,
+				distance,
+				payload.keepSearch and getCachedSearchSnapshot(player, state.config.id) or nil
+			)
 		else
 			notify(player, "Unknown music action.")
 		end

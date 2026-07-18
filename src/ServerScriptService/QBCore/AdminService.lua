@@ -537,12 +537,7 @@ function ACTIONS.teleportToCoords(actor, payload)
 	local heading = coords.heading ~= nil and math.rad(coords.heading) or currentYaw
 	root.CFrame = CFrame.new(coords.x, coords.y, coords.z) * CFrame.Angles(0, heading, 0)
 
-	pushLog(
-		actor,
-		"teleportCoords",
-		actor.DisplayName,
-		("%.2f, %.2f, %.2f"):format(coords.x, coords.y, coords.z)
-	)
+	pushLog(actor, "teleportCoords", actor.DisplayName, ("%.2f, %.2f, %.2f"):format(coords.x, coords.y, coords.z))
 	return result(actor, "Teleported to coordinates.")
 end
 

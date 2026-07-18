@@ -324,7 +324,8 @@ local function connectCallAudio(call)
 	local callerInput = findVoiceInput(call.caller)
 	local receiverInput = findVoiceInput(call.receiver)
 	if not callerInput or not receiverInput then
-		return false, "Roblox Audio API inputs are unavailable. Enable voice and set VoiceChatService.UseAudioApi to Enabled."
+		return false,
+			"Roblox Audio API inputs are unavailable. Enable voice and set VoiceChatService.UseAudioApi to Enabled."
 	end
 
 	local folder = Workspace:FindFirstChild("QBPhoneCallAudio")

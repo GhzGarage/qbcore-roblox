@@ -92,10 +92,12 @@ function PaycheckService.ProcessPlayer(playerObj)
 
 		local ok, paid, providerError = pcall(societyFundsProvider, job.name, amount, playerObj)
 		if not ok then
-			warn(("[QBCore.PaycheckService] Society provider failed for job %s: %s"):format(
-				tostring(job.name),
-				tostring(paid)
-			))
+			warn(
+				("[QBCore.PaycheckService] Society provider failed for job %s: %s"):format(
+					tostring(job.name),
+					tostring(paid)
+				)
+			)
 			return false, "society_provider_error"
 		end
 		if paid ~= true then
