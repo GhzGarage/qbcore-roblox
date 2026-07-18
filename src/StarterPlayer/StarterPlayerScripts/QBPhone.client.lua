@@ -5,7 +5,9 @@ local CaptureService = game:GetService("CaptureService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
+local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
@@ -147,6 +149,7 @@ content.Name = "Content"
 content.BackgroundTransparency = 1
 content.Position = UDim2.fromOffset(14, 43)
 content.Size = UDim2.new(1, -28, 1, -92)
+content.ZIndex = 10
 content.Parent = shell
 
 local homeBar = button(shell, "HomeBar", "", Color3.fromRGB(225, 229, 240))
@@ -325,27 +328,303 @@ sendButton.Position = UDim2.fromScale(1, 1)
 sendButton.Size = UDim2.fromOffset(58, 45)
 
 addHeader(cameraScreen, "Camera")
-local viewfinder = Instance.new("Frame")
-viewfinder.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-viewfinder.BackgroundTransparency = 0.72
-viewfinder.Position = UDim2.fromOffset(0, 55)
-viewfinder.Size = UDim2.new(1, 0, 1, -130)
-viewfinder.Parent = cameraScreen
-addCorner(viewfinder, 18)
-addStroke(viewfinder, Color3.fromRGB(190, 199, 214), 0.45, 1)
-local viewfinderText =
-	label(viewfinder, "Hint", "The game camera is your viewfinder", 14, COLORS.ink, Enum.Font.GothamMedium)
-viewfinderText.AnchorPoint = Vector2.new(0.5, 0.5)
-viewfinderText.Position = UDim2.fromScale(0.5, 0.5)
-viewfinderText.Size = UDim2.new(1, -30, 0, 40)
-viewfinderText.TextXAlignment = Enum.TextXAlignment.Center
-local shutter = button(cameraScreen, "Shutter", "●", Color3.fromRGB(235, 238, 245))
-shutter.AnchorPoint = Vector2.new(0.5, 1)
-shutter.Position = UDim2.new(0.5, 0, 1, -5)
-shutter.Size = UDim2.fromOffset(64, 64)
-shutter.TextColor3 = Color3.fromRGB(30, 35, 45)
-shutter.TextSize = 32
+
+-- Camera mode: the shell background goes fully transparent while these opaque
+-- panels rebuild the phone body around a clear window, so the live world fills
+-- the viewfinder edge to edge. Patch frames square off the panel corners that
+-- face the window (UICorner rounds all four).
+local CAMERA_TOP = 96
+local CAMERA_BOTTOM = 150
+local CHROME_COLOR = Color3.fromRGB(8, 9, 13)
+
+local cameraChrome = Instance.new("Frame")
+cameraChrome.Name = "CameraChrome"
+cameraChrome.BackgroundTransparency = 1
+cameraChrome.Size = UDim2.fromScale(1, 1)
+cameraChrome.Visible = false
+cameraChrome.Parent = shell
+
+local function chromePanel(name, anchorY)
+	local panel = Instance.new("Frame")
+	panel.Name = name
+	panel.BackgroundColor3 = CHROME_COLOR
+	panel.BorderSizePixel = 0
+	panel.AnchorPoint = Vector2.new(0, anchorY)
+	panel.Position = UDim2.fromScale(0, anchorY)
+	panel.Size = UDim2.new(1, 0, 0, anchorY == 0 and CAMERA_TOP or CAMERA_BOTTOM)
+	panel.Parent = cameraChrome
+	addCorner(panel, 34)
+	local patch = Instance.new("Frame")
+	patch.Name = "Patch"
+	patch.BackgroundColor3 = CHROME_COLOR
+	patch.BorderSizePixel = 0
+	patch.AnchorPoint = Vector2.new(0, 1 - anchorY)
+	patch.Position = UDim2.fromScale(0, 1 - anchorY)
+	patch.Size = UDim2.new(1, 0, 0, 40)
+	patch.Parent = panel
+	return panel
+end
+
+chromePanel("TopPanel", 0)
+local bottomPanel = chromePanel("BottomPanel", 1)
+
+local cameraWindow = Instance.new("Frame")
+cameraWindow.Name = "Window"
+cameraWindow.BackgroundTransparency = 1
+cameraWindow.Position = UDim2.fromOffset(0, CAMERA_TOP)
+cameraWindow.Size = UDim2.new(1, 0, 1, -(CAMERA_TOP + CAMERA_BOTTOM))
+cameraWindow.Parent = cameraChrome
+
+for index, lineSpec in ipairs({
+	{ UDim2.fromScale(1 / 3, 0), UDim2.new(0, 1, 1, 0) },
+	{ UDim2.fromScale(2 / 3, 0), UDim2.new(0, 1, 1, 0) },
+	{ UDim2.fromScale(0, 1 / 3), UDim2.new(1, 0, 0, 1) },
+	{ UDim2.fromScale(0, 2 / 3), UDim2.new(1, 0, 0, 1) },
+}) do
+	local line = Instance.new("Frame")
+	line.Name = "Grid" .. index
+	line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	line.BackgroundTransparency = 0.86
+	line.BorderSizePixel = 0
+	line.Position = lineSpec[1]
+	line.Size = lineSpec[2]
+	line.Parent = cameraWindow
+end
+
+local zoomBar = Instance.new("Frame")
+zoomBar.Name = "ZoomBar"
+zoomBar.BackgroundTransparency = 1
+zoomBar.AnchorPoint = Vector2.new(0.5, 1)
+zoomBar.Position = UDim2.new(0.5, 0, 1, -10)
+zoomBar.Size = UDim2.fromOffset(160, 30)
+zoomBar.Parent = cameraWindow
+local zoomLayout = listLayout(zoomBar, 8)
+zoomLayout.FillDirection = Enum.FillDirection.Horizontal
+zoomLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local flash = Instance.new("Frame")
+flash.Name = "Flash"
+flash.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+flash.BackgroundTransparency = 1
+flash.BorderSizePixel = 0
+flash.Size = UDim2.fromScale(1, 1)
+flash.Parent = cameraWindow
+
+local galleryThumb = Instance.new("ImageButton")
+galleryThumb.Name = "Gallery"
+galleryThumb.BackgroundColor3 = Color3.fromRGB(22, 27, 38)
+galleryThumb.BorderSizePixel = 0
+galleryThumb.AutoButtonColor = true
+galleryThumb.Position = UDim2.fromOffset(30, 24)
+galleryThumb.Size = UDim2.fromOffset(56, 56)
+galleryThumb.ScaleType = Enum.ScaleType.Crop
+galleryThumb.Parent = bottomPanel
+addCorner(galleryThumb, 14)
+addStroke(galleryThumb, Color3.fromRGB(92, 102, 124), 0.45, 1)
+local galleryPlaceholder = Instance.new("ImageLabel")
+galleryPlaceholder.Name = "Placeholder"
+galleryPlaceholder.AnchorPoint = Vector2.new(0.5, 0.5)
+galleryPlaceholder.Position = UDim2.fromScale(0.5, 0.5)
+galleryPlaceholder.Size = UDim2.fromOffset(30, 30)
+galleryPlaceholder.BackgroundTransparency = 1
+galleryPlaceholder.Image = "rbxassetid://79202041326110"
+galleryPlaceholder.ScaleType = Enum.ScaleType.Fit
+galleryPlaceholder.Parent = galleryThumb
+
+local shutter = button(bottomPanel, "Shutter", "", Color3.fromRGB(235, 238, 245))
+shutter.AnchorPoint = Vector2.new(0.5, 0)
+shutter.Position = UDim2.new(0.5, 0, 0, 18)
+shutter.Size = UDim2.fromOffset(68, 68)
+addCorner(shutter, 34)
 addStroke(shutter, Color3.fromRGB(230, 235, 244), 0.1, 4)
+
+local flipButton = button(bottomPanel, "Flip", "FLIP", Color3.fromRGB(22, 27, 38))
+flipButton.AnchorPoint = Vector2.new(1, 0)
+flipButton.Position = UDim2.new(1, -30, 0, 24)
+flipButton.Size = UDim2.fromOffset(56, 56)
+flipButton.TextSize = 12
+addCorner(flipButton, 28)
+addStroke(flipButton, Color3.fromRGB(92, 102, 124), 0.45, 1)
+
+local shutterSound = Instance.new("Sound")
+shutterSound.Name = "ShutterSound"
+shutterSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+shutterSound.Volume = 0.5
+shutterSound.Parent = screenGui
+
+local cameraModeActive = false
+local selfieActive = false
+local selfieConnection = nil
+local savedCameraType = nil
+local baseFov = 70
+local zoomButtons = {}
+
+local function setZoom(level, instant)
+	for buttonLevel, zoomButton in pairs(zoomButtons) do
+		local selected = buttonLevel == level
+		zoomButton.BackgroundColor3 = selected and COLORS.blue or Color3.fromRGB(15, 18, 26)
+		zoomButton.BackgroundTransparency = selected and 0.1 or 0.35
+	end
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local fov = baseFov / level
+	if instant then
+		camera.FieldOfView = fov
+	else
+		TweenService:Create(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			FieldOfView = fov,
+		}):Play()
+	end
+end
+
+for _, level in ipairs({ 1, 2, 3 }) do
+	local pill = button(zoomBar, "Zoom" .. level, level .. "x", Color3.fromRGB(15, 18, 26))
+	pill.LayoutOrder = level
+	pill.Size = UDim2.fromOffset(44, 30)
+	pill.TextSize = 12
+	addCorner(pill, 15)
+	zoomButtons[level] = pill
+	pill.Activated:Connect(function()
+		setZoom(level)
+	end)
+end
+
+local function setSelfie(on)
+	if selfieActive == on then
+		return
+	end
+	local camera = workspace.CurrentCamera
+	if on and not camera then
+		return
+	end
+	selfieActive = on
+	flipButton.BackgroundColor3 = on and COLORS.blue or Color3.fromRGB(22, 27, 38)
+	if on then
+		savedCameraType = camera.CameraType
+		camera.CameraType = Enum.CameraType.Scriptable
+		selfieConnection = RunService.RenderStepped:Connect(function()
+			local character = player.Character
+			local head = character and character:FindFirstChild("Head")
+			local liveCamera = workspace.CurrentCamera
+			if not (head and liveCamera) then
+				return
+			end
+			local eye = head.Position + head.CFrame.LookVector * 4.5 + Vector3.new(0, 0.5, 0)
+			liveCamera.CFrame = CFrame.lookAt(eye, head.Position + Vector3.new(0, 0.25, 0))
+		end)
+	else
+		if selfieConnection then
+			selfieConnection:Disconnect()
+			selfieConnection = nil
+		end
+		local liveCamera = workspace.CurrentCamera
+		if liveCamera then
+			liveCamera.CameraType = savedCameraType or Enum.CameraType.Custom
+		end
+	end
+end
+
+local function enterCameraMode()
+	if cameraModeActive then
+		return
+	end
+	cameraModeActive = true
+	local camera = workspace.CurrentCamera
+	baseFov = camera and camera.FieldOfView or 70
+	shell.BackgroundTransparency = 1
+	cameraChrome.Visible = true
+	setZoom(1, true)
+end
+
+local function exitCameraMode()
+	if not cameraModeActive then
+		return
+	end
+	cameraModeActive = false
+	setSelfie(false)
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera.FieldOfView = baseFov
+	end
+	shell.BackgroundTransparency = 0
+	cameraChrome.Visible = false
+end
+
+flipButton.Activated:Connect(function()
+	setSelfie(not selfieActive)
+end)
+
+player.CharacterAdded:Connect(function()
+	if selfieActive then
+		setSelfie(false)
+	end
+end)
+
+local function computeCropRect()
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return nil, nil
+	end
+	local viewport = camera.ViewportSize
+	local inset = GuiService:GetGuiInset()
+	local topLeft = cameraWindow.AbsolutePosition + inset
+	local size = cameraWindow.AbsoluteSize
+	local x0 = math.clamp(topLeft.X, 0, viewport.X)
+	local y0 = math.clamp(topLeft.Y, 0, viewport.Y)
+	local x1 = math.clamp(topLeft.X + size.X, 0, viewport.X)
+	local y1 = math.clamp(topLeft.Y + size.Y, 0, viewport.Y)
+	if x1 - x0 < 8 or y1 - y0 < 8 then
+		return nil, nil
+	end
+	return Vector2.new(x0, y0), Vector2.new(x1 - x0, y1 - y0)
+end
+
+-- Captures are always the full screen; the stored crop rect trims the display
+-- back to exactly what the viewfinder window framed. Gallery saves keep the
+-- full uncropped shot.
+local function applyPhotoImage(image, photo)
+	local ok = pcall(function()
+		image.ImageContent = Content.fromObject(photo.object)
+	end)
+	if ok and photo.cropOffset and photo.cropSize then
+		image.ImageRectOffset = photo.cropOffset
+		image.ImageRectSize = photo.cropSize
+	else
+		image.ImageRectOffset = Vector2.zero
+		image.ImageRectSize = Vector2.zero
+	end
+	return ok
+end
+
+local function updateGalleryThumb()
+	local latest = captures[1]
+	if latest and applyPhotoImage(galleryThumb, latest) then
+		galleryPlaceholder.Visible = false
+	else
+		pcall(function()
+			galleryThumb.ImageContent = Content.none
+		end)
+		galleryThumb.ImageRectOffset = Vector2.zero
+		galleryThumb.ImageRectSize = Vector2.zero
+		galleryPlaceholder.Visible = true
+	end
+end
+
+local function playCaptureFeedback()
+	flash.BackgroundTransparency = 0.15
+	TweenService:Create(flash, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+	if settings.sounds then
+		shutterSound:Play()
+	end
+end
+
+galleryThumb.Activated:Connect(function()
+	navigate("photos")
+end)
 
 addHeader(photosScreen, "Photos")
 local photoList = Instance.new("ScrollingFrame")
@@ -361,6 +640,13 @@ local photoGrid = Instance.new("UIGridLayout")
 photoGrid.CellPadding = UDim2.fromOffset(7, 7)
 photoGrid.CellSize = UDim2.new(0.5, -4, 0, 155)
 photoGrid.Parent = photoList
+local photosEmpty =
+	label(photosScreen, "Empty", "No photos yet — open the Camera and take some.", 13, COLORS.muted, Enum.Font.GothamMedium)
+photosEmpty.Position = UDim2.fromOffset(10, 70)
+photosEmpty.Size = UDim2.new(1, -20, 0, 40)
+photosEmpty.TextXAlignment = Enum.TextXAlignment.Center
+photosEmpty.TextWrapped = true
+photosEmpty.Visible = false
 
 addHeader(socialScreen, "StudSpace")
 local socialTag =
@@ -487,7 +773,7 @@ soundButton.Size = UDim2.new(1, -10, 0, 52)
 local privacyCopy = label(
 	settingsScreen,
 	"Privacy",
-	"Messages and StudSpace use Roblox TextChatService. Calls require Roblox voice eligibility and compatible communication groups. Camera saves use the native Captures gallery.",
+	"Messages and StudSpace use Roblox TextChatService. Calls require Roblox voice eligibility and compatible communication groups. Camera saves use the native Captures gallery and keep the full screenshot.",
 	13,
 	COLORS.muted,
 	Enum.Font.Gotham
@@ -718,9 +1004,87 @@ local function renderSocial()
 	end
 end
 
-local function renderPhotos()
+local photoViewer = Instance.new("Frame")
+photoViewer.Name = "PhotoViewer"
+photoViewer.BackgroundColor3 = Color3.fromRGB(6, 8, 14)
+photoViewer.Position = UDim2.fromOffset(0, 40)
+photoViewer.Size = UDim2.new(1, 0, 1, -40)
+photoViewer.Visible = false
+photoViewer.ZIndex = 39
+photoViewer.Parent = shell
+local viewerCaption = label(photoViewer, "Caption", "", 13, COLORS.muted, Enum.Font.GothamMedium)
+viewerCaption.Position = UDim2.fromOffset(16, 10)
+viewerCaption.Size = UDim2.new(1, -70, 0, 36)
+local viewerClose = button(photoViewer, "Close", "×", COLORS.panel2)
+viewerClose.AnchorPoint = Vector2.new(1, 0)
+viewerClose.Position = UDim2.new(1, -12, 0, 8)
+viewerClose.Size = UDim2.fromOffset(36, 36)
+viewerClose.TextSize = 20
+local viewerImage = Instance.new("ImageLabel")
+viewerImage.Name = "Photo"
+viewerImage.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+viewerImage.BorderSizePixel = 0
+viewerImage.Position = UDim2.fromOffset(12, 52)
+viewerImage.Size = UDim2.new(1, -24, 1, -140)
+viewerImage.ScaleType = Enum.ScaleType.Fit
+viewerImage.Parent = photoViewer
+addCorner(viewerImage, 14)
+local viewerSave = button(photoViewer, "Save", "Save to Roblox", COLORS.blue)
+viewerSave.AnchorPoint = Vector2.new(0, 1)
+viewerSave.Position = UDim2.new(0, 16, 1, -16)
+viewerSave.Size = UDim2.new(0.5, -24, 0, 52)
+local viewerDelete = button(photoViewer, "Delete", "Delete", COLORS.red)
+viewerDelete.AnchorPoint = Vector2.new(1, 1)
+viewerDelete.Position = UDim2.new(1, -16, 1, -16)
+viewerDelete.Size = UDim2.new(0.5, -24, 0, 52)
+
+local viewerCapture = nil
+local renderPhotos
+local function closePhotoViewer()
+	viewerCapture = nil
+	photoViewer.Visible = false
+end
+local function openPhotoViewer(photo)
+	viewerCapture = photo
+	applyPhotoImage(viewerImage, photo)
+	viewerCaption.Text = photo.takenAt and os.date("%b %d  %I:%M %p", photo.takenAt) or ""
+	photoViewer.Visible = true
+end
+viewerClose.Activated:Connect(closePhotoViewer)
+viewerSave.Activated:Connect(function()
+	local photo = viewerCapture
+	if not photo then
+		return
+	end
+	local ok, err = pcall(function()
+		CaptureService:PromptSaveCapturesToGallery({ photo.object }, function(results)
+			if results and results[photo.object] then
+				showToast("Saved to Roblox Captures")
+			end
+		end)
+	end)
+	if not ok then
+		showToast("This device could not open the Captures prompt: " .. tostring(err), true)
+	end
+end)
+viewerDelete.Activated:Connect(function()
+	local photo = viewerCapture
+	if not photo then
+		return
+	end
+	local index = table.find(captures, photo)
+	if index then
+		table.remove(captures, index)
+	end
+	closePhotoViewer()
+	updateGalleryThumb()
+	renderPhotos()
+end)
+
+renderPhotos = function()
 	clearGenerated(photoList)
-	for index, capture in ipairs(captures) do
+	photosEmpty.Visible = #captures == 0
+	for index, photo in ipairs(captures) do
 		local tile = Instance.new("ImageButton")
 		tile.Name = "Photo" .. index
 		tile.BackgroundColor3 = COLORS.panel2
@@ -729,20 +1093,9 @@ local function renderPhotos()
 		tile.ScaleType = Enum.ScaleType.Crop
 		tile.Parent = photoList
 		addCorner(tile, 12)
-		pcall(function()
-			tile.ImageContent = Content.fromObject(capture.object)
-		end)
+		applyPhotoImage(tile, photo)
 		tile.Activated:Connect(function()
-			local ok, err = pcall(function()
-				CaptureService:PromptSaveCapturesToGallery({ capture.object }, function(results)
-					if results and results[capture.object] then
-						showToast("Saved to Roblox Captures")
-					end
-				end)
-			end)
-			if not ok then
-				showToast("This device could not open the Captures prompt: " .. tostring(err), true)
-			end
+			openPhotoViewer(photo)
 		end)
 	end
 end
@@ -762,7 +1115,12 @@ navigate = function(name)
 		return
 	end
 	currentScreen = name
-	shell.BackgroundTransparency = name == "camera" and 0.82 or 0
+	closePhotoViewer()
+	if name == "camera" then
+		enterCameraMode()
+	else
+		exitCameraMode()
+	end
 	for screenName, frame in pairs(screens) do
 		frame.Visible = screenName == name
 	end
@@ -916,20 +1274,25 @@ shutter.Activated:Connect(function()
 		return
 	end
 	captureBusy = true
-	viewfinderText.Text = "Capturing…"
+	local cropOffset, cropSize = computeCropRect()
+	playCaptureFeedback()
 	local started, startErr = pcall(function()
 		CaptureService:TakeScreenshotCaptureAsync(function(result, capture)
 			-- Keep this callback deliberately tiny: engine builds in early 2026 could
 			-- terminate the client if user callback code itself threw an error.
 			task.defer(function()
 				captureBusy = false
-				viewfinderText.Text = "The game camera is your viewfinder"
 				if result == Enum.ScreenshotCaptureResult.Success and capture then
-					table.insert(captures, 1, { object = capture, takenAt = os.time() })
+					table.insert(captures, 1, {
+						object = capture,
+						takenAt = os.time(),
+						cropOffset = cropOffset,
+						cropSize = cropSize,
+					})
 					while #captures > 24 do
 						table.remove(captures)
 					end
-					showToast("Photo captured — tap it in Photos to save")
+					updateGalleryThumb()
 				else
 					showToast("Roblox could not capture this photo.", true)
 				end
@@ -938,7 +1301,6 @@ shutter.Activated:Connect(function()
 	end)
 	if not started then
 		captureBusy = false
-		viewfinderText.Text = "The game camera is your viewfinder"
 		showToast("Camera unavailable: " .. tostring(startErr), true)
 	end
 end)
@@ -968,6 +1330,10 @@ end)
 local function setPhoneOpen(open)
 	phoneOpen = open
 	screenGui.Enabled = open or currentCall ~= nil
+	if not open then
+		exitCameraMode()
+		closePhotoViewer()
+	end
 	if open and not currentCall then
 		navigate(currentScreen or "home")
 	end
