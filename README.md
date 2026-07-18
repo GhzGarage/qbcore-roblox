@@ -21,6 +21,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Synced Roblox-native weather with clouds/fog/rain/thunder/snow presets and blackout.
 - Proximity-prompt personal/society banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
 - Standalone job/crew management with rosters, nearby hiring, grades, removal, offline queues, and shared funds.
+- Inventory-opened StudOS smartphone with Roblox-filtered messaging, eligible voice calls, StudSpace social posts, and native captures.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
 
@@ -67,6 +68,7 @@ src/
       ManagementService.lua -- job/crew rosters, hiring, grades, and shared funds
       WeatherService.lua   -- synced weather cycling and tagged-light blackout
       StageMusicService.lua -- proximity speaker playback and Creator Store search
+      PhoneService.lua    -- item access, private text channels, voice-call routing, and phone profile state
   StarterPlayer/StarterPlayerScripts/
     QBCoreClient.client.lua -- character select/create/delete UI
     QBAppearance.client.lua -- appearance/shop editor and outfit manager
@@ -85,6 +87,7 @@ src/
     QBTimeCycle.client.lua  -- time-of-day visual grading
     QBWeather.client.lua    -- local precipitation and lightning visuals
     QBWeaponAmmo.client.lua -- local ammo/reload affordances
+    QBPhone.client.lua    -- StudOS phone, messages, calls, camera/photos, StudSpace, tools, and settings
 ```
 
 Naming convention: `<Name>.server.lua` becomes a Script, `<Name>.client.lua` a
@@ -122,6 +125,42 @@ DataStores do not work in Studio Play mode by default. Enable:
 ```text
 Game Settings -> Security -> Enable Studio Access to API Services
 ```
+
+## Smartphone Setup
+
+New characters receive one unique `phone` in starter inventory slot 3. Existing
+characters receive one on their next load if they have an empty inventory slot.
+The migration is recorded once, so a deliberately lost phone is not recreated.
+There is no dedicated phone key: click/use its inventory or hotbar slot to open StudOS.
+Every server request checks that the character still owns the item.
+
+Messaging and StudSpace posts use `TextChannel:SendAsync`, allowing Roblox to
+filter delivery for each receiver. Private channels are created only after
+`TextChatService:CanUsersDirectChatAsync` approves the two same-server players.
+
+Calls are same-server Roblox voice calls. Configure the published experience in
+Studio before testing them:
+
+```text
+Experience Settings -> Communication -> Enable Microphone
+Experience Settings -> Communication -> Chat & Voice Groups APIs
+VoiceChatService.UseAudioApi = Enabled
+```
+
+Agree to the Roblox Chat & Voice Groups terms when prompted. Group APIs can only
+be exercised in Studio Team Test; a normal solo Play test will report that voice
+group checks are unavailable. Both players must also be voice-enabled and in a
+compatible Roblox communication group. The phone connects each eligible
+`AudioDeviceInput` to an `AudioDeviceOutput` targeted only at the other caller.
+
+The Camera app uses `CaptureService:TakeScreenshotCaptureAsync` with phone UI
+excluded. Captures remain in the current session until the user taps a thumbnail
+in Photos and accepts Roblox's native save-to-Captures prompt. This intentionally
+does not pretend capture objects can be persisted in character DataStores.
+
+StudOS keeps only feasible settings: Do Not Disturb and phone sounds. Device
+frame colors are omitted because the phone is a native GUI rather than a
+persistent physical case asset.
 
 If Studio starts showing duplicate QBCore/QBShared objects:
 

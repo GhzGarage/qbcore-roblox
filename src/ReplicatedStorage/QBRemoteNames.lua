@@ -18,6 +18,8 @@ return {
 		"OpenManagement", -- server -> client: ({ locationId }) open boss/crew management
 		"OpenEmoteMenu", -- server -> client: () open the native emote menu
 		"OpenStageMusicMenu", -- server -> client: (station snapshot) open the stage music menu
+		"OpenPhone", -- server -> client: (phone snapshot) open from the inventory phone item
+		"PhonePush", -- server -> client: (action, payload) incoming calls and phone state
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
 		"WeatherStateUpdated", -- server -> client: (weather snapshot) authoritative weather/blackout state
 	},
@@ -45,5 +47,7 @@ return {
 		"GetManagement", -- client -> server: (access) -> authorized organization snapshot
 		"ManagementAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 		"OpenManagementWardrobe", -- client -> server: (management access) -> boolean, errorMessage?
+		"GetPhoneSnapshot", -- client -> server: () -> phone profile and online contacts
+		"PhoneRequest", -- client -> server: (action, payload) -> boolean, resultOrError
 	},
 }

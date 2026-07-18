@@ -111,6 +111,19 @@ return {
 		description = "A personal bank card used to access ATMs.",
 	},
 
+	phone = {
+		name = "phone",
+		label = "Smartphone",
+		weight = 190,
+		type = "item",
+		image = "",
+		unique = true,
+		useable = true,
+		shouldClose = true,
+		removeOnUse = false,
+		description = "A StudOS smartphone. Use this item to open it.",
+	},
+
 	-- Ammo items: one item is one bullet. A weapon lists which item it reloads
 	-- from via weapon.ammoItem; reload pulls from these and is refused without them.
 	pistol_ammo = {

@@ -594,6 +594,7 @@ function PlayerService.SelectCharacter(player, citizenId)
 
 	ProfileStore.Reconcile(stored, QBShared.Config.Player.CharacterDefaults)
 	InventoryService.ReconcilePlayerData(stored)
+	stored.citizenid = citizenId
 	stored.name = player.DisplayName
 
 	local playerObj = PlayerClass.new(
@@ -664,6 +665,7 @@ function PlayerService.CreateCharacter(player, firstname, lastname)
 	profile.Data.nextCid = cid + 1
 
 	local data = buildCharacterDefaults(cid, player.DisplayName)
+	data.citizenid = citizenId
 	data.charinfo.firstname = firstname
 	data.charinfo.lastname = lastname
 	InventoryService.SeedStarterItems(data)

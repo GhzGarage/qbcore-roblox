@@ -434,6 +434,7 @@ Config.Inventory = {
 	StarterItems = {
 		{ name = "sandwich", amount = 2, slot = 1 },
 		{ name = "water_bottle", amount = 2, slot = 2 },
+		{ name = "phone", amount = 1, slot = 3 },
 	},
 }
 
@@ -615,6 +616,12 @@ Config.Player = {
 			birthdate = "00-00-0000",
 			gender = 0,
 			nationality = "USA",
+			phone = "",
+		},
+		phone = {
+			starterGranted = false,
+			settings = { dnd = false, sounds = true },
+			callHistory = {},
 		},
 		job = {
 			name = "unemployed",

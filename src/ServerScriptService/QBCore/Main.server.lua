@@ -38,12 +38,14 @@ local StageMusicService = requireLocalModule("StageMusicService")
 local AdminService = requireLocalModule("AdminService")
 local PaycheckService = requireLocalModule("PaycheckService")
 local BankingService = requireLocalModule("BankingService")
+local PhoneService = requireLocalModule("PhoneService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
 
 PlayerService.StartStatusLoop()
 AppearanceService.Start(PlayerService)
 BankingService.Start()
+PhoneService.Start(InventoryService, PlayerService)
 ManagementService.Start(BankingService, AppearanceService)
 PaycheckService.SetSocietyFundsProvider(BankingService.WithdrawSocietyFunds)
 PaycheckService.Start()
@@ -80,6 +82,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
+	PhoneService.OnPlayerLeave(player)
 	AppearanceService.OnPlayerLeave(player)
 	PlayerService.OnPlayerLeave(player)
 end)
@@ -103,6 +106,7 @@ Remotes.SelectCharacter.OnServerInvoke = function(player, citizenId)
 	if ok then
 		BankingService.DeliverPendingTransfers(player, PlayerService.GetPlayer(player.UserId))
 		ManagementService.OnCharacterLoaded(player, PlayerService.GetPlayer(player.UserId))
+		PhoneService.OnCharacterLoaded(player, PlayerService.GetPlayer(player.UserId))
 	end
 	return ok, err
 end

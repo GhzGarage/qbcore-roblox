@@ -64,6 +64,9 @@
         "QBManagement": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBManagement.client.lua"
         },
+        "QBPhone": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBPhone.client.lua"
+        },
         "QBAdmin": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBAdmin.client.lua"
         },
