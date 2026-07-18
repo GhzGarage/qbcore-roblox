@@ -19,6 +19,7 @@ local QBShared = require(ReplicatedStorage.QBShared.Main)
 local InventoryService = {}
 
 local useableHandlers = {}
+local externalProviders = {}
 local playerService = nil
 
 local DEFAULT_GIVE_DISTANCE = 10
@@ -527,6 +528,67 @@ function InventoryService.GetSnapshot(playerObj)
 	}
 end
 
+-- External inventories (shops now; stashes, trunks, and gloveboxes later) register
+-- through this small provider contract so the client always receives the same
+-- two-pane shape. Providers must revalidate access on every snapshot and action.
+function InventoryService.RegisterExternalProvider(kind, provider)
+	if type(kind) ~= "string" or kind == "" then
+		error("External inventory providers need a non-empty kind.", 2)
+	end
+	if type(provider) ~= "table" or type(provider.GetSnapshot) ~= "function" then
+		error(("External inventory provider %s needs GetSnapshot."):format(kind), 2)
+	end
+	externalProviders[kind] = provider
+end
+
+function InventoryService.GetOpenSnapshot(playerObj, player, access)
+	local snapshot = InventoryService.GetSnapshot(playerObj)
+	if not snapshot or access == nil then
+		return snapshot
+	end
+	if type(access) ~= "table" or type(access.type) ~= "string" then
+		return nil, "Invalid external inventory."
+	end
+
+	local provider = externalProviders[access.type]
+	if not provider then
+		return nil, "That inventory type is unavailable."
+	end
+
+	local other, normalizedAccess, err = provider.GetSnapshot(player, playerObj, access)
+	if not other then
+		return nil, err or "That inventory is unavailable."
+	end
+
+	snapshot.other = other
+	snapshot.access = normalizedAccess or access
+	return snapshot
+end
+
+function InventoryService.HandleExternalAction(playerObj, player, action, payload)
+	payload = type(payload) == "table" and payload or {}
+	local access = payload.access
+	if type(action) ~= "string" or type(access) ~= "table" or type(access.type) ~= "string" then
+		return false, "Invalid inventory action."
+	end
+
+	local provider = externalProviders[access.type]
+	if not provider or type(provider.HandleAction) ~= "function" then
+		return false, "That inventory does not support this action."
+	end
+	return provider.HandleAction(player, playerObj, action, payload)
+end
+
+function InventoryService.CloseExternal(playerObj, player, access)
+	if type(access) ~= "table" or type(access.type) ~= "string" then
+		return
+	end
+	local provider = externalProviders[access.type]
+	if provider and type(provider.Close) == "function" then
+		provider.Close(player, playerObj, access)
+	end
+end
+
 function InventoryService.CanAddItem(playerObj, itemName, amount, slot, info)
 	if not playerObj then
 		return false, "Character not loaded."
@@ -752,7 +814,8 @@ function InventoryService.GiveSlot(playerObj, slot)
 
 	local added, addErr = InventoryService.AddItem(target.playerObj, definition.name, amount, nil, info, "give-item")
 	if not added then
-		local rolledBack, rollbackErr = InventoryService.AddItem(playerObj, definition.name, amount, slot, info, "give-item-rollback")
+		local rolledBack, rollbackErr =
+			InventoryService.AddItem(playerObj, definition.name, amount, slot, info, "give-item-rollback")
 		if not rolledBack then
 			warn(
 				("[QBCore.InventoryService] Failed to roll back give of %s from %s: %s"):format(

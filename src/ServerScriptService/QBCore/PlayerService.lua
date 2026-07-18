@@ -693,6 +693,7 @@ function PlayerService.DeleteCharacter(player, citizenId)
 		return false, "That character is currently loaded."
 	end
 
+	AppearanceService.DeleteOutfitCodes(profile.Data.characters[citizenId])
 	profile.Data.characters[citizenId] = nil
 	profile:Save()
 

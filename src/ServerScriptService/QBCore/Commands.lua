@@ -29,6 +29,7 @@ local WeatherService = requireSiblingModule("WeatherService")
 local StageMusicService = requireSiblingModule("StageMusicService")
 
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBShared = require(ReplicatedStorage.QBShared.Main)
 local notify = CommandService.Notify
 
 local Commands = {}
@@ -111,7 +112,11 @@ function Commands.Register()
 	CommandService.Add("appearance", "Edit this character's appearance", {}, false, function(player)
 		local playerObj = getOwnPlayerObj(player)
 		if playerObj then
-			AppearanceService.OpenEditor(player, playerObj, false)
+			if QBShared.Config.Appearance.AllowFullEditorCommand ~= false then
+				AppearanceService.OpenEditor(player, playerObj, false)
+			else
+				playerObj:Notify("Visit a clothing, accessory, barber, or outfit shop.", "primary", 5000)
+			end
 		end
 	end, "user", "outfit")
 
@@ -121,25 +126,37 @@ function Commands.Register()
 		end
 	end)
 
-	CommandService.Add("music", "Open the closest stage music menu or search Creator Store audio", {
-		{ name = "query", help = "search terms (optional)" },
-	}, false, function(player, args)
-		if getOwnPlayerObj(player) then
-			if #args > 0 then
-				StageMusicService.OpenSearchMenuFor(player, table.concat(args, " "))
-			else
-				StageMusicService.OpenMenuFor(player)
+	CommandService.Add(
+		"music",
+		"Open the closest stage music menu or search Creator Store audio",
+		{
+			{ name = "query", help = "search terms (optional)" },
+		},
+		false,
+		function(player, args)
+			if getOwnPlayerObj(player) then
+				if #args > 0 then
+					StageMusicService.OpenSearchMenuFor(player, table.concat(args, " "))
+				else
+					StageMusicService.OpenMenuFor(player)
+				end
 			end
 		end
-	end)
+	)
 
-	CommandService.Add("musicsearch", "Search Creator Store audio for the closest stage", {
-		{ name = "query", help = "search terms" },
-	}, true, function(player, args)
-		if getOwnPlayerObj(player) then
-			StageMusicService.OpenSearchMenuFor(player, table.concat(args, " "))
+	CommandService.Add(
+		"musicsearch",
+		"Search Creator Store audio for the closest stage",
+		{
+			{ name = "query", help = "search terms" },
+		},
+		true,
+		function(player, args)
+			if getOwnPlayerObj(player) then
+				StageMusicService.OpenSearchMenuFor(player, table.concat(args, " "))
+			end
 		end
-	end)
+	)
 
 	CommandService.Add("job", "Show your current job", {}, false, function(player)
 		local playerObj = getOwnPlayerObj(player)
@@ -255,7 +272,11 @@ function Commands.Register()
 				notify(player, ("Unknown crew %q."):format(args[2]))
 				return
 			end
-			notify(player, ("Set %s's crew to %s."):format(target.DisplayName, targetObj.PlayerData.crew.label), "success")
+			notify(
+				player,
+				("Set %s's crew to %s."):format(target.DisplayName, targetObj.PlayerData.crew.label),
+				"success"
+			)
 			targetObj:Notify(("Your crew is now %s."):format(targetObj.PlayerData.crew.label), "primary", 5000)
 		end,
 		"admin"
@@ -369,11 +390,7 @@ function Commands.Register()
 				return
 			end
 
-			notify(
-				player,
-				("Spawned %s (%s)."):format(definitionOrErr.label or definitionOrErr.name, plate),
-				"success"
-			)
+			notify(player, ("Spawned %s (%s)."):format(definitionOrErr.label or definitionOrErr.name, plate), "success")
 		end,
 		"admin"
 	)

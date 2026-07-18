@@ -26,6 +26,7 @@ local AppearanceService = requireLocalModule("AppearanceService")
 local TimeSyncService = requireLocalModule("TimeSyncService")
 local Commands = requireLocalModule("Commands")
 local InventoryService = requireLocalModule("InventoryService")
+local ShopService = requireLocalModule("ShopService")
 local MedicalService = requireLocalModule("MedicalService")
 local WeaponService = requireLocalModule("WeaponService")
 local VehicleService = requireLocalModule("VehicleService")
@@ -38,10 +39,12 @@ local AdminService = requireLocalModule("AdminService")
 local PaycheckService = requireLocalModule("PaycheckService")
 local BankingService = requireLocalModule("BankingService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBShared = require(ReplicatedStorage.QBShared.Main)
 
 PlayerService.StartStatusLoop()
+AppearanceService.Start(PlayerService)
 BankingService.Start()
-ManagementService.Start(BankingService)
+ManagementService.Start(BankingService, AppearanceService)
 PaycheckService.SetSocietyFundsProvider(BankingService.WithdrawSocietyFunds)
 PaycheckService.Start()
 PlayerService.ApplyWorldEnvironment()
@@ -49,6 +52,7 @@ TimeSyncService.Start()
 WeatherService.Start()
 MedicalService.Start(InventoryService)
 WeaponService.Start(InventoryService)
+ShopService.Start(InventoryService)
 VehicleService.Start()
 VehicleShopService.Start(VehicleService)
 GarageService.Start(VehicleService)
@@ -122,8 +126,10 @@ end
 
 Remotes.RequestAppearanceEditor.OnServerEvent:Connect(function(player)
 	local playerObj = PlayerService.GetPlayer(player.UserId)
-	if playerObj then
+	if playerObj and QBShared.Config.Appearance.AllowFullEditorCommand ~= false then
 		AppearanceService.OpenEditor(player, playerObj, false)
+	elseif playerObj then
+		playerObj:Notify("Visit a clothing, accessory, barber, or outfit shop.", "primary", 5000)
 	end
 end)
 
@@ -145,13 +151,25 @@ end
 
 -- Inventory remotes. The server owns all mutations; the client only asks for slot actions.
 
-Remotes.GetInventory.OnServerInvoke = function(player)
+Remotes.GetInventory.OnServerInvoke = function(player, access)
 	local playerObj = PlayerService.GetPlayer(player.UserId)
 	if not playerObj then
 		return nil, "Character not loaded."
 	end
-	return InventoryService.GetSnapshot(playerObj)
+	return InventoryService.GetOpenSnapshot(playerObj, player, access)
 end
+
+Remotes.InventoryAction.OnServerInvoke = function(player, action, payload)
+	local playerObj = PlayerService.GetPlayer(player.UserId)
+	if not playerObj then
+		return false, "Character not loaded."
+	end
+	return InventoryService.HandleExternalAction(playerObj, player, action, payload)
+end
+
+Remotes.CloseInventory.OnServerEvent:Connect(function(player, access)
+	InventoryService.CloseExternal(PlayerService.GetPlayer(player.UserId), player, access)
+end)
 
 Remotes.MoveInventoryItem.OnServerInvoke = function(player, fromSlot, toSlot)
 	local playerObj = PlayerService.GetPlayer(player.UserId)

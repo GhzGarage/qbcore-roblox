@@ -12,13 +12,20 @@ local Remotes = require(ReplicatedStorage.QBRemotes)
 local player = Players.LocalPlayer
 
 local COLORS = {
-	page = Color3.fromRGB(10, 13, 18), shell = Color3.fromRGB(25, 31, 39),
-	panel = Color3.fromRGB(32, 39, 49), panelSoft = Color3.fromRGB(38, 46, 58),
-	input = Color3.fromRGB(19, 24, 31), stroke = Color3.fromRGB(73, 87, 104),
-	strokeSoft = Color3.fromRGB(57, 69, 84), text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(157, 170, 184), green = Color3.fromRGB(65, 172, 110),
-	blue = Color3.fromRGB(74, 143, 216), blueDark = Color3.fromRGB(48, 99, 157),
-	gold = Color3.fromRGB(229, 181, 77), red = Color3.fromRGB(202, 79, 83),
+	page = Color3.fromRGB(10, 13, 18),
+	shell = Color3.fromRGB(25, 31, 39),
+	panel = Color3.fromRGB(32, 39, 49),
+	panelSoft = Color3.fromRGB(38, 46, 58),
+	input = Color3.fromRGB(19, 24, 31),
+	stroke = Color3.fromRGB(73, 87, 104),
+	strokeSoft = Color3.fromRGB(57, 69, 84),
+	text = Color3.fromRGB(240, 244, 248),
+	muted = Color3.fromRGB(157, 170, 184),
+	green = Color3.fromRGB(65, 172, 110),
+	blue = Color3.fromRGB(74, 143, 216),
+	blueDark = Color3.fromRGB(48, 99, 157),
+	gold = Color3.fromRGB(229, 181, 77),
+	red = Color3.fromRGB(202, 79, 83),
 	disabled = Color3.fromRGB(79, 89, 101),
 }
 
@@ -108,7 +115,9 @@ local function formatMoney(value)
 	while true do
 		local nextFormatted, replacements = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
 		formatted = nextFormatted
-		if replacements == 0 then break end
+		if replacements == 0 then
+			break
+		end
 	end
 	return "$" .. formatted
 end
@@ -161,7 +170,14 @@ eyebrow.Size = UDim2.new(1, -60, 0, 17)
 local titleLabel = makeLabel(header, "Title", "Organization Management", 25, COLORS.text, Enum.Font.GothamBold)
 titleLabel.Position = UDim2.fromOffset(0, 16)
 titleLabel.Size = UDim2.new(0.62, 0, 0, 31)
-local subtitleLabel = makeLabel(header, "Subtitle", "Employees, grades, recruitment, and shared funds.", 12, COLORS.muted, Enum.Font.GothamMedium)
+local subtitleLabel = makeLabel(
+	header,
+	"Subtitle",
+	"Employees, grades, recruitment, and shared funds.",
+	12,
+	COLORS.muted,
+	Enum.Font.GothamMedium
+)
 subtitleLabel.Position = UDim2.fromOffset(0, 47)
 subtitleLabel.Size = UDim2.new(0.7, 0, 0, 18)
 local balanceLabel = makeLabel(header, "Balance", "$0", 22, COLORS.green, Enum.Font.GothamBold)
@@ -272,7 +288,8 @@ detailEyebrow.Size = UDim2.new(1, -40, 0, 18)
 local detailName = makeLabel(memberDetail, "Name", "Choose a roster member", 21, COLORS.text, Enum.Font.GothamBold)
 detailName.Position = UDim2.fromOffset(20, 38)
 detailName.Size = UDim2.new(1, -40, 0, 30)
-local detailMeta = makeLabel(memberDetail, "Meta", "Grade controls appear here.", 12, COLORS.muted, Enum.Font.GothamMedium)
+local detailMeta =
+	makeLabel(memberDetail, "Meta", "Grade controls appear here.", 12, COLORS.muted, Enum.Font.GothamMedium)
 detailMeta.Position = UDim2.fromOffset(20, 70)
 detailMeta.Size = UDim2.new(1, -40, 0, 20)
 local gradeHeading = makeLabel(memberDetail, "GradeHeading", "ASSIGN GRADE", 11, COLORS.muted, Enum.Font.GothamBold)
@@ -305,7 +322,14 @@ addStroke(hirePanel, COLORS.strokeSoft, 0.2, 1)
 local hireHeading = makeLabel(hirePanel, "Heading", "NEARBY CITIZENS", 11, COLORS.muted, Enum.Font.GothamBold)
 hireHeading.Position = UDim2.fromOffset(18, 14)
 hireHeading.Size = UDim2.new(1, -36, 0, 20)
-local hireHint = makeLabel(hirePanel, "Hint", "Only loaded characters within the configured hiring distance appear.", 12, COLORS.muted, Enum.Font.GothamMedium)
+local hireHint = makeLabel(
+	hirePanel,
+	"Hint",
+	"Only loaded characters within the configured hiring distance appear.",
+	12,
+	COLORS.muted,
+	Enum.Font.GothamMedium
+)
 hireHint.Position = UDim2.fromOffset(18, 35)
 hireHint.Size = UDim2.new(1, -36, 0, 20)
 local hireList = Instance.new("ScrollingFrame")
@@ -331,7 +355,8 @@ fundsPanel.Size = UDim2.fromOffset(520, 330)
 fundsPanel.Parent = fundsPage
 addCorner(fundsPanel, 9)
 addStroke(fundsPanel, COLORS.strokeSoft, 0.2, 1)
-local fundsHeading = makeLabel(fundsPanel, "Heading", "SHARED ORGANIZATION ACCOUNT", 11, COLORS.muted, Enum.Font.GothamBold)
+local fundsHeading =
+	makeLabel(fundsPanel, "Heading", "SHARED ORGANIZATION ACCOUNT", 11, COLORS.muted, Enum.Font.GothamBold)
 fundsHeading.Position = UDim2.fromOffset(24, 22)
 fundsHeading.Size = UDim2.new(1, -48, 0, 18)
 local fundsBalance = makeLabel(fundsPanel, "Balance", "$0", 34, COLORS.green, Enum.Font.GothamBold)
@@ -349,7 +374,14 @@ depositButton.Size = UDim2.new(0.5, -30, 0, 44)
 local withdrawButton = makeButton(fundsPanel, "Withdraw", "Withdraw Cash", COLORS.blueDark)
 withdrawButton.Position = UDim2.new(0.5, 6, 0, 199)
 withdrawButton.Size = UDim2.new(0.5, -30, 0, 44)
-local fundsHint = makeLabel(fundsPanel, "Hint", "All transactions are recorded by the banking service.", 11, COLORS.muted, Enum.Font.GothamMedium)
+local fundsHint = makeLabel(
+	fundsPanel,
+	"Hint",
+	"All transactions are recorded by the banking service.",
+	11,
+	COLORS.muted,
+	Enum.Font.GothamMedium
+)
 fundsHint.Position = UDim2.fromOffset(24, 264)
 fundsHint.Size = UDim2.new(1, -48, 0, 20)
 fundsHint.TextXAlignment = Enum.TextXAlignment.Center
@@ -363,13 +395,17 @@ end
 
 local function clearContainer(container, keepLayout)
 	for _, child in ipairs(container:GetChildren()) do
-		if child ~= keepLayout then child:Destroy() end
+		if child ~= keepLayout then
+			child:Destroy()
+		end
 	end
 end
 
 local function selectedMember()
 	for _, member in ipairs(snapshot and snapshot.members or {}) do
-		if member.citizenId == selectedCitizenId then return member end
+		if member.citizenId == selectedCitizenId then
+			return member
+		end
 	end
 	return nil
 end
@@ -382,7 +418,9 @@ local function setBusy(value)
 end
 
 local function performAction(action, payload)
-	if busy then return end
+	if busy then
+		return
+	end
 	setBusy(true)
 	payload = type(payload) == "table" and payload or {}
 	payload.access = accessContext
@@ -394,7 +432,9 @@ local function performAction(action, payload)
 	end
 	snapshot = result.snapshot
 	setStatus(result.message or "Action completed.", COLORS.green)
-	if selectedCitizenId and not selectedMember() then selectedCitizenId = nil end
+	if selectedCitizenId and not selectedMember() then
+		selectedCitizenId = nil
+	end
 	renderAll()
 end
 
@@ -410,7 +450,12 @@ end
 local function renderMembers()
 	clearContainer(memberList, memberLayout)
 	for _, member in ipairs(snapshot and snapshot.members or {}) do
-		local button = makeButton(memberList, "Member_" .. member.citizenId, "", member.citizenId == selectedCitizenId and COLORS.blueDark or COLORS.panelSoft)
+		local button = makeButton(
+			memberList,
+			"Member_" .. member.citizenId,
+			"",
+			member.citizenId == selectedCitizenId and COLORS.blueDark or COLORS.panelSoft
+		)
 		button.Size = UDim2.new(1, -5, 0, 58)
 		button.Text = ""
 		local dot = Instance.new("Frame")
@@ -423,7 +468,14 @@ local function renderMembers()
 		local name = makeLabel(button, "Name", member.name, 13, COLORS.text, Enum.Font.GothamBold)
 		name.Position = UDim2.fromOffset(30, 7)
 		name.Size = UDim2.new(1, -42, 0, 23)
-		local meta = makeLabel(button, "Meta", ("%s  |  %s"):format(member.gradeName, member.online and "Online" or "Offline"), 11, COLORS.muted, Enum.Font.GothamMedium)
+		local meta = makeLabel(
+			button,
+			"Meta",
+			("%s  |  %s"):format(member.gradeName, member.online and "Online" or "Offline"),
+			11,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
 		meta.Position = UDim2.fromOffset(30, 30)
 		meta.Size = UDim2.new(1, -42, 0, 18)
 		button.Activated:Connect(function()
@@ -432,7 +484,8 @@ local function renderMembers()
 		end)
 	end
 	if #(snapshot and snapshot.members or {}) == 0 then
-		local empty = makeLabel(memberList, "Empty", "No indexed members yet.", 13, COLORS.muted, Enum.Font.GothamMedium)
+		local empty =
+			makeLabel(memberList, "Empty", "No indexed members yet.", 13, COLORS.muted, Enum.Font.GothamMedium)
 		empty.Size = UDim2.new(1, -5, 0, 45)
 		empty.TextXAlignment = Enum.TextXAlignment.Center
 	end
@@ -445,17 +498,30 @@ local function renderMembers()
 		return
 	end
 	detailName.Text = member.name
-	detailMeta.Text = ("%s | %s | %s"):format(member.citizenId, member.gradeName, member.online and "Online" or "Offline")
+	detailMeta.Text = ("%s | %s | %s"):format(
+		member.citizenId,
+		member.gradeName,
+		member.online and "Online" or "Offline"
+	)
 	fireButton.Visible = not member.isSelf
 	for _, grade in ipairs(snapshot.grades or {}) do
 		local label = ("Grade %d  -  %s%s"):format(grade.level, grade.name, grade.isboss and "  (Boss)" or "")
-		local button = makeButton(gradeList, "Grade_" .. grade.level, label, grade.level == member.grade and COLORS.blueDark or COLORS.panelSoft)
+		local button = makeButton(
+			gradeList,
+			"Grade_" .. grade.level,
+			label,
+			grade.level == member.grade and COLORS.blueDark or COLORS.panelSoft
+		)
 		button.Size = UDim2.new(1, -5, 0, 38)
 		button.Active = grade.canAssign and not member.isSelf and grade.level ~= member.grade
 		button.AutoButtonColor = button.Active
-		if not button.Active and grade.level ~= member.grade then button.BackgroundColor3 = COLORS.disabled end
+		if not button.Active and grade.level ~= member.grade then
+			button.BackgroundColor3 = COLORS.disabled
+		end
 		button.Activated:Connect(function()
-			if button.Active then performAction("set_grade", { citizenId = member.citizenId, grade = grade.level }) end
+			if button.Active then
+				performAction("set_grade", { citizenId = member.citizenId, grade = grade.level })
+			end
 		end)
 	end
 end
@@ -472,21 +538,36 @@ local function renderHiring()
 		local name = makeLabel(row, "Name", candidate.name, 14, COLORS.text, Enum.Font.GothamBold)
 		name.Position = UDim2.fromOffset(16, 9)
 		name.Size = UDim2.new(1, -180, 0, 23)
-		local meta = makeLabel(row, "Meta", ("%s | %.1f studs | %s"):format(candidate.citizenId, candidate.distance, candidate.current), 11, COLORS.muted, Enum.Font.GothamMedium)
+		local meta = makeLabel(
+			row,
+			"Meta",
+			("%s | %.1f studs | %s"):format(candidate.citizenId, candidate.distance, candidate.current),
+			11,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
 		meta.Position = UDim2.fromOffset(16, 34)
 		meta.Size = UDim2.new(1, -180, 0, 18)
-		local hire = makeButton(row, "Hire", candidate.alreadyMember and "Already Member" or "Hire", candidate.alreadyMember and COLORS.disabled or COLORS.green)
+		local hire = makeButton(
+			row,
+			"Hire",
+			candidate.alreadyMember and "Already Member" or "Hire",
+			candidate.alreadyMember and COLORS.disabled or COLORS.green
+		)
 		hire.AnchorPoint = Vector2.new(1, 0.5)
 		hire.Position = UDim2.new(1, -13, 0.5, 0)
 		hire.Size = UDim2.fromOffset(140, 38)
 		hire.Active = not candidate.alreadyMember
 		hire.AutoButtonColor = hire.Active
 		hire.Activated:Connect(function()
-			if hire.Active then performAction("hire", { userId = candidate.userId }) end
+			if hire.Active then
+				performAction("hire", { userId = candidate.userId })
+			end
 		end)
 	end
 	if #(snapshot and snapshot.nearby or {}) == 0 then
-		local empty = makeLabel(hireList, "Empty", "No nearby loaded citizens.", 14, COLORS.muted, Enum.Font.GothamMedium)
+		local empty =
+			makeLabel(hireList, "Empty", "No nearby loaded citizens.", 14, COLORS.muted, Enum.Font.GothamMedium)
 		empty.Size = UDim2.new(1, -5, 0, 60)
 		empty.TextXAlignment = Enum.TextXAlignment.Center
 	end
@@ -498,9 +579,14 @@ local function renderFunds()
 end
 
 renderAll = function()
-	if not snapshot then return end
+	if not snapshot then
+		return
+	end
 	titleLabel.Text = snapshot.organization.label .. " Management"
-	subtitleLabel.Text = ("%s office | %s"):format(snapshot.organization.type == "crew" and "Crew" or "Job", snapshot.organization.gradeName)
+	subtitleLabel.Text = ("%s office | %s"):format(
+		snapshot.organization.type == "crew" and "Crew" or "Job",
+		snapshot.organization.gradeName
+	)
 	balanceLabel.Text = formatMoney(snapshot.balance)
 	renderTabs()
 	renderMembers()
@@ -509,9 +595,13 @@ renderAll = function()
 end
 
 local function fetchSnapshot(showLoading)
-	if busy then return end
+	if busy then
+		return
+	end
 	setBusy(true)
-	if showLoading then setStatus("Loading management data...", COLORS.muted) end
+	if showLoading then
+		setStatus("Loading management data...", COLORS.muted)
+	end
 	local result, err = callRemote(Remotes.GetManagement, accessContext)
 	setBusy(false)
 	if not result then
@@ -519,14 +609,18 @@ local function fetchSnapshot(showLoading)
 		return false
 	end
 	snapshot = result
-	if selectedCitizenId and not selectedMember() then selectedCitizenId = nil end
+	if selectedCitizenId and not selectedMember() then
+		selectedCitizenId = nil
+	end
 	setStatus("", COLORS.muted)
 	renderAll()
 	return true
 end
 
 local function closeManagement(force)
-	if busy and not force then return end
+	if busy and not force then
+		return
+	end
 	isOpen = false
 	screenGui.Enabled = false
 	snapshot = nil
@@ -542,26 +636,57 @@ local function openManagement(access)
 	fetchSnapshot(true)
 end
 
-membersTab.Activated:Connect(function() activeTab = "members"; renderAll() end)
-hireTab.Activated:Connect(function() activeTab = "hire"; renderAll() end)
-fundsTab.Activated:Connect(function() activeTab = "funds"; renderAll() end)
-wardrobeButton.Activated:Connect(function()
-	closeManagement(true)
-	Remotes.RequestAppearanceEditor:FireServer()
+membersTab.Activated:Connect(function()
+	activeTab = "members"
+	renderAll()
 end)
-refreshButton.Activated:Connect(function() fetchSnapshot(false) end)
+hireTab.Activated:Connect(function()
+	activeTab = "hire"
+	renderAll()
+end)
+fundsTab.Activated:Connect(function()
+	activeTab = "funds"
+	renderAll()
+end)
+wardrobeButton.Activated:Connect(function()
+	if busy then
+		return
+	end
+	setBusy(true)
+	local ok, opened, err =
+		pcall(Remotes.OpenManagementWardrobe.InvokeServer, Remotes.OpenManagementWardrobe, accessContext)
+	setBusy(false)
+	if not ok or not opened then
+		setStatus(err or "The wardrobe could not be opened.", COLORS.red)
+		return
+	end
+	closeManagement(true)
+end)
+refreshButton.Activated:Connect(function()
+	fetchSnapshot(false)
+end)
 closeButton.Activated:Connect(closeManagement)
 fireButton.Activated:Connect(function()
 	local member = selectedMember()
-	if member and not member.isSelf then performAction("fire", { citizenId = member.citizenId }) end
+	if member and not member.isSelf then
+		performAction("fire", { citizenId = member.citizenId })
+	end
 end)
-depositButton.Activated:Connect(function() performAction("deposit", { amount = amountBox.Text }) end)
-withdrawButton.Activated:Connect(function() performAction("withdraw", { amount = amountBox.Text }) end)
+depositButton.Activated:Connect(function()
+	performAction("deposit", { amount = amountBox.Text })
+end)
+withdrawButton.Activated:Connect(function()
+	performAction("withdraw", { amount = amountBox.Text })
+end)
 Remotes.OpenManagement.OnClientEvent:Connect(openManagement)
 
 UserInputService.InputBegan:Connect(function(input, processed)
-	if not isOpen or processed then return end
-	if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.ButtonB then closeManagement() end
+	if not isOpen or processed then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.ButtonB then
+		closeManagement()
+	end
 end)
 
 local function updateScale()
@@ -571,6 +696,12 @@ local function updateScale()
 end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(updateScale)
-if Workspace.CurrentCamera then Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale) end
+if Workspace.CurrentCamera then
+	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+end
 updateScale()
-QBCoreClient.OnPlayerLoaded.Event:Connect(function() if isOpen then closeManagement(true) end end)
+QBCoreClient.OnPlayerLoaded.Event:Connect(function()
+	if isOpen then
+		closeManagement(true)
+	end
+end)

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: July 17, 2026.
+Last updated: July 18, 2026.
 
 This is a from-scratch Roblox/Luau port of the QBCore pieces needed for a
 playable join-to-character flow. It now has several working resource slices, but
@@ -23,6 +23,9 @@ it is still not a full QBCore ecosystem.
 - [x] Saved Roblox avatar appearance editor:
       per-character HumanoidDescription serialization, live preview, save/cancel,
       accessory limits, scale clamps, and optional ownership validation.
+- [x] Categorized clothing, accessory, barber, and wardrobe shops with invisible
+      proximity-prompt anchors, saved per-character outfits, and revocable global
+      clothing-only share codes.
 - [x] Server-authoritative hunger/thirst status loop.
 - [x] Configurable job-grade paychecks with duty gating, optional banking-backed
       society debits, and a `/duty` toggle.
@@ -103,12 +106,15 @@ it is still not a full QBCore ecosystem.
       birthdate, gender, nationality, phone number, and optional backstory fields.
 - [ ] Add spawn-selection support once apartments/housing/hospitals/garages exist.
 - [ ] Add stronger character deletion cleanup for future per-character stores
-      such as houses, vehicles, phone contacts, outfits, and warrants.
+      such as houses, vehicles, phone contacts, and warrants. Outfit share codes
+      are already revoked during character deletion.
 
 ### Inventory, Items, And Economy
 
-- [ ] Build shops with buy/sell pricing, stock, job/crew restrictions, and item
-      previews.
+- [x] Build inventory-backed item shops with buy pricing, server-session stock,
+      job/crew/license restrictions, quantity controls, and item previews.
+- [ ] Add shop sell pricing, persistent/cross-server stock, and optional restocking
+      gameplay if the economy eventually needs it.
 - [ ] Build world drops with pickup, decay/despawn, ownership timing, and anti-dupe
       safeguards.
 - [ ] Build stashes, trunks, gloveboxes, and shared containers on top of the
@@ -154,7 +160,8 @@ it is still not a full QBCore ecosystem.
       only the initial weapon-kit imports.
 - [ ] Add weapon licenses, job restrictions, serial numbers, durability, evidence,
       recoil/balance passes, and safe-zone rules.
-- [ ] Build weapon shops, ammo shops, and police armory workflows.
+- [ ] Finish the sample weapon/ammo shop with license issuance and add police
+      armory workflows.
 - [ ] Add downed/last-stand behavior if desired; current medical flow is death
       screen plus respawn/revive.
 - [ ] Add combat logging/admin review tools for damage events.
@@ -196,7 +203,8 @@ it is still not a full QBCore ecosystem.
 - [ ] Progress bars/skill checks/minigames.
 - [ ] Dispatch/radio.
 - [ ] Shops/crafting/stashes.
-- [ ] Clothing stores/barbers/outfit slots beyond the first appearance editor.
+- [x] Clothing stores/barbers/outfit slots beyond the first appearance editor,
+      including category enforcement and clothing-only share codes.
 - [ ] Drugs/black-market loops.
 - [ ] Police MDT/jail/evidence.
 - [ ] EMS hospitals/beds/billing.

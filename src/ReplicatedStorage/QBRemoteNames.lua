@@ -5,8 +5,10 @@ return {
 		"PlayerDataUpdated", -- server -> client: (key, value) or ('all', PlayerData)
 		"PlayerLoaded", -- server -> client: ()
 		"Notify", -- server -> client: (text, notifyType, length)
-		"OpenAppearanceEditor", -- server -> client: (serializedAppearance, isNewCharacter)
-		"RequestAppearanceEditor", -- client -> server: () ask the server to reopen the editor
+		"OpenInventory", -- server -> client: (access) open player inventory with an external pane
+		"CloseInventory", -- client -> server: (access) release the active external inventory
+		"OpenAppearanceEditor", -- server -> client: (serializedAppearance, isNewCharacter, editorContext)
+		"RequestAppearanceEditor", -- client -> server: () ask for full editor when config permits
 		"PreviewAppearance", -- client -> server: (serializedAppearance) live try-on, applied to the character
 		"CancelAppearanceEdit", -- client -> server: () revert the character to the last saved look
 		"OpenAdminMenu", -- server -> client: () open the native admin panel
@@ -25,7 +27,9 @@ return {
 		"CreateCharacter", -- client -> server: (firstname, lastname) -> citizenId, errorMessage?
 		"DeleteCharacter", -- client -> server: (citizenId) -> boolean, errorMessage?
 		"SaveAppearance", -- client -> server: (serializedAppearance) -> boolean, errorMessage?
-		"GetInventory", -- client -> server: () -> inventory snapshot
+		"OutfitAction", -- client -> server: (action, payload) -> boolean, resultOrError
+		"GetInventory", -- client -> server: (access?) -> player snapshot with optional external inventory
+		"InventoryAction", -- client -> server: (action, payload) -> boolean, snapshotOrError
 		"MoveInventoryItem", -- client -> server: (fromSlot, toSlot) -> boolean, errorMessage?
 		"GiveInventoryItem", -- client -> server: (slot) -> boolean, errorMessage?
 		"UseInventorySlot", -- client -> server: (slot) -> boolean, errorMessage?
@@ -40,5 +44,6 @@ return {
 		"GarageAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 		"GetManagement", -- client -> server: (access) -> authorized organization snapshot
 		"ManagementAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
+		"OpenManagementWardrobe", -- client -> server: (management access) -> boolean, errorMessage?
 	},
 }

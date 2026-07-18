@@ -437,6 +437,52 @@ Config.Inventory = {
 	},
 }
 
+-- qb-shops-style item stores. Products are hydrated from QBShared.Items by the
+-- server, so labels, weights, images, and useable flags stay authoritative there.
+-- The two sample locations sit near CharacterDefaults.position for immediate
+-- playtesting; move or replace them when storefront positions are finalized.
+Config.Shops = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 14,
+	MaxPurchaseAmount = 100,
+	DefaultPaymentTypes = { "cash" },
+	Products = {
+		general = {
+			{ name = "sandwich", price = 2, amount = 50 },
+			{ name = "water_bottle", price = 2, amount = 50 },
+			{ name = "coffee", price = 3, amount = 50 },
+			{ name = "bandage", price = 100, amount = 50 },
+			{ name = "lockpick", price = 200, amount = 25 },
+			{ name = "armor", price = 2500, amount = 10 },
+		},
+		weapons = {
+			{ name = "pistol_ammo", price = 5, amount = 250, requiredLicense = "weapon" },
+			{ name = "shotgun_ammo", price = 8, amount = 100, requiredLicense = "weapon" },
+			{ name = "rifle_ammo", price = 10, amount = 250, requiredLicense = "weapon" },
+			{ name = "weapon_pistol", price = 2500, amount = 5, requiredLicense = "weapon" },
+			{ name = "weapon_shotgun", price = 4000, amount = 5, requiredLicense = "weapon" },
+			{ name = "weapon_auto_rifle", price = 7500, amount = 3, requiredLicense = "weapon" },
+		},
+	},
+	Locations = {
+		{
+			id = "general_store_1",
+			label = "24/7 Supermarket",
+			position = Vector3.new(-166, 3.7, 333.57),
+			products = "general",
+			useStock = true,
+		},
+		{
+			id = "weapon_shop_1",
+			label = "Ammu-Nation",
+			position = Vector3.new(-166, 3.7, 348.57),
+			products = "weapons",
+			useStock = true,
+		},
+	},
+}
+
 Config.Medical = {
 	DeathScreen = {
 		Enabled = true,
@@ -459,6 +505,7 @@ Config.Medical = {
 -- site-wide Roblox avatar is never modified.
 Config.Appearance = {
 	PromptNewCharacters = true, -- open the appearance editor automatically on a character's first spawn
+	AllowFullEditorCommand = false, -- false requires normal changes to happen at categorized shops
 	ValidateOwnership = true, -- server re-checks catalog ownership on save (previewing is always free try-on)
 	MaxAccessories = 15,
 	-- Slider ranges for the editor's Body tab; the server clamps saves to these too.
@@ -485,6 +532,62 @@ Config.Appearance = {
 	},
 }
 
+-- Categorized qb-clothing-style shops. These origin locations are placeholders;
+-- move them to real storefronts before playtesting. Category ids match the tabs in
+-- QBAppearance.client.lua and are also enforced by the server on preview/save.
+Config.Clothing = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 14,
+	MaxOutfits = 20,
+	MaxOutfitNameLength = 30,
+	ShareCodeLength = 8,
+	RequireOwnershipForSharedOutfits = false,
+	Shops = {
+		{
+			id = "clothing_shop_1",
+			label = "Clothing Store",
+			position = Vector3.new(0, 0, 0),
+			categories = {
+				"Shirts",
+				"Pants",
+				"TShirts",
+				"LayeredTShirts",
+				"LayeredShirts",
+				"LayeredPants",
+				"Jackets",
+				"Sweaters",
+				"Shorts",
+				"Dresses",
+				"Shoes",
+			},
+			allowOutfits = true,
+		},
+		{
+			id = "accessory_shop_1",
+			label = "Accessory Store",
+			position = Vector3.new(0, 0, 0),
+			categories = { "Hats", "FaceAcc", "Neck", "Shoulder", "Front", "Back", "Waist" },
+			allowOutfits = true,
+		},
+		{
+			id = "barber_shop_1",
+			label = "Barber Shop",
+			position = Vector3.new(0, 0, 0),
+			categories = { "Hair" },
+			allowOutfits = false,
+		},
+		{
+			id = "outfit_room_1",
+			label = "Outfit Wardrobe",
+			position = Vector3.new(0, 0, 0),
+			categories = {},
+			allowOutfits = true,
+			outfitsOnly = true,
+		},
+	},
+}
+
 Config.Player = {
 	MaxCharacterSlots = 5,
 	Bloodtypes = { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" },
@@ -505,6 +608,7 @@ Config.Player = {
 			processedTransferIds = {},
 		},
 		vehicles = {},
+		outfits = {},
 		charinfo = {
 			firstname = "Firstname",
 			lastname = "Lastname",

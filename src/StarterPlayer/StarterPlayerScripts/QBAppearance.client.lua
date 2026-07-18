@@ -141,6 +141,7 @@ local CATEGORIES = {
 	{ key = "Waist", label = "Waist", avatarAssetType = "WaistAccessory", kind = "accessory", accessoryType = "Waist" },
 	{ key = "Skin", label = "Skin", kind = "skin" },
 	{ key = "Body", label = "Body", kind = "body" },
+	{ key = "Outfits", label = "Outfits", kind = "outfits" },
 }
 
 local SKIN_COLOR_KEYS = { "head", "torso", "leftArm", "rightArm", "leftLeg", "rightLeg" }
@@ -169,6 +170,8 @@ local FALLBACK_SKIN_TONES = {
 -- ─────────────────────────── state ───────────────────────────
 
 local working = nil -- serialized appearance being edited (same schema the server uses)
+local editorContext = { mode = "full", title = "Appearance", allowOutfits = false }
+local activeCategories = {}
 local isOpen = false
 local busy = false
 local currentCategory = nil
@@ -317,6 +320,26 @@ local function makeButton(parent, name, text, color)
 	return button
 end
 
+local function makeTextBox(parent, name, placeholder)
+	local box = Instance.new("TextBox")
+	box.Name = name
+	box.BackgroundColor3 = Color3.fromRGB(20, 25, 32)
+	box.BorderSizePixel = 0
+	box.ClearTextOnFocus = false
+	box.Font = Enum.Font.Gotham
+	box.PlaceholderColor3 = COLORS.muted
+	box.PlaceholderText = placeholder or ""
+	box.Text = ""
+	box.TextColor3 = COLORS.text
+	box.TextSize = 13
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.Parent = parent
+	addCorner(box, 7)
+	addStroke(box, Color3.fromRGB(60, 72, 89), 0.15)
+	addPadding(box, 10, 0, 10, 0)
+	return box
+end
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "QBAppearanceEditor"
 screenGui.IgnoreGuiInset = true
@@ -397,7 +420,8 @@ local function updateResponsiveLayout()
 
 	local margin = tiny and 6 or compact and 10 or 18
 	local panelWidth = round(compact and math.min(520, (viewport.X - margin * 2) / scale) or 400)
-	local panelHeight = round(math.min(720, (viewport.Y - margin * 2) / scale, viewport.Y * (compact and 0.92 or 0.92) / scale))
+	local panelHeight =
+		round(math.min(720, (viewport.Y - margin * 2) / scale, viewport.Y * (compact and 0.92 or 0.92) / scale))
 
 	panelScale.Scale = scale
 	panel.AnchorPoint = compact and Vector2.new(0.5, 0.5) or Vector2.new(1, 0.5)
@@ -416,7 +440,7 @@ local function updateResponsiveLayout()
 	local tabHeight = tiny and 23 or compact and 26 or 28
 	local tabGapX = tiny and 4 or 6
 	local tabGapY = tiny and 3 or 5
-	local tabRows = math.ceil(#CATEGORIES / tabColumns)
+	local tabRows = math.max(1, math.ceil(#activeCategories / tabColumns))
 	local tabsHeight = tabRows * tabHeight + math.max(0, tabRows - 1) * tabGapY
 	local buttonHeight = tiny and 34 or compact and 40 or 44
 	local contentTop = tabsTop + tabsHeight + (tiny and 8 or 10)
@@ -433,7 +457,13 @@ local function updateResponsiveLayout()
 	tabsGrid.CellPadding = UDim2.fromOffset(tabGapX, tabGapY)
 	contentArea.Position = UDim2.fromOffset(0, contentTop)
 	contentArea.Size = UDim2.new(1, 0, 1, -(contentTop + contentBottomGap))
-	setPaddingOffsets(contentPadding, tiny and 5 or compact and 8 or 10, tiny and 5 or compact and 8 or 10, tiny and 5 or compact and 8 or 10, tiny and 5 or compact and 8 or 10)
+	setPaddingOffsets(
+		contentPadding,
+		tiny and 5 or compact and 8 or 10,
+		tiny and 5 or compact and 8 or 10,
+		tiny and 5 or compact and 8 or 10,
+		tiny and 5 or compact and 8 or 10
+	)
 
 	saveButton.Size = UDim2.new(0.62, -6, 0, buttonHeight)
 	cancelButton.Size = UDim2.new(0.38, -6, 0, buttonHeight)
@@ -814,10 +844,12 @@ local function renderBodySliders()
 		row.LayoutOrder = order
 		row.Parent = scroll
 
-		local label = makeLabel(row, "Label", def.label, responsive.tiny and 12 or 14, COLORS.text, Enum.Font.GothamMedium)
+		local label =
+			makeLabel(row, "Label", def.label, responsive.tiny and 12 or 14, COLORS.text, Enum.Font.GothamMedium)
 		label.Size = UDim2.new(0.6, 0, 0, responsive.tiny and 18 or 20)
 
-		local valueLabel = makeLabel(row, "Value", "", responsive.tiny and 12 or 14, COLORS.muted, Enum.Font.GothamMedium)
+		local valueLabel =
+			makeLabel(row, "Value", "", responsive.tiny and 12 or 14, COLORS.muted, Enum.Font.GothamMedium)
 		valueLabel.AnchorPoint = Vector2.new(1, 0)
 		valueLabel.Position = UDim2.new(1, 0, 0, 0)
 		valueLabel.Size = UDim2.new(0.4, 0, 0, responsive.tiny and 18 or 20)
@@ -900,6 +932,128 @@ local function renderBodySliders()
 	end
 end
 
+local renderOutfits
+
+local function performOutfitAction(action, payload)
+	if busy then
+		return
+	end
+	setBusy(true)
+	setStatus("Updating outfits...")
+	local call = table.pack(pcall(Remotes.OutfitAction.InvokeServer, Remotes.OutfitAction, action, payload or {}))
+	setBusy(false)
+	if not call[1] then
+		setStatus("The outfit server did not respond.")
+		return
+	end
+	local ok, result = call[2], call[3]
+	if not ok then
+		setStatus(result or "The outfit action failed.")
+		return
+	end
+	result = type(result) == "table" and result or {}
+	editorContext.outfits = type(result.outfits) == "table" and result.outfits or editorContext.outfits
+	if type(result.appearance) == "table" then
+		working = deepCopy(result.appearance)
+		ensureWorkingDefaults(working)
+	end
+	setStatus(result.message or "Outfits updated.")
+	if currentCategory and currentCategory.kind == "outfits" then
+		renderOutfits()
+	end
+end
+
+renderOutfits = function()
+	clearContent()
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "OutfitManager"
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.fromScale(1, 1)
+	scroll.CanvasSize = UDim2.fromOffset(0, 0)
+	scroll.ScrollBarThickness = responsive.tiny and 3 or 5
+	scroll.ScrollBarImageColor3 = Color3.fromRGB(91, 108, 130)
+	scroll.Parent = contentArea
+
+	local nameBox = makeTextBox(scroll, "OutfitName", "Name this outfit")
+	nameBox.Position = UDim2.fromOffset(0, 0)
+	nameBox.Size = UDim2.new(1, -122, 0, 38)
+	local saveOutfitButton = makeButton(scroll, "SaveOutfit", "Save", COLORS.green)
+	saveOutfitButton.AnchorPoint = Vector2.new(1, 0)
+	saveOutfitButton.Position = UDim2.new(1, 0, 0, 0)
+	saveOutfitButton.Size = UDim2.fromOffset(112, 38)
+	saveOutfitButton.Activated:Connect(function()
+		performOutfitAction("save", { name = nameBox.Text, appearance = working })
+	end)
+
+	local codeBox = makeTextBox(scroll, "ShareCode", "Enter an outfit share code")
+	codeBox.Position = UDim2.fromOffset(0, 50)
+	codeBox.Size = UDim2.new(1, -122, 0, 38)
+	local applyCodeButton = makeButton(scroll, "ApplyCode", "Use Code", COLORS.panelSoft)
+	applyCodeButton.AnchorPoint = Vector2.new(1, 0)
+	applyCodeButton.Position = UDim2.new(1, 0, 0, 50)
+	applyCodeButton.Size = UDim2.fromOffset(112, 38)
+	applyCodeButton.Activated:Connect(function()
+		performOutfitAction("apply_code", { code = codeBox.Text })
+	end)
+
+	local heading = makeLabel(scroll, "SavedHeading", "SAVED OUTFITS", 11, COLORS.muted, Enum.Font.GothamBold)
+	heading.Position = UDim2.fromOffset(0, 102)
+	heading.Size = UDim2.new(1, 0, 0, 20)
+
+	local outfits = type(editorContext.outfits) == "table" and editorContext.outfits or {}
+	local y = 130
+	for index, outfit in ipairs(outfits) do
+		local row = Instance.new("Frame")
+		row.Name = "Outfit_" .. index
+		row.BackgroundColor3 = COLORS.panelSoft
+		row.BorderSizePixel = 0
+		row.Position = UDim2.fromOffset(0, y)
+		row.Size = UDim2.new(1, -6, 0, 76)
+		row.Parent = scroll
+		addCorner(row, 7)
+		addStroke(row, Color3.fromRGB(60, 72, 89), 0.2)
+
+		local outfitName =
+			makeLabel(row, "Name", tostring(outfit.name or "Saved Outfit"), 13, COLORS.text, Enum.Font.GothamBold)
+		outfitName.Position = UDim2.fromOffset(12, 7)
+		outfitName.Size = UDim2.new(1, -178, 0, 22)
+		local code = makeTextBox(row, "Code", "")
+		code.Position = UDim2.fromOffset(12, 36)
+		code.Size = UDim2.new(1, -178, 0, 30)
+		code.Text = tostring(outfit.code or "")
+		code.TextSize = 12
+		local apply = makeButton(row, "Apply", "Wear", COLORS.green)
+		apply.Position = UDim2.new(1, -156, 0, 8)
+		apply.Size = UDim2.fromOffset(68, 58)
+		local remove = makeButton(row, "Delete", "Delete", COLORS.red)
+		remove.Position = UDim2.new(1, -80, 0, 8)
+		remove.Size = UDim2.fromOffset(68, 58)
+		apply.Activated:Connect(function()
+			performOutfitAction("apply", { id = outfit.id })
+		end)
+		remove.Activated:Connect(function()
+			performOutfitAction("delete", { id = outfit.id })
+		end)
+		y = y + 84
+	end
+	if #outfits == 0 then
+		local empty = makeLabel(
+			scroll,
+			"Empty",
+			"No saved outfits yet. Name the clothing you are wearing and press Save.",
+			13,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
+		empty.Position = UDim2.fromOffset(0, y)
+		empty.Size = UDim2.new(1, -6, 0, 58)
+		empty.TextXAlignment = Enum.TextXAlignment.Center
+		y = y + 66
+	end
+	scroll.CanvasSize = UDim2.fromOffset(0, y + 8)
+end
+
 local function selectCategory(category)
 	currentCategory = category
 	for key, button in pairs(tabButtons) do
@@ -912,6 +1066,9 @@ local function selectCategory(category)
 		return
 	elseif category.kind == "body" then
 		renderBodySliders()
+		return
+	elseif category.kind == "outfits" then
+		renderOutfits()
 		return
 	end
 
@@ -936,6 +1093,34 @@ local function selectCategory(category)
 	end)
 end
 
+local function configureCategories(context)
+	table.clear(activeCategories)
+	local allowed = {}
+	for _, key in ipairs(type(context.categories) == "table" and context.categories or {}) do
+		allowed[key] = true
+	end
+	for _, category in ipairs(CATEGORIES) do
+		local visible
+		if context.mode == "full" then
+			visible = category.kind ~= "outfits"
+		elseif context.outfitsOnly == true then
+			visible = category.kind == "outfits" and context.allowOutfits == true
+		else
+			visible = allowed[category.key] == true or (category.kind == "outfits" and context.allowOutfits == true)
+		end
+		local button = tabButtons[category.key]
+		if button then
+			button.Visible = visible
+		end
+		if visible then
+			activeCategories[#activeCategories + 1] = category
+			if button then
+				button.LayoutOrder = #activeCategories
+			end
+		end
+	end
+end
+
 for order, category in ipairs(CATEGORIES) do
 	local button = makeButton(tabsFrame, "Tab_" .. category.key, category.label, COLORS.tabIdle)
 	button.TextSize = 13
@@ -947,6 +1132,7 @@ for order, category in ipairs(CATEGORIES) do
 		end
 	end)
 end
+configureCategories(editorContext)
 updateResponsiveLayout()
 
 -- ─────────────────────────── open / close / save ───────────────────────────
@@ -963,7 +1149,10 @@ local function closeEditor()
 	restoreCamera()
 end
 
-local function openEditor(initialAppearance, isNewCharacter)
+local function openEditor(initialAppearance, isNewCharacter, context)
+	editorContext = type(context) == "table" and context
+		or { mode = "full", title = "Appearance", allowOutfits = false }
+	configureCategories(editorContext)
 	working = deepCopy(initialAppearance)
 	if type(working) ~= "table" then
 		working = {}
@@ -973,15 +1162,23 @@ local function openEditor(initialAppearance, isNewCharacter)
 	isOpen = true
 	setBusy(false)
 	screenGui.Enabled = true
+	titleLabel.Text =
+		tostring(editorContext.title or (editorContext.mode == "shop" and "Clothing Shop" or "Appearance"))
+	saveButton.Text = editorContext.outfitsOnly == true and "Done"
+		or editorContext.mode == "shop" and "Save Clothing"
+		or "Save Look"
 	updateResponsiveLayout()
 	setStatus(
 		isNewCharacter and "Welcome! Build this character's look, then press Save."
+			or editorContext.mode == "shop" and "Only this shop's clothing categories can be changed."
 			or "Changes preview live on your character."
 	)
 
 	anchorCharacter(true)
 	focusCamera()
-	selectCategory(CATEGORIES[1])
+	if activeCategories[1] then
+		selectCategory(activeCategories[1])
+	end
 end
 
 saveButton.Activated:Connect(function()
@@ -1008,11 +1205,11 @@ cancelButton.Activated:Connect(function()
 	closeEditor()
 end)
 
-Remotes.OpenAppearanceEditor.OnClientEvent:Connect(function(initialAppearance, isNewCharacter)
+Remotes.OpenAppearanceEditor.OnClientEvent:Connect(function(initialAppearance, isNewCharacter, context)
 	if isOpen then
 		closeEditor()
 	end
-	openEditor(initialAppearance, isNewCharacter)
+	openEditor(initialAppearance, isNewCharacter, context)
 end)
 
 local viewportConnection

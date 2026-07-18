@@ -10,8 +10,8 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Death screen with timer-based self-respawn.
 - Toast notification UI for `Player:Notify`.
 - Server-authoritative hunger/thirst decay.
-- Basic player inventory, five-slot hotbar, and native admin menu.
-- Per-character appearance editor backed by saved HumanoidDescriptions.
+- Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu.
+- Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
 - Vehicle registry plus admin/command/dealership spawning from Roblox templates.
@@ -55,9 +55,10 @@ src/
       AdminService.lua     -- permission-checked admin menu context/actions
       CommandService.lua   -- TextChatService command registry
       Commands.lua         -- default player/admin slash commands
-      AppearanceService.lua -- saved HumanoidDescription appearance backend
+      AppearanceService.lua -- appearance, categorized shops, saved outfits, and share codes
       MedicalService.lua   -- death, respawn, armor, and medical item handlers
-      InventoryService.lua -- player inventory and useable item helpers
+      InventoryService.lua -- player inventory, external-provider contract, and useable item helpers
+      ShopService.lua      -- proximity shops, filtered catalogs, stock, and purchases
       TimeSyncService.lua  -- day/night clock, /time and /freezetime commands
       WeaponService.lua    -- inventory-backed Roblox Tool equip flow
       VehicleService.lua   -- vehicle template spawn/delete helpers
@@ -68,7 +69,7 @@ src/
       StageMusicService.lua -- proximity speaker playback and Creator Store search
   StarterPlayer/StarterPlayerScripts/
     QBCoreClient.client.lua -- character select/create/delete UI
-    QBAppearance.client.lua -- per-character avatar appearance editor
+    QBAppearance.client.lua -- appearance/shop editor and outfit manager
     QBBanking.client.lua    -- personal/society account, ATM, and history UI
     QBVehicleShop.client.lua -- dealership catalog, owned vehicles, and finance UI
     QBGarage.client.lua     -- public garage vehicle list and storage UI
@@ -77,7 +78,7 @@ src/
     QBAmbulance.client.lua  -- death screen and self-respawn UI
     QBEmotes.client.lua     -- emote menu
     QBHUD.client.lua        -- health, armor, hunger, thirst HUD
-    QBInventory.client.lua  -- player inventory and hotbar
+    QBInventory.client.lua  -- player/external inventory panes, shops, and hotbar
     QBMenu.client.lua       -- reusable QBCore-style menu
     QBNotify.client.lua     -- toast notifications
     QBStageMusic.client.lua -- stage speaker music menu
@@ -306,16 +307,59 @@ characters, assign grades no higher than their own, remove members, and deposit 
 withdraw cash from job or crew shared accounts. Session-locked offline profiles are
 never edited unsafely: changes are queued and applied on that character's next load.
 Existing characters enter the roster index the first time they load after this
-system is installed. The Appearance shortcut opens the existing character editor;
-shared stashes and saved organization outfit slots still depend on their corresponding
-future inventory/appearance systems.
+system is installed. The Wardrobe shortcut opens the clothing-only saved-outfit
+manager after revalidating the boss prompt; shared stashes still depend on the
+future container system.
+
+Clothing interactions are configured under `Config.Clothing`. The included
+clothing store, accessory store, barber, and outfit wardrobe are intentionally
+stacked at the origin until real storefront positions are supplied:
+
+```lua
+Config.Appearance.AllowFullEditorCommand = false
+Config.Clothing.MaxOutfits = 20
+Config.Clothing.RequireOwnershipForSharedOutfits = false
+Config.Clothing.Shops = {
+    {
+        id = "clothing_shop_1",
+        position = Vector3.new(0, 0, 0),
+        categories = { "Shirts", "Pants", "Jackets", "Shoes" },
+        allowOutfits = true,
+    },
+    -- accessory, barber, and outfit-only locations are also configured
+}
+```
+
+Each prompt opens the same appearance UI with only its configured tabs. The
+server independently enforces those categories on previews, saves, and outfit
+application. Saving an outfit stores only classic/layered clothing and wearable
+accessories; hair, face, makeup/future identity fields, body parts, scales, and
+skin color never enter a share code. Deleting an outfit or character revokes its
+code. Set `RequireOwnershipForSharedOutfits` to `true` if recipients should also
+own every catalog asset.
+
+## Item Shops
+
+`Config.Shops.Products` defines reusable catalogs and `Config.Shops.Locations`
+places proximity-prompt counters. A product supports `price`, `amount`, `info`,
+`requiredJob`, `requiredCrew`, `requiredGrade`, and `requiredLicense`; locations can
+apply the same job/crew/item restrictions to the whole store. Stock is authoritative
+for the current server session and resets on restart because delivery/restocking is
+intentionally not part of this port.
+
+Opening a shop keeps the player inventory on the left and adds the shop on the
+right. Select a product, choose a quantity, and buy it. The server rechecks distance,
+access, stock, weight/slot capacity, and payment before changing money or inventory.
+Normal `Tab`/Bag access remains a single pane. Future stashes, trunks, and gloveboxes
+can register an external provider through `InventoryService.RegisterExternalProvider`
+and reuse the same snapshot/action path.
 
 ## Extending It
 
 - Add real jobs/crews by expanding `QBShared/Jobs.lua` and `QBShared/Crews.lua`.
 - Grant staff ranks by adding Roblox UserIds under `Config.Server.Permissions` (mod/admin/god); the game owner and Studio playtests are god automatically.
 - Show a toast from server code with `playerObj:Notify("Message", "success", 4000)`.
-- Extend inventory with shops, stashes, drops, vehicles, tools/weapons, and crafting.
+- Extend inventory with stashes, drops, vehicle containers, richer shop catalogs, and crafting.
 - Extend the admin menu with reports, chat moderation, leaderboard, and deeper developer tools.
 - Extend owned vehicles with impound/depot, job/house garages, keys, real fuel/damage integrations, and trunks.
 - Polish weather with custom precipitation textures, thunder audio, puddles, shelter checks, and map-specific blackout tags.

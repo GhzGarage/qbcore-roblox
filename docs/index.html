@@ -508,13 +508,13 @@
     <div class="card"><h4>Accounts &amp; Characters</h4><p>Profile loading with DataStore session locking, character select / create / delete / spawn, up to 5 slots per account.</p></div>
     <div class="card"><h4>Persistence</h4><p>Money, banking statements, job, crew, charinfo, position, metadata, inventory items, and saved appearance survive across sessions.</p></div>
     <div class="card"><h4>Status &amp; Medical</h4><p>Server-side hunger/thirst decay, HUD bars, armor absorption, death screen with timed self-respawn, EMS revives.</p></div>
-    <div class="card"><h4>Inventory</h4><p>30-slot weight-based inventory with a five-slot hotbar, item give/move/use, and starter items.</p></div>
+    <div class="card"><h4>Inventory &amp; Shops</h4><p>30-slot weight-based inventory, five-slot hotbar, two-pane external inventory UI, and proximity item shops with stock and quantity purchases.</p></div>
     <div class="card"><h4>Banking</h4><p>Personal and society accounts, bank cards, PIN-gated ATMs, queued citizen-ID transfers, limits, and persistent statements.</p></div>
     <div class="card"><h4>Management</h4><p>Standalone job/crew boss panel with indexed rosters, nearby hiring, grades, removal, offline queues, and shared funds.</p></div>
     <div class="card"><h4>Weapons</h4><p>Inventory-backed Roblox Tool equip flow on the endorsed Weapons Kit, with ammo item consumption and persisted loaded rounds.</p></div>
     <div class="card"><h4>World</h4><p>Server-authoritative day/night clock, synced weather presets with rain/snow/thunder, blackout, and client-side time-of-day grading.</p></div>
     <div class="card"><h4>Admin</h4><p>Graded permissions (user/mod/admin/god), a native admin panel, bans and whitelist DataStores, and slash commands.</p></div>
-    <div class="card"><h4>Social</h4><p>Appearance editor backed by saved HumanoidDescriptions, emote menu, proximity stage-music speakers with Creator Store search.</p></div>
+    <div class="card"><h4>Social</h4><p>Saved HumanoidDescription appearance, categorized clothing/barber shops, outfit share codes, emotes, and proximity stage music.</p></div>
   </div>
   <div class="toast info">
     <div>
@@ -590,9 +590,10 @@
       AdminService.lua      <span class="c">-- permission-checked admin menu context/actions</span>
       CommandService.lua    <span class="c">-- TextChatService command registry</span>
       Commands.lua          <span class="c">-- default player/admin slash commands</span>
-      AppearanceService.lua <span class="c">-- saved HumanoidDescription appearance backend</span>
+      AppearanceService.lua <span class="c">-- appearance, clothing shops, outfits, share codes</span>
       MedicalService.lua    <span class="c">-- death, respawn, armor, medical item handlers</span>
-      InventoryService.lua  <span class="c">-- player inventory and useable item helpers</span>
+      InventoryService.lua  <span class="c">-- inventory core plus external-provider contract</span>
+      ShopService.lua       <span class="c">-- proximity catalogs, stock, restrictions, purchases</span>
       TimeSyncService.lua   <span class="c">-- day/night clock, /time and /freezetime</span>
       WeaponService.lua     <span class="c">-- inventory-backed Roblox Tool equip flow</span>
       VehicleService.lua    <span class="c">-- vehicle template spawn/delete helpers</span>
@@ -603,7 +604,7 @@
       StageMusicService.lua <span class="c">-- proximity speaker playback and audio search</span>
   <span class="f">StarterPlayer/StarterPlayerScripts/</span>
     QBCoreClient.client.lua <span class="c">-- character select/create/delete UI</span>
-    QBAppearance.client.lua <span class="c">-- per-character avatar appearance editor</span>
+    QBAppearance.client.lua <span class="c">-- appearance/shop editor and outfit manager</span>
     QBBanking.client.lua    <span class="c">-- personal/society account, ATM, and history UI</span>
     QBVehicleShop.client.lua <span class="c">-- dealership catalog, owned vehicles, finance UI</span>
     QBGarage.client.lua      <span class="c">-- public garage list and storage UI</span>
@@ -612,7 +613,7 @@
     QBAmbulance.client.lua  <span class="c">-- death screen and self-respawn UI</span>
     QBEmotes.client.lua     <span class="c">-- emote menu</span>
     QBHUD.client.lua        <span class="c">-- health, armor, hunger, thirst HUD</span>
-    QBInventory.client.lua  <span class="c">-- player inventory and hotbar</span>
+    QBInventory.client.lua  <span class="c">-- player/external panes, shop buying, hotbar</span>
     QBMenu.client.lua       <span class="c">-- reusable QBCore-style menu</span>
     QBNotify.client.lua     <span class="c">-- toast notifications</span>
     QBStageMusic.client.lua <span class="c">-- stage speaker music menu</span>
@@ -714,12 +715,12 @@ Players.PlayerAdded
     <div class="svc-body">
       <p>Inspired by qb-management, with crew data replacing gang references and a standalone native GUI replacing qb-menu. Every request revalidates the prompt location, current organization, boss flag, grade ceiling, and target distance on the server.</p>
       <ul class="api">
-        <li><code>ManagementService.Start(BankingService)</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBManagementLocations</code> and binds management remotes.</span></li>
+        <li><code>ManagementService.Start(BankingService, AppearanceService)</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBManagementLocations</code> and binds management and wardrobe remotes.</span></li>
         <li><code>GetManagement(access)</code><span class="desc">Returns the authorized organization, grades, indexed online/offline roster, nearby candidates, cash, and shared balance.</span></li>
         <li><code>ManagementAction("hire" | "set_grade" | "fire" | "deposit" | "withdraw", payload)</code><span class="desc">Performs the validated mutation and returns a refreshed snapshot.</span></li>
         <li><code>OnCharacterLoaded(player, playerObj)</code><span class="desc">Applies safe offline changes and synchronizes the character into job and crew roster indexes.</span></li>
       </ul>
-      <p>Because account profiles are session locked, changes to offline or cross-server members are queued in a dedicated DataStore and applied on their next character load. Existing characters appear in indexed rosters after their first post-install load. The panel's Appearance shortcut opens the current character editor; shared stashes and saved organization outfit slots remain dependent on future container/outfit systems.</p>
+      <p>Because account profiles are session locked, changes to offline or cross-server members are queued in a dedicated DataStore and applied on their next character load. Existing characters appear in indexed rosters after their first post-install load. The panel's Wardrobe shortcut opens the clothing-only saved-outfit manager after boss access is revalidated; shared stashes remain dependent on the future container system.</p>
     </div>
   </details>
 
@@ -740,11 +741,12 @@ Players.PlayerAdded
 
   <details class="svc">
     <summary><span class="badge b-server">server</span> InventoryService.lua
-      <span class="sum-desc">Server-authoritative inventory core: slots, weight, move/give/use.</span></summary>
+      <span class="sum-desc">Server-authoritative inventory core: slots, weight, move/give/use, external providers.</span></summary>
     <div class="svc-body">
       <p>Slots <code>1..Config.Inventory.Slots</code> (default 30); the first <code>HotbarSlots</code> (5) are the hotbar. Items are validated against <code>QBShared.Items</code> on every load.</p>
       <ul class="api">
         <li><code>GetSnapshot(playerObj) → {items, slots, hotbarSlots, maxWeight, totalWeight}</code><span class="desc">Hydrated client-facing view.</span></li>
+        <li><code>RegisterExternalProvider(kind, provider)</code> · <code>GetOpenSnapshot(..., access?)</code> · <code>HandleExternalAction(...)</code><span class="desc">Shared two-pane route used by shops and ready for container providers.</span></li>
         <li><code>CanAddItem(playerObj, itemName, amount, slot?, info?) → ok, err?</code><span class="desc">Dry-run weight/slot check.</span></li>
         <li><code>AddItem(playerObj, itemName, amount, slot?, info?, reason?)</code> · <code>RemoveItem(...)</code></li>
         <li><code>MoveItem(playerObj, fromSlot, toSlot) → ok, err?</code><span class="desc">Merges compatible stacks.</span></li>
@@ -835,15 +837,18 @@ Players.PlayerAdded
     <summary><span class="badge b-server">server</span> AppearanceService.lua
       <span class="sum-desc">Saved HumanoidDescription appearance backend (qb-clothing style).</span></summary>
     <div class="svc-body">
-      <p>Serialized appearance shape: <code>{ scales, bodyParts, clothing, colors, accessories }</code>, stored on <code>PlayerData.appearance</code> and re-applied on every respawn.</p>
+      <p>Serialized appearance shape: <code>{ scales, bodyParts, clothing, colors, accessories }</code>, stored on <code>PlayerData.appearance</code> and re-applied on every respawn. Categorized shops create invisible <code>ProximityPrompt</code> anchors under <code>Workspace.QBClothingShops</code>; category limits are enforced again on the server.</p>
       <ul class="api">
         <li><code>Serialize(humanoidDescription) → table</code> · <code>Deserialize(table) → HumanoidDescription</code></li>
         <li><code>ApplyToCharacter(character, appearance) → ok</code></li>
-        <li><code>OpenEditor(player, playerObj, isNewCharacter)</code><span class="desc">Fires <code>OpenAppearanceEditor</code> to the client.</span></li>
+        <li><code>Start(PlayerService)</code><span class="desc">Creates clothing-shop prompts and binds the saved-outfit/share-code API.</span></li>
+        <li><code>OpenEditor(player, playerObj, isNewCharacter, context?)</code><span class="desc">Opens a full editor, categorized shop, outfit-only room, or validated management wardrobe.</span></li>
         <li><code>Preview(player, payload)</code><span class="desc">Sanitizes and live-applies a preview.</span></li>
         <li><code>SaveAppearance(player, playerObj, payload) → ok, err?</code><span class="desc">Validates catalog ownership via <code>MarketplaceService:PlayerOwnsAsset</code> when <code>Config.Appearance.ValidateOwnership</code> is on.</span></li>
         <li><code>CancelEdit(player, playerObj)</code></li>
+        <li><code>DeleteOutfitCodes(playerData)</code><span class="desc">Revokes a character's global codes during character deletion.</span></li>
       </ul>
+      <p>Saved outfits contain only classic/layered clothing and wearable accessories. Hair, faces, makeup/future identity fields, body parts, scales, and skin colors are preserved on the recipient and never stored in a share code.</p>
     </div>
   </details>
 
@@ -1043,7 +1048,7 @@ playerObj:<span class="f">Notify</span>(<span class="s">"You earned $250"</span>
   <div class="card-grid">
     <div class="card"><h4><span class="badge b-client">client</span> QBCoreClient</h4><p>Character select / create / delete UI. Card list with Play/Delete (confirm step) plus a create panel. Destroys itself once <code>PlayerLoaded</code> fires. Responsive with compact/tiny breakpoints.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBHUD</h4><p>Compact HUD: name, job + duty, cash and bank, and status bars for HP / AR / FOOD / WATR / STRS. Also renders the ammo panel for the equipped weapon. Disables the core health GUI and reset button.</p></div>
-    <div class="card"><h4><span class="badge b-client">client</span> QBInventory</h4><p>30-slot inventory + 5-slot hotbar. Slot select → Move / Give / Use action bar, weight readout, full gamepad support. Disables core PlayerList/Backpack GUIs.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBInventory</h4><p>30-slot inventory + 5-slot hotbar. Personal access stays single-pane; shops/external providers add a responsive second pane with product price, stock, quantity, and Buy controls.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBNotify</h4><p>Toast stack (max 5 visible) fed by the <code>Notify</code> remote. Types: success, error, warning, info, primary. Durations auto-convert ms→s, clamped 1.5–12s.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBMenu</h4><p>Reusable QBCore-style list menu used by emotes and stage music. Exposed via <code>_G.QBMenu</code> and PlayerGui bindables. See <a href="#qbmenu">QBMenu</a>.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBAdmin</h4><p>Native admin panel: Dashboard, Players, Items, Jobs, Crews, Vehicles, Logs, Environment, Developer pages (Reports / Chat / Leaderboard are placeholders). Opened via <code>/admin</code>.</p></div>
@@ -1191,8 +1196,18 @@ Config.Player.Camera = { MinZoomDistance = <span class="n">0.5</span>, MaxZoomDi
 
 Config.Appearance = {
     PromptNewCharacters = <span class="k">true</span>,
+    AllowFullEditorCommand = <span class="k">false</span>, <span class="c">-- normal changes happen at shops</span>
     ValidateOwnership = <span class="k">true</span>,   <span class="c">-- MarketplaceService:PlayerOwnsAsset checks</span>
     MaxAccessories = <span class="n">15</span>,
+}
+
+Config.Clothing = {
+    Enabled = <span class="k">true</span>, MaxOutfits = <span class="n">20</span>, ShareCodeLength = <span class="n">8</span>,
+    RequireOwnershipForSharedOutfits = <span class="k">false</span>,
+    Shops = {
+        { id = <span class="s">"clothing_shop_1"</span>, position = Vector3.new(<span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>), categories = { <span class="s">"Shirts"</span>, <span class="s">"Pants"</span>, <span class="s">"Shoes"</span> }, allowOutfits = <span class="k">true</span> },
+        <span class="c">-- accessory, barber, and outfit-only placeholders are also at the origin</span>
+    },
 }</code></pre>
 
   <h3>Server access</h3>
@@ -1218,7 +1233,7 @@ Config.Appearance = {
       <tr><td><code>/commands</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>List the commands you can use</td></tr>
       <tr><td><code>/id</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your UserId</td></tr>
       <tr><td><code>/logout</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Save and return to character select</td></tr>
-      <tr><td><code>/appearance</code> · <code>/outfit</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Edit this character's appearance</td></tr>
+      <tr><td><code>/appearance</code> · <code>/outfit</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Open the full editor only when <code>AllowFullEditorCommand</code> is enabled; otherwise directs players to shops</td></tr>
       <tr><td><code>/emotes</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Open the emote menu</td></tr>
       <tr><td><code>/music</code></td><td><code>[query]</code></td><td><span class="badge b-user">user</span></td><td>Open the closest stage music menu, or search if a query is given</td></tr>
       <tr><td><code>/musicsearch</code></td><td><code>&lt;query&gt;</code></td><td><span class="badge b-user">user</span></td><td>Search Creator Store audio for the closest stage</td></tr>
@@ -1272,7 +1287,9 @@ Config.Appearance = {
   <div class="table-scroll"><table>
     <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>GetInventory</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Full inventory snapshot</td></tr>
+      <tr><td><code>OpenInventory</code> / <code>CloseInventory</code></td><td><span class="badge b-event">event</span></td><td>S → C / C → S</td><td>Open or release an external inventory session</td></tr>
+      <tr><td><code>GetInventory</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Player snapshot plus an optional validated external pane</td></tr>
+      <tr><td><code>InventoryAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Provider-routed actions; shops currently implement purchase</td></tr>
       <tr><td><code>MoveInventoryItem</code> / <code>GiveInventoryItem</code> / <code>UseInventorySlot</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Slot operations</td></tr>
       <tr><td><code>RequestRespawn</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Self-respawn from the death screen</td></tr>
     </tbody>
@@ -1315,6 +1332,7 @@ Config.Appearance = {
       <tr><td><code>OpenManagement</code></td><td><span class="badge b-event">event</span></td><td>S â†’ C</td><td>Open the standalone boss/crew panel from a validated prompt</td></tr>
       <tr><td><code>GetManagement</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Authorized organization, roster, grades, nearby candidates, and balance snapshot</td></tr>
       <tr><td><code>ManagementAction</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Hire, grade, remove, deposit, or withdraw with server-side revalidation</td></tr>
+      <tr><td><code>OpenManagementWardrobe</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Revalidate boss access and open the clothing-only outfit manager</td></tr>
     </tbody>
   </table></div>
 
@@ -1325,6 +1343,7 @@ Config.Appearance = {
       <tr><td><code>OpenAppearanceEditor</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the editor UI</td></tr>
       <tr><td><code>RequestAppearanceEditor</code> / <code>PreviewAppearance</code> / <code>CancelAppearanceEdit</code></td><td><span class="badge b-event">event</span></td><td>C → S</td><td>Editor lifecycle + live preview</td></tr>
       <tr><td><code>SaveAppearance</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Validate and persist the look</td></tr>
+      <tr><td><code>OutfitAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Save, wear, delete, refresh, or apply a global clothing-only share code</td></tr>
     </tbody>
   </table></div>
 
@@ -1539,7 +1558,7 @@ ServerStorage
   <div class="card-grid">
     <div class="card"><h4>Foundation</h4><p>Battle-tested profile library (or hardened retries/telemetry), Luau static checks and Studio smoke tests, structured audit logs, schema-migration helpers, localization.</p></div>
     <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, phone), spawn selection, deeper deletion cleanup.</p></div>
-    <div class="card"><h4>Economy</h4><p>Shops, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, management stashes, and organization outfit slots.</p></div>
+    <div class="card"><h4>Economy</h4><p>Shop selling and persistent stock, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, and management stashes.</p></div>
     <div class="card"><h4>Jobs &amp; crews</h4><p>Map duty prompts, blips, and grade-gated actions; police/EMS/mechanic/taxi/delivery jobs; dispatch, fines, warrants, evidence; crew progression.</p></div>
     <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, impound/depot and persistent world parking, job/house garages, keys/locks, real fuel/repair integrations, and trunk/glovebox inventories.</p></div>
     <div class="card"><h4>Weapons &amp; combat</h4><p>Tool templates for every configured weapon, licenses and job restrictions, weapon/ammo shops, downed state (beyond death screen), combat audit tooling.</p></div>
@@ -1548,9 +1567,9 @@ ServerStorage
   </div>
   <h3>Still missing entirely</h3>
   <p>
-    Housing/apartments, garages/impound, phone, door locks,
+    Housing/apartments, impound, phone, door locks,
     target/interact system, progress bars and minigames, dispatch/radio, shops/crafting/stashes,
-    clothing stores and outfit slots, drug loops, police MDT/jail/evidence, and EMS
+    drug loops, police MDT/jail/evidence, and EMS
     hospitals/beds/billing.
   </p>
 </section>

@@ -37,16 +37,24 @@ local COLORS = {
 }
 
 local currentItems = {}
+local otherItems = {}
+local otherInventory = nil
+local currentAccess = nil
 local inventoryOpen = false
 local busy = false
 local moveMode = false
 local selectedSlot = nil
+local selectedOtherSlot = nil
+local purchaseAmount = 1
 local focusedSlot = nil
 local selectedHotbarSlot = 1
 local loaded = false
 
 local slotViews = {}
 local hotbarViews = {}
+local otherSlotViews = {}
+local rebuildOtherSlots
+local updateResponsiveLayout
 
 local function setCoreGuiEnabled(coreGuiType, enabled)
 	task.spawn(function()
@@ -227,6 +235,32 @@ local function hydrateItem(rawItem, fallbackSlot)
 		unique = rawItem.unique == true or definition.unique == true,
 		useable = rawItem.useable == true or definition.useable == true,
 		shouldClose = rawItem.shouldClose ~= false and definition.shouldClose ~= false,
+		description = rawItem.description or definition.description or "",
+	}
+end
+
+local function hydrateOtherItem(rawItem, fallbackSlot, slotCount)
+	if type(rawItem) ~= "table" then
+		return nil
+	end
+	local slot = math.floor(tonumber(rawItem.slot or fallbackSlot) or 0)
+	local definition = getDefinition(rawItem.name)
+	if slot < 1 or slot > math.max(1, slotCount) or not definition then
+		return nil
+	end
+	return {
+		name = definition.name,
+		label = rawItem.label or definition.label or definition.name,
+		amount = math.max(0, math.floor(tonumber(rawItem.amount) or 0)),
+		stock = math.max(0, math.floor(tonumber(rawItem.stock or rawItem.amount) or 0)),
+		price = math.max(0, math.floor(tonumber(rawItem.price) or 0)),
+		slot = slot,
+		info = type(rawItem.info) == "table" and rawItem.info or {},
+		weight = tonumber(rawItem.weight) or tonumber(definition.weight) or 0,
+		image = normalizeImage(rawItem.image or definition.image),
+		unique = rawItem.unique == true or definition.unique == true,
+		useable = false,
+		shouldClose = false,
 		description = rawItem.description or definition.description or "",
 	}
 end
@@ -424,9 +458,134 @@ statusLabel.TextXAlignment = Enum.TextXAlignment.Center
 statusLabel.TextWrapped = false
 statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
+local otherPanel = Instance.new("Frame")
+otherPanel.Name = "OtherInventoryPanel"
+otherPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+otherPanel.Position = UDim2.fromScale(0.73, 0.48)
+otherPanel.Size = UDim2.new(0.44, 0, 0.78, 0)
+otherPanel.BackgroundColor3 = COLORS.shell
+otherPanel.BorderSizePixel = 0
+otherPanel.Visible = false
+otherPanel.Parent = screenGui
+addCorner(otherPanel, 8)
+addStroke(otherPanel, COLORS.stroke, 0.08, 1)
+local otherPanelPadding = addPadding(otherPanel, 16, 14, 16, 16)
+
+local otherPanelConstraint = Instance.new("UISizeConstraint")
+otherPanelConstraint.MinSize = Vector2.new(250, 360)
+otherPanelConstraint.MaxSize = Vector2.new(600, 560)
+otherPanelConstraint.Parent = otherPanel
+
+local otherPanelLayout = Instance.new("UIListLayout")
+otherPanelLayout.FillDirection = Enum.FillDirection.Vertical
+otherPanelLayout.SortOrder = Enum.SortOrder.LayoutOrder
+otherPanelLayout.Padding = UDim.new(0, 12)
+otherPanelLayout.Parent = otherPanel
+
+local otherHeader = Instance.new("Frame")
+otherHeader.Name = "Header"
+otherHeader.BackgroundTransparency = 1
+otherHeader.Size = UDim2.new(1, 0, 0, 38)
+otherHeader.LayoutOrder = 1
+otherHeader.Parent = otherPanel
+
+local otherTitleLabel = makeLabel(otherHeader, "Title", "External Inventory", 22, COLORS.text, Enum.Font.GothamBold)
+otherTitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+otherTitleLabel.TextWrapped = false
+otherTitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+local otherTypeLabel = makeLabel(otherHeader, "Type", "", 13, COLORS.muted, Enum.Font.GothamMedium)
+otherTypeLabel.AnchorPoint = Vector2.new(1, 0)
+otherTypeLabel.Position = UDim2.fromScale(1, 0)
+otherTypeLabel.Size = UDim2.new(0.28, 0, 1, 0)
+otherTypeLabel.TextXAlignment = Enum.TextXAlignment.Right
+otherTypeLabel.TextWrapped = false
+
+local otherGridShell = Instance.new("Frame")
+otherGridShell.Name = "GridShell"
+otherGridShell.BackgroundColor3 = COLORS.panel
+otherGridShell.BorderSizePixel = 0
+otherGridShell.Size = UDim2.new(1, 0, 1, -124)
+otherGridShell.LayoutOrder = 2
+otherGridShell.Parent = otherPanel
+addCorner(otherGridShell, 8)
+addStroke(otherGridShell, Color3.fromRGB(65, 78, 96), 0.25, 1)
+local otherGridPadding = addPadding(otherGridShell, 10, 10, 10, 10)
+
+local otherSlotsFrame = Instance.new("ScrollingFrame")
+otherSlotsFrame.Name = "Slots"
+otherSlotsFrame.BackgroundTransparency = 1
+otherSlotsFrame.BorderSizePixel = 0
+otherSlotsFrame.CanvasSize = UDim2.fromOffset(0, 0)
+otherSlotsFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+otherSlotsFrame.ScrollBarThickness = 5
+otherSlotsFrame.ScrollBarImageColor3 = Color3.fromRGB(91, 108, 130)
+otherSlotsFrame.Size = UDim2.fromScale(1, 1)
+otherSlotsFrame.Parent = otherGridShell
+
+local otherSlotsGrid = Instance.new("UIGridLayout")
+otherSlotsGrid.CellSize = UDim2.new(0.188, 0, 0, 82)
+otherSlotsGrid.CellPadding = UDim2.new(0.01, 0, 0, 6)
+otherSlotsGrid.FillDirectionMaxCells = HOTBAR_SLOTS
+otherSlotsGrid.SortOrder = Enum.SortOrder.LayoutOrder
+otherSlotsGrid.Parent = otherSlotsFrame
+
+local otherActionBar = Instance.new("Frame")
+otherActionBar.Name = "ActionBar"
+otherActionBar.BackgroundColor3 = COLORS.panel
+otherActionBar.BorderSizePixel = 0
+otherActionBar.Size = UDim2.new(1, 0, 0, 74)
+otherActionBar.LayoutOrder = 3
+otherActionBar.Parent = otherPanel
+addCorner(otherActionBar, 8)
+addStroke(otherActionBar, Color3.fromRGB(65, 78, 96), 0.25, 1)
+local otherActionPadding = addPadding(otherActionBar, 12, 10, 12, 10)
+
+local otherSelectedNameLabel =
+	makeLabel(otherActionBar, "SelectedName", "Select a product", 15, COLORS.text, Enum.Font.GothamBold)
+otherSelectedNameLabel.Size = UDim2.new(1, -218, 0, 24)
+otherSelectedNameLabel.TextWrapped = false
+otherSelectedNameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+local otherSelectedDescLabel = makeLabel(otherActionBar, "SelectedDescription", "", 12, COLORS.muted, Enum.Font.Gotham)
+otherSelectedDescLabel.Position = UDim2.fromOffset(0, 25)
+otherSelectedDescLabel.Size = UDim2.new(1, -218, 0, 28)
+otherSelectedDescLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+local decreaseButton = makeButton(otherActionBar, "Decrease", "-", COLORS.panelSoft)
+decreaseButton.AnchorPoint = Vector2.new(1, 0.5)
+decreaseButton.Position = UDim2.new(1, -172, 0.5, 0)
+decreaseButton.Size = UDim2.fromOffset(36, 44)
+
+local purchaseAmountLabel = makeLabel(otherActionBar, "PurchaseAmount", "1", 14, COLORS.text, Enum.Font.GothamBold)
+purchaseAmountLabel.AnchorPoint = Vector2.new(1, 0.5)
+purchaseAmountLabel.Position = UDim2.new(1, -126, 0.5, 0)
+purchaseAmountLabel.Size = UDim2.fromOffset(42, 44)
+purchaseAmountLabel.TextXAlignment = Enum.TextXAlignment.Center
+purchaseAmountLabel.TextWrapped = false
+
+local increaseButton = makeButton(otherActionBar, "Increase", "+", COLORS.panelSoft)
+increaseButton.AnchorPoint = Vector2.new(1, 0.5)
+increaseButton.Position = UDim2.new(1, -84, 0.5, 0)
+increaseButton.Size = UDim2.fromOffset(36, 44)
+
+local buyButton = makeButton(otherActionBar, "Buy", "Buy", COLORS.green)
+buyButton.AnchorPoint = Vector2.new(1, 0.5)
+buyButton.Position = UDim2.new(1, 0, 0.5, 0)
+buyButton.Size = UDim2.fromOffset(76, 44)
+
+local otherStatusLabel = makeLabel(otherPanel, "Status", "", 13, COLORS.muted, Enum.Font.GothamMedium)
+otherStatusLabel.Size = UDim2.new(1, 0, 0, 18)
+otherStatusLabel.LayoutOrder = 4
+otherStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
+otherStatusLabel.TextWrapped = false
+otherStatusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
 setStatus = function(text, color)
 	statusLabel.Text = text or ""
 	statusLabel.TextColor3 = color or COLORS.muted
+	otherStatusLabel.Text = text or ""
+	otherStatusLabel.TextColor3 = color or COLORS.muted
 end
 
 local function firstOccupiedSlot()
@@ -463,6 +622,58 @@ local function renderSlotView(view, slot, isHotbar)
 	view.empty.Visible = item == nil
 	view.icon.Visible = item ~= nil and type(item.image) == "string" and item.image ~= ""
 	view.icon.Image = view.icon.Visible and item.image or ""
+end
+
+local function renderOtherSlotView(view, slot)
+	local item = otherItems[slot]
+	local isSelected = selectedOtherSlot == slot
+	local isFocused = inventoryOpen and focusedSlot == -slot
+	view.button.BackgroundColor3 = COLORS.slot
+	setInsetBorder(view.baseBorder, COLORS.stroke, 0.35, 1)
+	setInsetBorder(view.selectionBorder, COLORS.selected, (isSelected or isFocused) and 0 or 1, isSelected and 2 or 1)
+	view.number.Text = tostring(slot)
+	view.name.Text = item and item.label or ""
+	view.amount.Text = item and (("$%d · x%d"):format(item.price, item.stock)) or ""
+	view.empty.Visible = item == nil
+	view.icon.Visible = item ~= nil and type(item.image) == "string" and item.image ~= ""
+	view.icon.Image = view.icon.Visible and item.image or ""
+end
+
+local function renderOtherInventory()
+	otherPanel.Visible = inventoryOpen and otherInventory ~= nil
+	if not otherInventory then
+		return
+	end
+	otherTitleLabel.Text = otherInventory.label or "External Inventory"
+	otherTypeLabel.Text = otherInventory.type == "shop" and "SHOP" or "CONTAINER"
+	for slot, view in pairs(otherSlotViews) do
+		renderOtherSlotView(view, slot)
+	end
+
+	local selectedItem = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
+	local canPurchase = selectedItem
+		and otherInventory.actions
+		and otherInventory.actions.purchase == true
+		and selectedItem.stock > 0
+		and not busy
+	if selectedItem then
+		purchaseAmount = math.clamp(purchaseAmount, 1, math.max(1, selectedItem.stock))
+		otherSelectedNameLabel.Text = ("%s · $%d each"):format(selectedItem.label, selectedItem.price)
+		otherSelectedDescLabel.Text = selectedItem.stock > 0 and selectedItem.description or "Sold out"
+	else
+		purchaseAmount = 1
+		otherSelectedNameLabel.Text = otherInventory.type == "shop" and "Select a product" or "Select an item"
+		otherSelectedDescLabel.Text = ""
+	end
+	purchaseAmountLabel.Text = tostring(purchaseAmount)
+	decreaseButton.Active = canPurchase and purchaseAmount > 1 or false
+	decreaseButton.AutoButtonColor = decreaseButton.Active
+	increaseButton.Active = canPurchase and purchaseAmount < selectedItem.stock or false
+	increaseButton.AutoButtonColor = increaseButton.Active
+	buyButton.Active = canPurchase or false
+	buyButton.AutoButtonColor = buyButton.Active
+	buyButton.BackgroundColor3 = buyButton.Active and COLORS.green or Color3.fromRGB(83, 93, 105)
+	buyButton.Text = selectedItem and ("Buy $%d"):format(selectedItem.price * purchaseAmount) or "Buy"
 end
 
 local function render()
@@ -508,6 +719,7 @@ local function render()
 	end
 
 	updateWeightLabel()
+	renderOtherInventory()
 end
 
 local function normalizeItems(rawItems)
@@ -518,6 +730,20 @@ local function normalizeItems(rawItems)
 
 	for key, rawItem in pairs(rawItems) do
 		local item = hydrateItem(rawItem, key)
+		if item then
+			normalized[item.slot] = item
+		end
+	end
+	return normalized
+end
+
+local function normalizeOtherItems(rawItems, slotCount)
+	local normalized = {}
+	if type(rawItems) ~= "table" then
+		return normalized
+	end
+	for key, rawItem in pairs(rawItems) do
+		local item = hydrateOtherItem(rawItem, key, slotCount)
 		if item then
 			normalized[item.slot] = item
 		end
@@ -541,6 +767,44 @@ local function applyPlayerData(playerData)
 	applyItems(playerData.items)
 end
 
+local function clearOtherInventory()
+	otherItems = {}
+	otherInventory = nil
+	selectedOtherSlot = nil
+	purchaseAmount = 1
+	if rebuildOtherSlots then
+		rebuildOtherSlots(0)
+	end
+end
+
+local function applyInventorySnapshot(snapshot)
+	if type(snapshot) ~= "table" then
+		return
+	end
+	applyItems(snapshot.items)
+	if type(snapshot.other) == "table" then
+		otherInventory = snapshot.other
+		otherInventory.slots = math.max(1, math.floor(tonumber(otherInventory.slots) or 1))
+		otherInventory.actions = type(otherInventory.actions) == "table" and otherInventory.actions or {}
+		otherItems = normalizeOtherItems(otherInventory.items, otherInventory.slots)
+		currentAccess = type(snapshot.access) == "table" and snapshot.access or currentAccess
+		if selectedOtherSlot and not otherItems[selectedOtherSlot] then
+			selectedOtherSlot = nil
+			purchaseAmount = 1
+		end
+		if rebuildOtherSlots then
+			rebuildOtherSlots(otherInventory.slots)
+		end
+	else
+		clearOtherInventory()
+	end
+	if updateResponsiveLayout then
+		updateResponsiveLayout()
+	else
+		render()
+	end
+end
+
 local function callRemote(remote, ...)
 	local args = table.pack(...)
 	local ok, result, err = pcall(function()
@@ -553,7 +817,7 @@ local function callRemote(remote, ...)
 end
 
 local function fetchInventory()
-	local snapshot, err = callRemote(Remotes.GetInventory)
+	local snapshot, err = callRemote(Remotes.GetInventory, currentAccess)
 	if not snapshot then
 		if err then
 			setStatus(err, COLORS.red)
@@ -561,14 +825,17 @@ local function fetchInventory()
 		return
 	end
 
-	applyItems(snapshot.items)
+	applyInventorySnapshot(snapshot)
 end
 
-local function setInventoryOpen(nextOpen)
+local function setInventoryOpen(nextOpen, access)
 	if not loaded then
 		return
 	end
 
+	if nextOpen and access ~= nil then
+		currentAccess = access
+	end
 	inventoryOpen = nextOpen
 	inventoryPanel.Visible = inventoryOpen
 	toggleButton.BackgroundColor3 = inventoryOpen and COLORS.green or COLORS.blue
@@ -583,16 +850,27 @@ local function setInventoryOpen(nextOpen)
 			GuiService.SelectedObject = slotViews[focusSlot].button
 		end
 	else
+		local closingAccess = currentAccess
 		moveMode = false
 		focusedSlot = nil
 		GuiService.SelectedObject = nil
+		currentAccess = nil
+		clearOtherInventory()
+		if closingAccess then
+			Remotes.CloseInventory:FireServer(closingAccess)
+		end
 	end
 
 	render()
 end
 
 local function toggleInventory()
-	setInventoryOpen(not inventoryOpen)
+	if inventoryOpen then
+		setInventoryOpen(false)
+	else
+		currentAccess = nil
+		setInventoryOpen(true)
+	end
 end
 
 local function useSlot(slot)
@@ -684,6 +962,63 @@ local function giveSelectedItem()
 	fetchInventory()
 end
 
+local function handleOtherSlot(slot)
+	if busy then
+		return
+	end
+	local item = otherItems[slot]
+	selectedOtherSlot = item and slot or nil
+	purchaseAmount = 1
+	setStatus("")
+	render()
+end
+
+local function adjustPurchaseAmount(delta)
+	local item = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
+	if busy or not item or item.stock <= 0 then
+		return
+	end
+	purchaseAmount = math.clamp(purchaseAmount + delta, 1, item.stock)
+	render()
+end
+
+local function purchaseSelectedItem()
+	local item = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
+	if busy or not item or not currentAccess or not otherInventory then
+		return
+	end
+	if not otherInventory.actions or otherInventory.actions.purchase ~= true then
+		setStatus("That external inventory does not sell items.", COLORS.red)
+		return
+	end
+	if item.stock <= 0 then
+		setStatus("That product is sold out.", COLORS.red)
+		return
+	end
+
+	busy = true
+	setStatus("")
+	render()
+	local ok, snapshotOrErr = callRemote(Remotes.InventoryAction, "purchase", {
+		access = currentAccess,
+		slot = selectedOtherSlot,
+		amount = purchaseAmount,
+	})
+	busy = false
+	if not ok then
+		setStatus(snapshotOrErr or "The purchase could not be completed.", COLORS.red)
+		render()
+		return
+	end
+	setStatus(("Purchased %dx %s."):format(purchaseAmount, item.label), COLORS.green)
+	purchaseAmount = 1
+	if type(snapshotOrErr) == "table" then
+		applyInventorySnapshot(snapshotOrErr)
+	else
+		fetchInventory()
+	end
+end
+
 local function handleInventorySlot(slot)
 	if busy then
 		return
@@ -725,7 +1060,7 @@ local function setSelectedHotbarSlot(slot)
 	render()
 end
 
-local function makeSlotButton(parent, slot, isHotbar)
+local function makeSlotButton(parent, slot, isHotbar, isOther)
 	local button = Instance.new("TextButton")
 	button.Name = "Slot_" .. slot
 	button.BackgroundColor3 = slot <= HOTBAR_SLOTS and COLORS.slotHotbar or COLORS.slot
@@ -785,7 +1120,9 @@ local function makeSlotButton(parent, slot, isHotbar)
 	amount.TextWrapped = false
 
 	button.Activated:Connect(function()
-		if inventoryOpen then
+		if inventoryOpen and isOther then
+			handleOtherSlot(slot)
+		elseif inventoryOpen then
 			handleInventorySlot(slot)
 		elseif isHotbar then
 			setSelectedHotbarSlot(slot)
@@ -795,13 +1132,14 @@ local function makeSlotButton(parent, slot, isHotbar)
 
 	button.SelectionGained:Connect(function()
 		if inventoryOpen then
-			focusedSlot = slot
+			focusedSlot = isOther and -slot or slot
 			render()
 		end
 	end)
 
 	button.SelectionLost:Connect(function()
-		if focusedSlot == slot then
+		local focusKey = isOther and -slot or slot
+		if focusedSlot == focusKey then
 			focusedSlot = nil
 			render()
 		end
@@ -817,6 +1155,16 @@ local function makeSlotButton(parent, slot, isHotbar)
 		name = name,
 		amount = amount,
 	}
+end
+
+rebuildOtherSlots = function(slotCount)
+	for _, view in pairs(otherSlotViews) do
+		view.button:Destroy()
+	end
+	otherSlotViews = {}
+	for slot = 1, math.max(0, math.floor(tonumber(slotCount) or 0)) do
+		otherSlotViews[slot] = makeSlotButton(otherSlotsFrame, slot, false, true)
+	end
 end
 
 for slot = 1, HOTBAR_SLOTS do
@@ -840,42 +1188,67 @@ local function applySlotTextScale(view, textSize, labelHeight, inset)
 	view.amount.Size = UDim2.new(0.58, 0, 0, labelHeight)
 end
 
-local function updateResponsiveLayout()
+updateResponsiveLayout = function()
 	local viewport = getViewportSize()
 	local compact = viewport.X < 760 or viewport.Y < 560
 	local tiny = viewport.X < 520 or viewport.Y < 470
+	local hasOther = otherInventory ~= nil
 
 	local panelMargin = tiny and 8 or compact and 12 or 24
 	local minPanelSize = tiny and 250 or compact and 280 or 300
-	local maxPanelWidth = math.max(minPanelSize, viewport.X - panelMargin * 2)
+	local paneGap = tiny and 5 or compact and 8 or 14
+	local maxPanelWidth = hasOther and math.max(140, (viewport.X - panelMargin * 2 - paneGap) / 2)
+		or math.max(minPanelSize, viewport.X - panelMargin * 2)
 	local maxPanelHeight = math.max(minPanelSize, viewport.Y - panelMargin * 2)
-	local desiredPanelWidth = viewport.X * (tiny and 0.9 or compact and 0.92 or 0.92)
+	local desiredPanelWidth = hasOther and viewport.X * 0.45 or viewport.X * (tiny and 0.9 or compact and 0.92 or 0.92)
 	local desiredPanelHeight = viewport.Y * (tiny and 0.78 or compact and 0.84 or 0.78)
-	local panelWidth = round(math.min(640, maxPanelWidth, math.max(minPanelSize, desiredPanelWidth)))
+	local panelWidth = round(
+		math.min(hasOther and 600 or 640, maxPanelWidth, math.max(hasOther and 140 or minPanelSize, desiredPanelWidth))
+	)
 	local panelHeight = round(math.min(560, maxPanelHeight, math.max(minPanelSize, desiredPanelHeight)))
 
-	panelConstraint.MinSize = Vector2.new(math.min(minPanelSize, panelWidth), math.min(minPanelSize, panelHeight))
+	local constrainedMinWidth = math.min(hasOther and 140 or minPanelSize, panelWidth)
+	panelConstraint.MinSize = Vector2.new(constrainedMinWidth, math.min(minPanelSize, panelHeight))
 	panelConstraint.MaxSize = Vector2.new(panelWidth, panelHeight)
+	otherPanelConstraint.MinSize = Vector2.new(constrainedMinWidth, math.min(minPanelSize, panelHeight))
+	otherPanelConstraint.MaxSize = Vector2.new(panelWidth, panelHeight)
 	inventoryPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
-	inventoryPanel.Position = UDim2.fromScale(0.5, compact and 0.49 or 0.48)
+	otherPanel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+	local centerY = compact and 0.49 or 0.48
+	if hasOther then
+		local centerOffset = (panelWidth + paneGap) / 2
+		inventoryPanel.Position = UDim2.new(0.5, -centerOffset, centerY, 0)
+		otherPanel.Position = UDim2.new(0.5, centerOffset, centerY, 0)
+	else
+		inventoryPanel.Position = UDim2.fromScale(0.5, centerY)
+	end
 
 	local panelPadX = tiny and 6 or compact and 9 or 16
 	local panelPadTop = tiny and 6 or compact and 9 or 14
 	local panelPadBottom = tiny and 7 or compact and 10 or 16
 	setPaddingOffsets(panelPadding, panelPadX, panelPadTop, panelPadX, panelPadBottom)
+	setPaddingOffsets(otherPanelPadding, panelPadX, panelPadTop, panelPadX, panelPadBottom)
 
 	local layoutGap = tiny and 5 or compact and 7 or 12
 	local headerHeight = tiny and 26 or compact and 31 or 38
 	local actionHeight = tiny and 48 or compact and 58 or 74
 	local statusHeight = tiny and 14 or 18
 	local contentHeight = panelHeight - panelPadTop - panelPadBottom
-	local gridHeight = math.max(tiny and 82 or compact and 112 or 170, contentHeight - headerHeight - actionHeight - statusHeight - layoutGap * 3)
+	local gridHeight = math.max(
+		tiny and 82 or compact and 112 or 170,
+		contentHeight - headerHeight - actionHeight - statusHeight - layoutGap * 3
+	)
 
 	panelLayout.Padding = UDim.new(0, layoutGap)
+	otherPanelLayout.Padding = UDim.new(0, layoutGap)
 	header.Size = UDim2.new(1, 0, 0, headerHeight)
+	otherHeader.Size = UDim2.new(1, 0, 0, headerHeight)
 	gridShell.Size = UDim2.new(1, 0, 0, gridHeight)
+	otherGridShell.Size = UDim2.new(1, 0, 0, gridHeight)
 	actionBar.Size = UDim2.new(1, 0, 0, actionHeight)
+	otherActionBar.Size = UDim2.new(1, 0, 0, actionHeight)
 	statusLabel.Size = UDim2.new(1, 0, 0, statusHeight)
+	otherStatusLabel.Size = UDim2.new(1, 0, 0, statusHeight)
 
 	local closeSize = tiny and 26 or compact and 30 or 34
 	titleLabel.TextSize = tiny and 16 or compact and 18 or 22
@@ -884,20 +1257,28 @@ local function updateResponsiveLayout()
 	weightLabel.Position = UDim2.new(1, -(closeSize + 8), 0, 0)
 	weightLabel.Size = UDim2.new(tiny and 0.56 or 0.48, -8, 1, 0)
 	closeButton.Size = UDim2.fromOffset(closeSize, closeSize)
+	otherTitleLabel.TextSize = tiny and 14 or compact and 17 or 22
+	otherTypeLabel.TextSize = tiny and 9 or compact and 11 or 13
 
 	local gridPad = tiny and 5 or compact and 7 or 10
 	setPaddingOffsets(gridPadding, gridPad, gridPad, gridPad, gridPad)
+	setPaddingOffsets(otherGridPadding, gridPad, gridPad, gridPad, gridPad)
 	slotsFrame.ScrollBarThickness = tiny and 3 or 5
+	otherSlotsFrame.ScrollBarThickness = tiny and 3 or 5
 	local gridColumns = tiny and math.min(4, HOTBAR_SLOTS) or HOTBAR_SLOTS
 	local gridGapScale = tiny and 0.012 or 0.01
 	local cellScale = (1 - gridGapScale * math.max(0, gridColumns - 1)) / gridColumns
 	slotsGrid.FillDirectionMaxCells = gridColumns
 	slotsGrid.CellSize = UDim2.new(cellScale, 0, 0, tiny and 54 or compact and 66 or 82)
 	slotsGrid.CellPadding = UDim2.new(gridGapScale, 0, 0, tiny and 4 or 6)
+	otherSlotsGrid.FillDirectionMaxCells = gridColumns
+	otherSlotsGrid.CellSize = slotsGrid.CellSize
+	otherSlotsGrid.CellPadding = slotsGrid.CellPadding
 
 	local actionPadX = tiny and 6 or compact and 8 or 12
 	local actionPadY = tiny and 6 or 10
 	setPaddingOffsets(actionPadding, actionPadX, actionPadY, actionPadX, actionPadY)
+	setPaddingOffsets(otherActionPadding, actionPadX, actionPadY, actionPadX, actionPadY)
 	local actionButtonHeight = tiny and 31 or compact and 36 or 44
 	local moveWidth = tiny and 46 or compact and 54 or 70
 	local giveWidth = tiny and 46 or compact and 54 or 64
@@ -919,6 +1300,27 @@ local function updateResponsiveLayout()
 	useButton.TextSize = tiny and 10 or compact and 12 or 14
 	useButton.Size = UDim2.fromOffset(useWidth, actionButtonHeight)
 	statusLabel.TextSize = tiny and 10 or 13
+	otherStatusLabel.TextSize = tiny and 10 or 13
+
+	local externalControlWidth = tiny and 132 or compact and 170 or 218
+	local externalButtonHeight = actionButtonHeight
+	local stepWidth = tiny and 27 or compact and 32 or 36
+	local amountWidth = tiny and 28 or compact and 34 or 42
+	local buyWidth = tiny and 60 or compact and 68 or 76
+	local controlGap = tiny and 3 or compact and 5 or 8
+	otherSelectedNameLabel.TextSize = tiny and 10 or compact and 13 or 15
+	otherSelectedNameLabel.Size = UDim2.new(1, -externalControlWidth, 0, tiny and 18 or 24)
+	otherSelectedDescLabel.TextSize = tiny and 8 or compact and 10 or 12
+	otherSelectedDescLabel.Position = UDim2.fromOffset(0, tiny and 18 or 25)
+	otherSelectedDescLabel.Size = UDim2.new(1, -externalControlWidth, 0, tiny and 20 or 28)
+	buyButton.Size = UDim2.fromOffset(buyWidth, externalButtonHeight)
+	increaseButton.Size = UDim2.fromOffset(stepWidth, externalButtonHeight)
+	increaseButton.Position = UDim2.new(1, -(buyWidth + controlGap), 0.5, 0)
+	purchaseAmountLabel.Size = UDim2.fromOffset(amountWidth, externalButtonHeight)
+	purchaseAmountLabel.Position = UDim2.new(1, -(buyWidth + stepWidth + controlGap * 2), 0.5, 0)
+	decreaseButton.Size = UDim2.fromOffset(stepWidth, externalButtonHeight)
+	decreaseButton.Position = UDim2.new(1, -(buyWidth + stepWidth + amountWidth + controlGap * 3), 0.5, 0)
+	buyButton.TextSize = tiny and 9 or compact and 11 or 14
 
 	local sideMargin = tiny and 8 or compact and 12 or 18
 	local bottomMargin = tiny and 8 or compact and 12 or 22
@@ -932,8 +1334,10 @@ local function updateResponsiveLayout()
 	local gapCount = math.max(0, HOTBAR_SLOTS - 1)
 	local minSlotSize = 32
 	local maxSlotSize = tiny and 42 or compact and 50 or 64
-	local maxHotbarWidth = math.max(HOTBAR_SLOTS * minSlotSize + gapCount * 3, viewport.X - sideMargin * 2 - toggleWidth - hotbarGap)
-	local hotbarSlotSize = math.clamp(math.floor((maxHotbarWidth - hotbarGap * gapCount) / HOTBAR_SLOTS), minSlotSize, maxSlotSize)
+	local maxHotbarWidth =
+		math.max(HOTBAR_SLOTS * minSlotSize + gapCount * 3, viewport.X - sideMargin * 2 - toggleWidth - hotbarGap)
+	local hotbarSlotSize =
+		math.clamp(math.floor((maxHotbarWidth - hotbarGap * gapCount) / HOTBAR_SLOTS), minSlotSize, maxSlotSize)
 	local hotbarWidth = hotbarSlotSize * HOTBAR_SLOTS + hotbarGap * gapCount
 
 	hotbar.Position = UDim2.new(1, -(sideMargin + toggleWidth + hotbarGap), 1, -bottomMargin)
@@ -942,6 +1346,9 @@ local function updateResponsiveLayout()
 
 	local inventoryTextSize = tiny and 9 or compact and 10 or 12
 	for _, view in pairs(slotViews) do
+		applySlotTextScale(view, inventoryTextSize, tiny and 14 or 18, tiny and 5 or 7)
+	end
+	for _, view in pairs(otherSlotViews) do
 		applySlotTextScale(view, inventoryTextSize, tiny and 14 or 18, tiny and 5 or 7)
 	end
 
@@ -982,6 +1389,20 @@ useButton.Activated:Connect(function()
 	if selectedSlot and not moveMode then
 		useSlot(selectedSlot)
 	end
+end)
+decreaseButton.Activated:Connect(function()
+	adjustPurchaseAmount(-1)
+end)
+increaseButton.Activated:Connect(function()
+	adjustPurchaseAmount(1)
+end)
+buyButton.Activated:Connect(purchaseSelectedItem)
+
+Remotes.OpenInventory.OnClientEvent:Connect(function(access)
+	if not loaded or type(access) ~= "table" then
+		return
+	end
+	setInventoryOpen(true, access)
 end)
 
 local keyboardSlots = {
