@@ -492,6 +492,9 @@ local function rollbackDebit(playerObj, account, amount)
 end
 
 local function deposit(player, playerObj, payload, access)
+	if access.mode == "atm" then
+		return false, "Cash deposits are only available at a bank counter."
+	end
 	local amount, err = parseAmount(payload.amount)
 	if not amount then
 		return false, err

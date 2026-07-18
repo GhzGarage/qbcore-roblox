@@ -85,6 +85,9 @@
         "QBNotify": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBNotify.client.lua"
         },
+        "QBPrompt": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBPrompt.client.lua"
+        },
         "QBTimeCycle": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBTimeCycle.client.lua"
         },

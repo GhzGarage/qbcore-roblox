@@ -1447,9 +1447,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			setSelectedHotbarSlot(selectedHotbarSlot - 1)
 		elseif not inventoryOpen and input.KeyCode == Enum.KeyCode.DPadRight then
 			setSelectedHotbarSlot(selectedHotbarSlot + 1)
-		elseif
-			not inventoryOpen and (input.KeyCode == Enum.KeyCode.ButtonR2 or input.KeyCode == Enum.KeyCode.ButtonX)
-		then
+		elseif not inventoryOpen and input.KeyCode == Enum.KeyCode.DPadDown then
 			useSlot(selectedHotbarSlot)
 		end
 	end

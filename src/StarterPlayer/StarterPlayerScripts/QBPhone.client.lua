@@ -216,13 +216,13 @@ appGrid.SortOrder = Enum.SortOrder.LayoutOrder
 appGrid.Parent = apps
 
 local appMeta = {
-	{ "contacts", "Phone", "CALL", COLORS.green },
-	{ "messages", "Messages", "CHAT", COLORS.blue },
-	{ "camera", "Camera", "SNAP", Color3.fromRGB(74, 82, 101) },
-	{ "photos", "Photos", "VIEW", COLORS.orange },
-	{ "social", "StudSpace", "STUD", COLORS.purple },
-	{ "tools", "Tools", "123", Color3.fromRGB(69, 111, 153) },
-	{ "settings", "Settings", "SET", Color3.fromRGB(92, 103, 122) },
+	{ "contacts", "Phone", "rbxassetid://91900298739645", COLORS.green },
+	{ "messages", "Messages", "rbxassetid://138792521694255", COLORS.blue },
+	{ "camera", "Camera", "rbxassetid://79469516734488", Color3.fromRGB(74, 82, 101) },
+	{ "photos", "Photos", "rbxassetid://79202041326110", COLORS.orange },
+	{ "social", "StudSpace", "rbxassetid://78972290900876", COLORS.purple },
+	{ "tools", "Tools", "rbxassetid://130806761187039", Color3.fromRGB(69, 111, 153) },
+	{ "settings", "Settings", "rbxassetid://88871196543710", Color3.fromRGB(92, 103, 122) },
 }
 
 local navigate
@@ -232,12 +232,20 @@ for order, meta in ipairs(appMeta) do
 	tile.BackgroundTransparency = 1
 	tile.LayoutOrder = order
 	tile.Parent = apps
-	local icon = button(tile, "Icon", meta[3], meta[4])
+	local icon = button(tile, "Icon", "", meta[4])
 	icon.AnchorPoint = Vector2.new(0.5, 0)
 	icon.Position = UDim2.new(0.5, 0, 0, 0)
 	icon.Size = UDim2.fromOffset(58, 58)
-	icon.TextSize = 12
 	addCorner(icon, 16)
+	local iconImage = Instance.new("ImageLabel")
+	iconImage.Name = "Image"
+	iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+	iconImage.Position = UDim2.fromScale(0.5, 0.5)
+	iconImage.Size = UDim2.fromOffset(36, 36)
+	iconImage.BackgroundTransparency = 1
+	iconImage.Image = meta[3]
+	iconImage.ScaleType = Enum.ScaleType.Fit
+	iconImage.Parent = icon
 	local title = label(tile, "Title", meta[2], 11, COLORS.ink, Enum.Font.GothamMedium)
 	title.Position = UDim2.fromOffset(0, 62)
 	title.Size = UDim2.new(1, 0, 0, 24)

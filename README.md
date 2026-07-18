@@ -9,6 +9,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
 - Death screen with timer-based self-respawn.
 - Toast notification UI for `Player:Notify`.
+- Shared QBCore-style proximity prompt UI for keyboard, gamepad, and touch.
 - Server-authoritative hunger/thirst decay.
 - Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu.
 - Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
@@ -83,6 +84,7 @@ src/
     QBInventory.client.lua  -- player/external inventory panes, shops, and hotbar
     QBMenu.client.lua       -- reusable QBCore-style menu
     QBNotify.client.lua     -- toast notifications
+    QBPrompt.client.lua     -- shared custom proximity prompt UI
     QBStageMusic.client.lua -- stage speaker music menu
     QBTimeCycle.client.lua  -- time-of-day visual grading
     QBWeather.client.lua    -- local precipitation and lightning visuals
@@ -186,6 +188,7 @@ StarterPlayer/StarterPlayerScripts/QBHUD
 StarterPlayer/StarterPlayerScripts/QBInventory
 StarterPlayer/StarterPlayerScripts/QBMenu
 StarterPlayer/StarterPlayerScripts/QBNotify
+StarterPlayer/StarterPlayerScripts/QBPrompt
 StarterPlayer/StarterPlayerScripts/QBStageMusic
 StarterPlayer/StarterPlayerScripts/QBTimeCycle
 StarterPlayer/StarterPlayerScripts/QBWeather

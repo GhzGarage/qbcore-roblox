@@ -643,6 +643,7 @@ local function renderBalances()
 	local account = selectedAccount()
 	checkingBalance.Text = formatMoney(account.balance)
 	cashBalance.Text = formatMoney((snapshot and snapshot.account and snapshot.account.cash) or account.cash)
+	cashCaption.Text = accessContext.mode == "atm" and "Deposit at a bank" or "Depositable funds"
 	checkingTitle.Text = string.upper(tostring(account.name or "Checking")) .. " BALANCE"
 	checkingCaption.Text = account.type == "society" and "Boss-managed job funds" or "Available immediately"
 	local location = snapshot and snapshot.location or {}
@@ -678,7 +679,7 @@ local function renderBalances()
 end
 
 local function renderAction()
-	if accessContext.mode == "atm" and currentAction == "card" then
+	if accessContext.mode == "atm" and (currentAction == "deposit" or currentAction == "card") then
 		currentAction = "withdraw"
 	end
 	local info = ACTIONS[currentAction]
@@ -688,8 +689,10 @@ local function renderAction()
 		actionHint.Text = info.hint .. " Issuance fee: " .. formatMoney(snapshot.limits.cardPrice or 0) .. "."
 	end
 	for actionName, button in pairs(tabButtons) do
-		button.Visible = not (accessContext.mode == "atm" and actionName == "card")
-		button.Size = accessContext.mode == "atm" and UDim2.new(1 / 3, -4, 1, 0) or UDim2.new(1 / 4, -5, 1, 0)
+		button.Visible = not (
+			accessContext.mode == "atm" and (actionName == "deposit" or actionName == "card")
+		)
+		button.Size = accessContext.mode == "atm" and UDim2.new(1 / 2, -3, 1, 0) or UDim2.new(1 / 4, -5, 1, 0)
 		button.BackgroundColor3 = actionName == currentAction and COLORS.blueDark or COLORS.panelSoft
 		button.TextColor3 = actionName == currentAction and COLORS.text or COLORS.muted
 	end
@@ -877,6 +880,10 @@ end
 
 submitButton.Activated:Connect(function()
 	if busy or not isOpen then
+		return
+	end
+	if accessContext.mode == "atm" and currentAction == "deposit" then
+		setStatus("Cash deposits are only available at a bank counter.", COLORS.red)
 		return
 	end
 	if currentAction ~= "card" and amountBox.Text == "" then
