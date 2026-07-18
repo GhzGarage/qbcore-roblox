@@ -52,6 +52,9 @@
         "QBInventory": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBInventory.client.lua"
         },
+        "QBBanking": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBBanking.client.lua"
+        },
         "QBAdmin": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBAdmin.client.lua"
         },

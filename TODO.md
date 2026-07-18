@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: July 6, 2026.
+Last updated: July 17, 2026.
 
 This is a from-scratch Roblox/Luau port of the QBCore pieces needed for a
 playable join-to-character flow. It now has several working resource slices, but
@@ -24,6 +24,11 @@ it is still not a full QBCore ecosystem.
       per-character HumanoidDescription serialization, live preview, save/cancel,
       accessory limits, scale clamps, and optional ownership validation.
 - [x] Server-authoritative hunger/thirst status loop.
+- [x] Configurable job-grade paychecks with duty gating, optional banking-backed
+      society debits, and a `/duty` toggle.
+- [x] Personal and boss-accessible society banking with bank/ATM proximity prompts,
+      deposits/withdrawals, online or queued citizen-ID transfers, cards/PINs,
+      daily ATM limits, and persistent statements.
 - [x] HUD for identity, job, cash/bank, health, armor, hunger, thirst, and
       equipped weapon ammo.
 - [x] Toast notification UI.
@@ -44,7 +49,7 @@ it is still not a full QBCore ecosystem.
       user/mod/admin/god permissions.
 - [x] TextChatService command router and default commands:
       `/commands`, `/id`, `/logout`, `/appearance`, `/emotes`, `/music`,
-      `/musicsearch`, `/job`, `/crew`, `/cash`, `/bank`, `/admin`, `/setjob`,
+      `/musicsearch`, `/job`, `/duty`, `/crew`, `/cash`, `/bank`, `/admin`, `/setjob`,
       `/setcrew`, `/givemoney`, `/setmoney`, `/giveitem`, `/car`, `/dv`,
       `/time`, `/freezetime`, `/kick`, and `/ban`.
 - [x] Native admin menu:
@@ -92,7 +97,7 @@ it is still not a full QBCore ecosystem.
       birthdate, gender, nationality, phone number, and optional backstory fields.
 - [ ] Add spawn-selection support once apartments/housing/hospitals/garages exist.
 - [ ] Add stronger character deletion cleanup for future per-character stores
-      such as houses, vehicles, phone contacts, outfits, warrants, and bank logs.
+      such as houses, vehicles, phone contacts, outfits, and warrants.
 
 ### Inventory, Items, And Economy
 
@@ -104,14 +109,16 @@ it is still not a full QBCore ecosystem.
       existing slot/item helpers.
 - [ ] Build crafting/recipes and item metadata flows for tools, serial numbers,
       licenses, durability, and quality.
-- [ ] Add paychecks using job grade payment and `Config.Money.PayCheckTimeOut`.
-- [ ] Add society/business accounts before enabling society paychecks.
-- [ ] Add banking/ATM/account history UI and money-transfer workflows.
+- [x] Add paychecks using job grade payment and `Config.Money.PayCheckTimeOut`.
+- [x] Add society/business accounts and connect optional society-funded paychecks.
+- [x] Add banking UI, account history, cash deposit/withdrawal, and online or
+      safely queued offline citizen-ID transfer workflows.
+- [x] Add ATM cards/PINs and optional daily withdrawal limits.
 
 ### Jobs, Crews, And Gameplay Loops
 
-- [ ] Turn the current job/crew registries into real gameplay systems with duty
-      toggles, blips/prompts, role permissions, and grade-specific actions.
+- [ ] Turn the current job/crew registries into real gameplay systems with map
+      duty prompts, blips, role permissions, and grade-specific actions.
 - [ ] Port or redesign core jobs:
       police, ambulance, mechanic, taxi, delivery/trucker, garbage, and civilian
       activities.
@@ -173,7 +180,7 @@ it is still not a full QBCore ecosystem.
 - [ ] Housing/apartments.
 - [ ] Garages/impound.
 - [ ] Phone.
-- [ ] Management/boss menu/society accounts.
+- [ ] Management/boss menu beyond society banking (employees, grades, hiring/firing).
 - [ ] Door locks.
 - [ ] Target/interact system.
 - [ ] Progress bars/skill checks/minigames.
@@ -189,12 +196,12 @@ it is still not a full QBCore ecosystem.
 1. Production hardening pass:
    profile library, smoke tests, validation, logging, and data migration metadata.
 2. Inventory economy pass:
-   shops, drops, stashes, trunks/gloveboxes, crafting, and paychecks.
+   shops, drops, stashes, trunks/gloveboxes, and crafting.
 3. Vehicle pass:
    install templates, persistent ownership, garages, keys/locks, fuel, and trunk
    inventories.
 4. Job pass:
-   duty toggles, police/EMS/mechanic/taxi loops, dispatch/reports, and grade
+   map duty prompts, police/EMS/mechanic/taxi loops, dispatch/reports, and grade
    permissions.
 5. World pass:
    weather polish, blackout light coverage, map-specific configuration, and place validation.

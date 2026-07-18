@@ -294,8 +294,43 @@ Config.Money = {
 	MoneyTypes = { cash = 500, bank = 5000, crypto = 0 }, -- starting balances
 	DontAllowMinus = { cash = true, crypto = true }, -- moneytype -> true
 	MinusLimit = -5000,
-	PayCheckTimeOut = 10 * 60, -- seconds
-	PayCheckSociety = false, -- TODO: society/business accounts (qb-management) are out of scope
+	PayCheckEnabled = true,
+	PayCheckTimeOut = 10 * 60, -- seconds between paycheck rounds
+	PayCheckOnDutyOnly = true, -- false pays every loaded character, regardless of duty state
+	-- When true, each paycheck is debited from the matching Banking society account first.
+	-- Leave false to keep the usual QBCore behavior where paychecks do not cost society funds.
+	PayCheckSociety = false,
+}
+
+Config.Banking = {
+	Enabled = true,
+	PromptDistance = 10, -- studs; distance at which Roblox shows the bank prompt
+	ActionDistance = 14, -- server-side allowance for opening/submitting banking actions
+	MaxTransactionAmount = 1000000,
+	MaxStatements = 50, -- newest per-character checking-account statements retained
+	CardPrice = 50,
+	UseDailyWithdrawalLimit = true,
+	DailyWithdrawalLimit = 5000,
+	Society = {
+		Enabled = true,
+		DefaultBalance = 0,
+		-- Optional per-job first-use balances, for example: police = 25000.
+		StartingBalances = {},
+	},
+	Locations = {
+		{
+			id = "test_bank",
+			label = "QBCore Bank",
+			position = Vector3.new(6.21, 3.45, -1492.88),
+		},
+	},
+	ATMLocations = {
+		{
+			id = "test_atm",
+			label = "QBCore ATM",
+			position = Vector3.new(26.21, 3.45, -1492.88),
+		},
+	},
 }
 
 Config.Inventory = {
@@ -371,6 +406,12 @@ Config.Player = {
 	CharacterDefaults = {
 		cid = 1,
 		money = { cash = 500, bank = 5000, crypto = 0 },
+		banking = {
+			nextStatementId = 1,
+			statements = {},
+			atm = { dayKey = 0, withdrawn = 0 },
+			processedTransferIds = {},
+		},
 		charinfo = {
 			firstname = "Firstname",
 			lastname = "Lastname",

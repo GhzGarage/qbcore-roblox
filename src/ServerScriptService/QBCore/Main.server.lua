@@ -1,7 +1,6 @@
 --[[
     Server entry point: join gate (Access), account-profile claim + character-select
-    remotes (PlayerService), world/time boot, and shutdown saving. The paycheck loop
-    is not ported yet -- see TODO.md.
+    remotes (PlayerService), world/time boot, paychecks, and shutdown saving.
 ]]
 
 local Players = game:GetService("Players")
@@ -33,9 +32,14 @@ local VehicleService = requireLocalModule("VehicleService")
 local WeatherService = requireLocalModule("WeatherService")
 local StageMusicService = requireLocalModule("StageMusicService")
 local AdminService = requireLocalModule("AdminService")
+local PaycheckService = requireLocalModule("PaycheckService")
+local BankingService = requireLocalModule("BankingService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
 
 PlayerService.StartStatusLoop()
+BankingService.Start()
+PaycheckService.SetSocietyFundsProvider(BankingService.WithdrawSocietyFunds)
+PaycheckService.Start()
 PlayerService.ApplyWorldEnvironment()
 TimeSyncService.Start()
 WeatherService.Start()
@@ -71,6 +75,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 game:BindToClose(function()
+	PaycheckService.Stop()
 	PlayerService.SaveAllAndRelease()
 end)
 
@@ -84,7 +89,11 @@ Remotes.SelectCharacter.OnServerInvoke = function(player, citizenId)
 	if type(citizenId) ~= "string" then
 		return false, "Invalid request."
 	end
-	return PlayerService.SelectCharacter(player, citizenId)
+	local ok, err = PlayerService.SelectCharacter(player, citizenId)
+	if ok then
+		BankingService.DeliverPendingTransfers(player, PlayerService.GetPlayer(player.UserId))
+	end
+	return ok, err
 end
 
 Remotes.CreateCharacter.OnServerInvoke = function(player, firstname, lastname)
@@ -174,5 +183,3 @@ end
 Remotes.AdminAction.OnServerInvoke = function(player, action, payload)
 	return AdminService.HandleAction(player, action, payload)
 end
-
--- TODO: PaycheckInterval() equivalent -- see TODO.md ("Gameplay loops")

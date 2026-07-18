@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>qb-core Roblox Port — Documentation</title>
+<meta name="description" content="Documentation for the qb-core Roblox/Luau port: architecture, services, client scripts, commands, remotes, items, and configuration.">
+<style>
+  /* == Palette lifted directly from the in-game UI scripts ==
+     bg        rgb(12,15,20)   QBInventory/QBCoreClient COLOR_BG
+     bg-deep   rgb(7,9,12)     QBAdmin overlay
+     panel     rgb(18,21,27)   QBAdmin panel
+     panel-2   rgb(24,30,38)   QBHUD/QBNotify panel
+     card      rgb(28,33,42)   QBAdmin card
+     card-hi   rgb(35,41,51)   QBAdmin card highlight
+     stroke    rgb(48,57,70)   QBAdmin stroke
+     stroke-hi rgb(70,80,96)   QBAdmin stroke highlight
+     text      rgb(240,243,246) QBAdmin text
+     muted     rgb(156,167,182) QBAdmin muted
+     gold      rgb(235,184,76) QBMenu/QBAdmin accent
+     green     rgb(62,166,105) QBCore success / play
+     red       rgb(191,75,75)  danger
+     blue      rgb(67,133,194) info
+     orange    rgb(205,130,58) warning
+     HUD bars: health rgb(214,76,86) armor rgb(72,141,213)
+               hunger rgb(224,151,67) thirst rgb(73,177,205) stress rgb(190,102,212) */
+  :root {
+    --bg: rgb(12,15,20);
+    --bg-deep: rgb(7,9,12);
+    --panel: rgb(18,21,27);
+    --panel-2: rgb(24,30,38);
+    --card: rgb(28,33,42);
+    --card-hi: rgb(35,41,51);
+    --inset: rgb(15,18,24);
+    --stroke: rgb(48,57,70);
+    --stroke-hi: rgb(70,80,96);
+    --text: rgb(240,243,246);
+    --muted: rgb(156,167,182);
+    --gold: rgb(235,184,76);
+    --gold-dim: rgb(136,98,34);
+    --green: rgb(62,166,105);
+    --red: rgb(191,75,75);
+    --blue: rgb(67,133,194);
+    --orange: rgb(205,130,58);
+    --health: rgb(214,76,86);
+    --armor: rgb(72,141,213);
+    --hunger: rgb(224,151,67);
+    --thirst: rgb(73,177,205);
+    --stress: rgb(190,102,212);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --sidebar-w: 272px;
+    --font: "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif;
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(235,184,76,.28); }
+
+  /* ---------- top bar (mobile) ---------- */
+  .topbar {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+    height: 56px;
+    background: rgba(12,15,20,.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--stroke);
+    align-items: center; gap: 12px;
+    padding: 0 14px;
+  }
+  .topbar .brand-mini { font-weight: 700; font-size: 14px; letter-spacing: .04em; }
+  .topbar .brand-mini span { color: var(--gold); }
+  .menu-btn {
+    width: 40px; height: 40px; flex: 0 0 auto;
+    background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    color: var(--text); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+  }
+  .menu-btn:hover { background: var(--card-hi); border-color: var(--stroke-hi); }
+
+  /* ---------- layout ---------- */
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    width: var(--sidebar-w); flex: 0 0 var(--sidebar-w);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--panel);
+    border-right: 1px solid var(--stroke);
+    padding: 22px 16px 40px;
+    scrollbar-width: thin; scrollbar-color: var(--stroke) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 8px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 4px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 16px; }
+  .brand-badge {
+    width: 38px; height: 38px; flex: 0 0 auto;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, var(--card-hi), var(--inset));
+    border: 1px solid var(--stroke-hi);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gold); font-weight: 800; font-size: 15px; letter-spacing: .02em;
+  }
+  .brand h1 { font-size: 15px; font-weight: 700; line-height: 1.25; }
+  .brand h1 span { color: var(--gold); }
+  .brand p { font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .nav-filter {
+    width: 100%; margin: 4px 0 14px;
+    background: var(--inset); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    color: var(--text); font: inherit; font-size: 13px;
+    padding: 8px 12px; outline: none;
+    transition: border-color .15s;
+  }
+  .nav-filter:focus { border-color: var(--gold-dim); }
+  .nav-filter::placeholder { color: var(--muted); opacity: .7; }
+  .nav-group { margin-bottom: 18px; }
+  .nav-group > h2 {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); padding: 0 10px 6px;
+  }
+  .nav-group a {
+    display: block; padding: 6px 10px; margin: 1px 0;
+    color: var(--muted); text-decoration: none; font-size: 13.5px;
+    border-radius: var(--radius-sm);
+    border-left: 2px solid transparent;
+    transition: color .12s, background .12s, border-color .12s;
+  }
+  .nav-group a:hover { color: var(--text); background: var(--card); }
+  .nav-group a.active { color: var(--gold); background: var(--card); border-left-color: var(--gold); }
+  .nav-hidden { display: none !important; }
+
+  /* ---------- overlay for mobile drawer ---------- */
+  .scrim {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(7,9,12,.6); backdrop-filter: blur(2px);
+  }
+
+  /* ---------- main ---------- */
+  main { flex: 1; min-width: 0; padding: 36px clamp(18px, 4vw, 56px) 90px; }
+  .content { max-width: 900px; margin: 0 auto; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: linear-gradient(160deg, var(--panel-2) 0%, var(--panel) 60%, var(--bg-deep) 100%);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    padding: clamp(22px, 4vw, 40px);
+    margin-bottom: 40px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: .7;
+  }
+  .hero .kicker {
+    font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 8px;
+  }
+  .hero h2 { font-size: clamp(24px, 4.5vw, 36px); font-weight: 800; line-height: 1.15; margin-bottom: 12px; }
+  .hero p.lede { color: var(--muted); max-width: 62ch; font-size: clamp(14px, 1.8vw, 16px); }
+  .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .hero-tags span {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+    padding: 4px 11px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--stroke); color: var(--muted);
+  }
+  /* mini HUD decoration — mirrors QBHUD status bars */
+  .mini-hud {
+    margin-top: 24px; display: flex; flex-direction: column; gap: 7px;
+    max-width: 340px;
+    background: rgba(24,30,38,.75);
+    border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .hud-row { display: flex; align-items: center; gap: 10px; }
+  .hud-row .lbl {
+    width: 42px; flex: 0 0 auto; font-family: var(--mono);
+    font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--muted);
+  }
+  .hud-row .track {
+    flex: 1; height: 7px; border-radius: 4px; overflow: hidden;
+    background: rgb(45,54,66);
+  }
+  .hud-row .fill { height: 100%; border-radius: 4px; }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 56px; }
+  section > h2 {
+    font-size: clamp(20px, 3vw, 26px); font-weight: 800; margin-bottom: 6px;
+    padding-top: 8px; display: flex; align-items: center; gap: 10px;
+  }
+  section > h2::before {
+    content: ""; width: 5px; height: 22px; border-radius: 3px;
+    background: var(--gold); flex: 0 0 auto;
+  }
+  section > .section-sub { color: var(--muted); margin-bottom: 20px; max-width: 70ch; }
+  h3 { font-size: 17px; font-weight: 700; margin: 28px 0 10px; }
+  h3 code { font-size: 15px; }
+  p { margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 22px; margin-bottom: 14px; }
+  li { margin-bottom: 5px; }
+  li::marker { color: var(--gold-dim); }
+  strong { color: var(--text); }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 14px;
+  }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 14px; }
+  .card-grid .card { margin-bottom: 0; padding: 15px 17px; transition: border-color .15s, background .15s; }
+  .card-grid .card:hover { border-color: var(--stroke-hi); background: var(--card-hi); }
+  .card h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card h4 code { font-size: 13px; }
+  .card p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  /* ---------- collapsible service blocks ---------- */
+  details.svc {
+    background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius);
+    margin-bottom: 10px; overflow: hidden;
+  }
+  details.svc[open] { border-color: var(--stroke-hi); }
+  details.svc > summary {
+    list-style: none; cursor: pointer; user-select: none;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-weight: 700; font-size: 15px;
+    transition: background .12s;
+  }
+  details.svc > summary:hover { background: var(--card-hi); }
+  details.svc > summary::-webkit-details-marker { display: none; }
+  details.svc > summary::before {
+    content: "▸"; color: var(--gold); font-size: 12px; transition: transform .15s;
+    flex: 0 0 auto;
+  }
+  details.svc[open] > summary::before { transform: rotate(90deg); }
+  details.svc > summary .sum-desc { font-weight: 400; font-size: 12.5px; color: var(--muted); width: 100%; padding-left: 22px; }
+  details.svc .svc-body { padding: 4px 18px 18px; border-top: 1px solid var(--stroke); }
+  details.svc .svc-body > p:first-child { margin-top: 12px; }
+
+  /* ---------- api list ---------- */
+  .api { list-style: none; padding: 0; margin: 12px 0 4px; }
+  .api li {
+    padding: 9px 0; margin: 0;
+    border-bottom: 1px solid rgba(48,57,70,.55);
+    font-size: 13.5px;
+  }
+  .api li:last-child { border-bottom: none; }
+  .api code { color: var(--text); }
+  .api .desc { color: var(--muted); display: block; margin-top: 2px; }
+
+  /* ---------- badges ---------- */
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    padding: 2.5px 8px; border-radius: 999px; line-height: 1.5;
+    border: 1px solid; white-space: nowrap;
+  }
+  .b-user   { color: var(--green);  border-color: rgba(62,166,105,.45);  background: rgba(62,166,105,.12); }
+  .b-admin  { color: var(--gold);   border-color: rgba(235,184,76,.45);  background: rgba(235,184,76,.10); }
+  .b-god    { color: var(--health); border-color: rgba(214,76,86,.45);   background: rgba(214,76,86,.12); }
+  .b-event  { color: var(--thirst); border-color: rgba(73,177,205,.45);  background: rgba(73,177,205,.12); }
+  .b-func   { color: var(--stress); border-color: rgba(190,102,212,.45); background: rgba(190,102,212,.12); }
+  .b-server { color: var(--armor);  border-color: rgba(72,141,213,.45);  background: rgba(72,141,213,.12); }
+  .b-client { color: var(--hunger); border-color: rgba(224,151,67,.45);  background: rgba(224,151,67,.12); }
+  .b-shared { color: var(--muted);  border-color: var(--stroke-hi);      background: var(--inset); }
+
+  /* ---------- code ---------- */
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--inset); border: 1px solid var(--stroke);
+    padding: 1.5px 6px; border-radius: 5px;
+    color: rgb(232,213,160);
+    overflow-wrap: anywhere;
+  }
+  pre {
+    background: var(--inset); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    padding: 14px 16px; margin: 12px 0 16px;
+    overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; color: rgb(214,222,232); }
+  pre .c { color: rgb(111,136,166); }   /* comment */
+  pre .k { color: rgb(190,102,212); }   /* keyword */
+  pre .s { color: rgb(140,196,158); }   /* string */
+  pre .n { color: rgb(235,184,76); }    /* number / const */
+  pre .f { color: rgb(108,159,210); }   /* function / field */
+
+  /* ---------- tables ---------- */
+  .table-scroll {
+    overflow-x: auto; margin: 12px 0 18px;
+    border: 1px solid var(--stroke); border-radius: var(--radius-sm);
+    -webkit-overflow-scrolling: touch;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 540px; }
+  thead th {
+    text-align: left; padding: 10px 14px;
+    background: var(--panel-2);
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--stroke);
+    white-space: nowrap;
+  }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid rgba(48,57,70,.5); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(35,41,51,.5); }
+  td code { white-space: nowrap; }
+
+  /* ---------- callouts (styled like QBNotify toasts) ---------- */
+  .toast {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--panel-2); border: 1px solid var(--stroke-hi);
+    border-left: 4px solid var(--blue);
+    border-radius: var(--radius-sm);
+    padding: 13px 16px; margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .toast .t-title { font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px; }
+  .toast p { margin: 0; color: var(--muted); }
+  .toast.info    { border-left-color: rgb(82,150,222); }  .toast.info    .t-title { color: rgb(82,150,222); }
+  .toast.success { border-left-color: rgb(66,173,111); }  .toast.success .t-title { color: rgb(66,173,111); }
+  .toast.warning { border-left-color: rgb(230,169,69); }  .toast.warning .t-title { color: rgb(230,169,69); }
+  .toast.error   { border-left-color: rgb(218,76,86); }   .toast.error   .t-title { color: rgb(218,76,86); }
+
+  /* ---------- keybinds ---------- */
+  kbd {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+    background: var(--card-hi); border: 1px solid var(--stroke-hi);
+    border-bottom-width: 2px; border-radius: 5px;
+    padding: 1px 7px; color: var(--text); white-space: nowrap;
+  }
+
+  /* ---------- palette swatches ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
+  .swatch { border: 1px solid var(--stroke); border-radius: var(--radius-sm); overflow: hidden; background: var(--card); }
+  .swatch .chip { height: 44px; }
+  .swatch .meta { padding: 7px 10px; }
+  .swatch .meta b { display: block; font-size: 12px; }
+  .swatch .meta span { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--stroke); margin-top: 60px; padding-top: 22px;
+    color: var(--muted); font-size: 13px;
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+
+  /* ---------- back to top ---------- */
+  .to-top {
+    position: fixed; right: 20px; bottom: 20px; z-index: 40;
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: var(--card); border: 1px solid var(--stroke-hi); color: var(--gold);
+    font-size: 17px; cursor: pointer; display: none;
+    align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .to-top:hover { background: var(--card-hi); }
+  .to-top.show { display: flex; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1080px) {
+    :root { --sidebar-w: 244px; }
+  }
+  @media (max-width: 920px) {
+    .topbar { display: flex; }
+    .layout { display: block; }
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 55;
+      height: 100dvh; width: min(300px, 84vw);
+      transform: translateX(-102%);
+      transition: transform .22s ease;
+      box-shadow: 8px 0 30px rgba(0,0,0,.45);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar .brand { display: none; }
+    .sidebar { padding-top: 72px; }
+    .scrim.show { display: block; }
+    main { padding-top: 76px; }
+    html { scroll-padding-top: 72px; }
+  }
+  @media (max-width: 560px) {
+    body { font-size: 14px; }
+    .card, details.svc > summary { padding-left: 14px; padding-right: 14px; }
+    details.svc .svc-body { padding-left: 14px; padding-right: 14px; }
+    table { min-width: 480px; }
+    .hero-tags span { font-size: 10.5px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .sidebar { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">☰</button>
+  <div class="brand-mini">qb-core <span>Roblox Port</span></div>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="sidebar" id="sidebar" aria-label="Documentation navigation">
+  <div class="brand">
+    <div class="brand-badge">QB</div>
+    <div>
+      <h1>qb-core <span>Roblox Port</span></h1>
+      <p>Documentation</p>
+    </div>
+  </div>
+  <input class="nav-filter" id="navFilter" type="search" placeholder="Filter sections…" autocomplete="off">
+
+  <div class="nav-group">
+    <h2>Start Here</h2>
+    <a href="#overview">Overview</a>
+    <a href="#getting-started">Getting Started</a>
+    <a href="#layout">Project Layout</a>
+    <a href="#architecture">Architecture</a>
+  </div>
+  <div class="nav-group">
+    <h2>Server</h2>
+    <a href="#services">Server Services</a>
+    <a href="#playerclass">PlayerClass API</a>
+    <a href="#data-model">Data Model</a>
+    <a href="#permissions">Access &amp; Permissions</a>
+  </div>
+  <div class="nav-group">
+    <h2>Client</h2>
+    <a href="#client-scripts">Client Scripts</a>
+    <a href="#qbmenu">QBMenu</a>
+    <a href="#keybinds">Keybinds</a>
+  </div>
+  <div class="nav-group">
+    <h2>Reference</h2>
+    <a href="#configuration">Configuration</a>
+    <a href="#commands">Slash Commands</a>
+    <a href="#remotes">Remotes</a>
+    <a href="#items">Items</a>
+    <a href="#vehicles">Vehicles</a>
+    <a href="#weapons">Weapon Setup</a>
+    <a href="#jobs-crews">Jobs &amp; Crews</a>
+    <a href="#weather">Weather &amp; Time</a>
+  </div>
+  <div class="nav-group">
+    <h2>Project</h2>
+    <a href="#ui-theme">UI Theme</a>
+    <a href="#roadmap">Roadmap</a>
+  </div>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+<div class="content">
+
+<!-- ================= HERO ================= -->
+<div class="hero">
+  <div class="kicker">Roblox · Luau · Rojo</div>
+  <h2>qb-core Roblox Port</h2>
+  <p class="lede">
+    A Roblox/Luau port of the core QBCore flow: session-locked DataStore profiles, multi-character
+    select and spawn, server-authoritative inventory and status decay, native admin tooling, synced
+    weather, and a full set of QBCore-style native UIs — no NUI, no web views.
+  </p>
+  <div class="hero-tags">
+    <span>DataStore session locking</span>
+    <span>Multi-character</span>
+    <span>Server-authoritative inventory</span>
+    <span>Native admin menu</span>
+    <span>Synced weather</span>
+    <span>TextChat commands</span>
+  </div>
+  <div class="mini-hud" aria-hidden="true">
+    <div class="hud-row"><span class="lbl">HP</span><div class="track"><div class="fill" style="width:86%;background:var(--health)"></div></div></div>
+    <div class="hud-row"><span class="lbl">AR</span><div class="track"><div class="fill" style="width:45%;background:var(--armor)"></div></div></div>
+    <div class="hud-row"><span class="lbl">FOOD</span><div class="track"><div class="fill" style="width:72%;background:var(--hunger)"></div></div></div>
+    <div class="hud-row"><span class="lbl">WATR</span><div class="track"><div class="fill" style="width:64%;background:var(--thirst)"></div></div></div>
+    <div class="hud-row"><span class="lbl">STRS</span><div class="track"><div class="fill" style="width:12%;background:var(--stress)"></div></div></div>
+  </div>
+</div>
+
+<!-- ================= OVERVIEW ================= -->
+<section id="overview">
+  <h2>Overview</h2>
+  <p class="section-sub">What this project is, and what it deliberately is not.</p>
+  <p>
+    This is a Rojo-managed Roblox place that re-implements the core loop of the FiveM QBCore
+    framework in Luau. The design philosophy carries over: the <strong>server owns all persistent
+    gameplay data</strong> — clients only display state and request changes through remotes.
+    <code>Player.UserId</code> replaces FiveM license identifiers, and a single session-locked
+    DataStore profile per Roblox account holds all of that account's characters.
+  </p>
+  <div class="card-grid">
+    <div class="card"><h4>Accounts &amp; Characters</h4><p>Profile loading with DataStore session locking, character select / create / delete / spawn, up to 5 slots per account.</p></div>
+    <div class="card"><h4>Persistence</h4><p>Money, banking statements, job, crew, charinfo, position, metadata, inventory items, and saved appearance survive across sessions.</p></div>
+    <div class="card"><h4>Status &amp; Medical</h4><p>Server-side hunger/thirst decay, HUD bars, armor absorption, death screen with timed self-respawn, EMS revives.</p></div>
+    <div class="card"><h4>Inventory</h4><p>30-slot weight-based inventory with a five-slot hotbar, item give/move/use, and starter items.</p></div>
+    <div class="card"><h4>Banking</h4><p>Personal and society accounts, bank cards, PIN-gated ATMs, queued citizen-ID transfers, limits, and persistent statements.</p></div>
+    <div class="card"><h4>Weapons</h4><p>Inventory-backed Roblox Tool equip flow on the endorsed Weapons Kit, with ammo item consumption and persisted loaded rounds.</p></div>
+    <div class="card"><h4>World</h4><p>Server-authoritative day/night clock, synced weather presets with rain/snow/thunder, blackout, and client-side time-of-day grading.</p></div>
+    <div class="card"><h4>Admin</h4><p>Graded permissions (user/mod/admin/god), a native admin panel, bans and whitelist DataStores, and slash commands.</p></div>
+    <div class="card"><h4>Social</h4><p>Appearance editor backed by saved HumanoidDescriptions, emote menu, proximity stage-music speakers with Creator Store search.</p></div>
+  </div>
+  <div class="toast info">
+    <div>
+      <div class="t-title">Scope note</div>
+      <p>This documents the framework code under <code>src/</code>. The repository also contains a separate island map generation pipeline, which is out of scope for these docs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GETTING STARTED ================= -->
+<section id="getting-started">
+  <h2>Getting Started</h2>
+  <p class="section-sub">Serve the project into Studio with Rojo and enable DataStore access.</p>
+
+  <h3>Rojo workflow</h3>
+  <p>Use <code>serve</code>, not <code>build</code>, for normal Studio development:</p>
+  <pre><code>.\serve-rojo.bat</code></pre>
+  <p>Then connect the Roblox Studio Rojo plugin to:</p>
+  <pre><code>localhost:34872</code></pre>
+  <p>
+    Keep the terminal open while you work — file edits in the workspace stream into Studio live.
+    Use <code>rojo build</code> only when you want a standalone place file:
+  </p>
+  <pre><code>rojo build default.project.json --output qbcore-roblox.rbxlx</code></pre>
+
+  <h3>Studio setup</h3>
+  <p>DataStores do not work in Studio Play mode by default. Enable:</p>
+  <pre><code>Game Settings → Security → Enable Studio Access to API Services</code></pre>
+
+  <div class="toast warning">
+    <div>
+      <div class="t-title">Duplicate objects</div>
+      <p>If Studio starts showing duplicate QBCore/QBShared objects: stop Play mode, disconnect the Rojo plugin, run <code>tools/clean-rojo-studio-objects.lua</code> in the Command Bar, then reconnect Rojo.</p>
+    </div>
+  </div>
+
+  <p>
+    Treat the workspace as the source of truth for every Rojo-managed object
+    (<code>ReplicatedStorage/QBShared</code>, <code>ServerScriptService/QBCore</code>, all
+    <code>QB*</code> LocalScripts). <code>ServerScriptService</code> preserves unknown children so
+    imported systems like <code>WeaponsSystem</code> can live next to the managed
+    <code>QBCore</code> folder.
+  </p>
+
+  <h3>First playtest</h3>
+  <ol>
+    <li>Serve with Rojo and press Play in Studio — Studio testers are automatically <span class="badge b-god">god</span> rank.</li>
+    <li>Create a character on the character select screen (first/last name).</li>
+    <li>The appearance editor opens automatically on first spawn.</li>
+    <li>Try <kbd>Tab</kbd> for inventory, <code>/commands</code> to list available commands, <code>/admin</code> for the admin panel.</li>
+  </ol>
+</section>
+
+<!-- ================= LAYOUT ================= -->
+<section id="layout">
+  <h2>Project Layout</h2>
+  <p class="section-sub">Where everything lives under <code>src/</code>.</p>
+<pre><code><span class="f">src/</span>
+  <span class="f">ReplicatedStorage/</span>
+    <span class="f">QBShared/</span>          <span class="c">-- Config, Jobs, Crews, Items, Vehicles, Weather, StageMusic, shared main module</span>
+    QBRemoteNames.lua  <span class="c">-- remote names used by both server and client</span>
+    QBRemotes.lua      <span class="c">-- creates/waits for RemoteEvents and RemoteFunctions</span>
+    QBCoreClient.lua   <span class="c">-- client PlayerData cache and BindableEvent signals</span>
+  <span class="f">ServerScriptService/</span>
+    <span class="f">QBCore/</span>
+      Main.server.lua       <span class="c">-- server entrypoint and remote wiring</span>
+      Access.lua            <span class="c">-- whitelist, bans, graded permissions</span>
+      ProfileStore.lua      <span class="c">-- simplified session-locked DataStore wrapper</span>
+      PlayerService.lua     <span class="c">-- account, character, spawn, save, status loop</span>
+      PaycheckService.lua   <span class="c">-- configurable job-grade paycheck loop</span>
+      BankingService.lua    <span class="c">-- personal/society banking, cards, ATMs, and queued transfers</span>
+      PlayerClass.lua       <span class="c">-- player money/job/crew/metadata methods</span>
+      AdminService.lua      <span class="c">-- permission-checked admin menu context/actions</span>
+      CommandService.lua    <span class="c">-- TextChatService command registry</span>
+      Commands.lua          <span class="c">-- default player/admin slash commands</span>
+      AppearanceService.lua <span class="c">-- saved HumanoidDescription appearance backend</span>
+      MedicalService.lua    <span class="c">-- death, respawn, armor, medical item handlers</span>
+      InventoryService.lua  <span class="c">-- player inventory and useable item helpers</span>
+      TimeSyncService.lua   <span class="c">-- day/night clock, /time and /freezetime</span>
+      WeaponService.lua     <span class="c">-- inventory-backed Roblox Tool equip flow</span>
+      VehicleService.lua    <span class="c">-- vehicle template spawn/delete helpers</span>
+      WeatherService.lua    <span class="c">-- synced weather cycling and blackout</span>
+      StageMusicService.lua <span class="c">-- proximity speaker playback and audio search</span>
+  <span class="f">StarterPlayer/StarterPlayerScripts/</span>
+    QBCoreClient.client.lua <span class="c">-- character select/create/delete UI</span>
+    QBAppearance.client.lua <span class="c">-- per-character avatar appearance editor</span>
+    QBBanking.client.lua    <span class="c">-- personal/society account, ATM, and history UI</span>
+    QBAdmin.client.lua      <span class="c">-- native admin menu</span>
+    QBAmbulance.client.lua  <span class="c">-- death screen and self-respawn UI</span>
+    QBEmotes.client.lua     <span class="c">-- emote menu</span>
+    QBHUD.client.lua        <span class="c">-- health, armor, hunger, thirst HUD</span>
+    QBInventory.client.lua  <span class="c">-- player inventory and hotbar</span>
+    QBMenu.client.lua       <span class="c">-- reusable QBCore-style menu</span>
+    QBNotify.client.lua     <span class="c">-- toast notifications</span>
+    QBStageMusic.client.lua <span class="c">-- stage speaker music menu</span>
+    QBTimeCycle.client.lua  <span class="c">-- time-of-day visual grading</span>
+    QBWeather.client.lua    <span class="c">-- local precipitation and lightning visuals</span>
+    QBWeaponAmmo.client.lua <span class="c">-- local ammo/reload affordances</span></code></pre>
+
+  <div class="toast info">
+    <div>
+      <div class="t-title">Naming convention</div>
+      <p><code>&lt;Name&gt;.server.lua</code> becomes a Script, <code>&lt;Name&gt;.client.lua</code> a LocalScript, and plain <code>&lt;Name&gt;.lua</code> a ModuleScript. The suffix is how Rojo picks the instance class, so it can never be dropped.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ARCHITECTURE ================= -->
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p class="section-sub">How a request flows from a client action to persisted data.</p>
+  <p>
+    Everything follows the same server-authoritative loop. A client UI (inventory, admin panel,
+    character select) invokes a <strong>RemoteFunction</strong> or fires a
+    <strong>RemoteEvent</strong> defined in <code>QBRemoteNames.lua</code>. The server entrypoint
+    <code>Main.server.lua</code> routes it to the owning service, which validates permissions and
+    input, mutates the in-memory <code>PlayerData</code> through <code>PlayerClass</code> /
+    <code>InventoryService</code>, and pushes the delta back down with
+    <code>player:UpdateClient(key, value)</code> → the <code>PlayerDataUpdated</code> event.
+  </p>
+  <pre><code><span class="c">-- lifecycle at a glance</span>
+Players.PlayerAdded
+  → Access.CheckJoin()              <span class="c">-- closed / banned / whitelist gate</span>
+  → PlayerService.OnPlayerJoin()    <span class="c">-- claim Account_&lt;UserId&gt; session lock</span>
+  → client: character select UI
+  → Remotes.SelectCharacter
+  → PlayerService.SelectCharacter() <span class="c">-- build PlayerClass, spawn, fire PlayerLoaded</span>
+  → status loop ticks               <span class="c">-- position capture + hunger/thirst decay</span>
+  → PlayerRemoving / BindToClose    <span class="c">-- Save() + profile:Release()</span></code></pre>
+  <p>
+    Persistence is one DataStore key per Roblox account (<code>QBCore_PlayerAccounts</code> →
+    <code>Account_&lt;UserId&gt;</code>) holding <code>{ characters = {[citizenId] = data}, nextCid }</code>,
+    session-locked via <code>ProfileStore</code> with a 35-second lock timeout and 60-second
+    autosave. A separate <code>QBCore_CitizenIndex</code> store maps citizen IDs back to UserIds
+    for offline lookups, and bans/whitelist each live in their own DataStore.
+  </p>
+</section>
+
+<!-- ================= SERVICES ================= -->
+<section id="services">
+  <h2>Server Services</h2>
+  <p class="section-sub">
+    Every module under <code>ServerScriptService/QBCore</code>. Booted in order by
+    <code>Main.server.lua</code>, which also wires all remotes and sets
+    <code>Players.CharacterAutoLoads = false</code>.
+  </p>
+
+  <details class="svc" open>
+    <summary><span class="badge b-server">server</span> PlayerService.lua
+      <span class="sum-desc">Account/character lifecycle, spawn resolution, status loop, world environment.</span></summary>
+    <div class="svc-body">
+      <p>The heart of the framework — claims the account profile on join, exposes character CRUD, spawns characters, and runs the periodic status loop.</p>
+      <ul class="api">
+        <li><code>PlayerService.Players</code> / <code>PlayerService.PlayersByCitizenId</code><span class="desc">Live maps of online PlayerClass instances.</span></li>
+        <li><code>GetPlayer(userId)</code> · <code>GetPlayerByCitizenId(citizenId)</code> · <code>GetPlayers()</code><span class="desc">Lookup helpers for online players.</span></li>
+        <li><code>GetPlayersByJob(job, checkOnDuty) → list, count</code><span class="desc">Filter online players by job, optionally only on-duty.</span></li>
+        <li><code>GetOfflinePlayerByCitizenId(citizenId) → PlayerClass?</code><span class="desc">Read-only offline instance via the citizen index + lock-free peek.</span></li>
+        <li><code>GetAccountUserIdByCitizenId(citizenId) → UserId?</code><span class="desc">Read-only citizen-index lookup used for validated queued transfers and text filtering.</span></li>
+        <li><code>StartStatusLoop()</code><span class="desc">Every <code>Config.StatusInterval</code> seconds: capture position, decay hunger/thirst per <code>Config.StatusDecay</code>.</span></li>
+        <li><code>GetCharacterList(player)</code><span class="desc">Returns <code>{citizenId, cid, firstname, lastname, job, cash, bank}[]</code> for the select screen.</span></li>
+        <li><code>SelectCharacter(player, citizenId) → ok, err?</code><span class="desc">Builds the PlayerClass, spawns the character, fires <code>PlayerLoaded</code>; opens the appearance editor on first spawn.</span></li>
+        <li><code>CreateCharacter(player, firstname, lastname) → citizenId, err?</code><span class="desc">Enforces slot limit and 20-char names, generates a citizen ID, seeds starter items.</span></li>
+        <li><code>DeleteCharacter(player, citizenId) → ok, err?</code></li>
+        <li><code>RespawnPlayer(player, playerObj, spawnCFrame?, health?) → ok, err?</code></li>
+        <li><code>ApplyWorldEnvironment()</code><span class="desc">Applies <code>Config.World</code> Lighting/Sky/Clouds/post-effects.</span></li>
+        <li><code>Logout(player)</code> · <code>SaveAllAndRelease()</code><span class="desc">Logout currently saves and kicks (in-place character switching is on the roadmap).</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> BankingService.lua
+      <span class="sum-desc">Personal/society accounts, cards, ATMs, queued transfers, and statements.</span></summary>
+    <div class="svc-body">
+      <p>Inspired by qb-banking and adapted to Roblox ProximityPrompts. Every request revalidates the exact bank or ATM location, account permission, card/PIN, and available funds on the server.</p>
+      <ul class="api">
+        <li><code>BankingService.Start()</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBBankingLocations</code> and binds banking remotes.</span></li>
+        <li><code>GetBanking(access)</code><span class="desc">Returns accessible personal/society accounts, ATM usage, limits, location, and newest-first statements.</span></li>
+        <li><code>BankingAction("deposit" | "withdraw" | "transfer" | "order_card", payload)</code><span class="desc">Validates proximity, account access, whole-dollar limits, funds, and ATM credentials.</span></li>
+        <li><code>WithdrawSocietyFunds(job, amount, playerObj)</code><span class="desc">Atomic provider used by optional society-backed paychecks.</span></li>
+        <li><code>DeliverPendingTransfers(player, playerObj)</code><span class="desc">Credits ready offline transfers once, saves their processed IDs, then clears the inbox.</span></li>
+      </ul>
+      <p>Personal statements and ATM counters live under <code>PlayerData.banking</code>. Society accounts and transfer inboxes use dedicated DataStores; transfer IDs prevent duplicate delivery after a retry or crash.</p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> ProfileStore.lua
+      <span class="sum-desc">Self-contained session-locked DataStore wrapper (ProfileService-style).</span></summary>
+    <div class="svc-body">
+      <p>Replaces oxmysql from the FiveM original. Claims an exclusive session lock per key so two servers can never write the same account at once.</p>
+      <ul class="api">
+        <li><code>ProfileStore.new(datastoreName) → store</code></li>
+        <li><code>store:StartSessionAsync(key, defaultData) → profile, err?</code><span class="desc">35s lock timeout, up to 5 claim retries at 6s intervals, 60s autosave.</span></li>
+        <li><code>store:PeekAsync(key) → data</code><span class="desc">Lock-free read for offline lookups.</span></li>
+        <li><code>profile:Save()</code> · <code>profile:Release()</code> · <code>profile:Reconcile(defaults)</code></li>
+        <li><code>ProfileStore.Reconcile(data, defaults)</code> · <code>ProfileStore.DeepCopy(value)</code><span class="desc">Exported helpers used across services.</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> InventoryService.lua
+      <span class="sum-desc">Server-authoritative inventory core: slots, weight, move/give/use.</span></summary>
+    <div class="svc-body">
+      <p>Slots <code>1..Config.Inventory.Slots</code> (default 30); the first <code>HotbarSlots</code> (5) are the hotbar. Items are validated against <code>QBShared.Items</code> on every load.</p>
+      <ul class="api">
+        <li><code>GetSnapshot(playerObj) → {items, slots, hotbarSlots, maxWeight, totalWeight}</code><span class="desc">Hydrated client-facing view.</span></li>
+        <li><code>CanAddItem(playerObj, itemName, amount, slot?, info?) → ok, err?</code><span class="desc">Dry-run weight/slot check.</span></li>
+        <li><code>AddItem(playerObj, itemName, amount, slot?, info?, reason?)</code> · <code>RemoveItem(...)</code></li>
+        <li><code>MoveItem(playerObj, fromSlot, toSlot) → ok, err?</code><span class="desc">Merges compatible stacks.</span></li>
+        <li><code>GiveSlot(playerObj, slot) → ok, err?</code><span class="desc">Gives 1 unit to the closest player within <code>Config.Inventory.GiveDistance</code>, rolling back on failure.</span></li>
+        <li><code>UseSlot(playerObj, slot) → ok, err?</code><span class="desc">Dispatches to a registered handler or applies <code>consume</code> hunger/thirst deltas; removes the item unless <code>removeOnUse == false</code>.</span></li>
+        <li><code>CreateUseableItem(itemName, handler) → ok</code><span class="desc">Registers a custom use-handler — used by MedicalService and WeaponService.</span></li>
+        <li><code>SetItemData(playerObj, itemName, key, value, slot?)</code><span class="desc">Mutates <code>item.info[key]</code> (e.g. persisted weapon ammo).</span></li>
+        <li><code>HasItem / GetItemBySlot / GetItemByName / GetItemsByName / GetItemCount / SetInventory</code></li>
+        <li><code>SeedStarterItems(playerData)</code> · <code>ReconcilePlayerData(playerData)</code> · <code>GetTotalWeight(items)</code> · <code>GetFreeWeight(playerObj)</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> MedicalService.lua
+      <span class="sum-desc">Death, respawn, armor absorption, and medical item handlers.</span></summary>
+    <div class="svc-body">
+      <ul class="api">
+        <li><code>SetArmor(playerObj, amount) → ok</code><span class="desc">Clamps 0–100; sets metadata plus a Humanoid <code>Armor</code> attribute.</span></li>
+        <li><code>RevivePlayer(targetObj, targetPlayer, reviveCFrame, reviveHealth) → ok, err?</code></li>
+        <li><code>RequestRespawn(player) → ok, err?</code><span class="desc">Enforces <code>Config.Medical.DeathScreen.RespawnDelay</code>; optionally wipes inventory.</span></li>
+        <li><code>ApplyWeaponDamage(system, target, amount, ...)</code><span class="desc">Armor absorption before <code>Humanoid:TakeDamage</code>; wired as the Weapons Kit damage callback.</span></li>
+        <li><code>Start(InventoryService)</code><span class="desc">Registers useable handlers for every item with a <code>medical</code> table: <code>"heal"</code> (bandage), <code>"armor"</code>, and <code>"revive"</code> (firstaid — requires an on-duty ambulance job and proximity).</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> WeaponService.lua
+      <span class="sum-desc">Inventory-backed Tool equip flow on the imported Weapons Kit.</span></summary>
+    <div class="svc-body">
+      <p>Registers every item with <code>type == "weapon"</code> as a useable item — using it equips/holsters the Tool. Templates live in <code>ServerStorage/QBWeaponTools</code>.</p>
+      <ul class="api">
+        <li><code>WeaponService.Start(InventoryService)</code><span class="desc">Also auto-collects loose imported Tools and <code>WeaponsSystem</code> folders from Workspace/StarterPack.</span></li>
+        <li><code>GetToolFolder()</code></li>
+      </ul>
+      <p>
+        On equip, the template is cloned, <code>weapon.config</code> values are applied onto its
+        <code>Configuration</code> (creating missing ValueBase objects), and the kit's
+        <code>CurrentAmmo</code> is tracked so reloads are charged against the player's ammo item
+        (<code>weapon.ammoItem</code>) — the loaded count persists in <code>item.info.ammo</code>.
+      </p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> AdminService.lua
+      <span class="sum-desc">Permission-checked backend for the native admin panel.</span></summary>
+    <div class="svc-body">
+      <p>Minimum rank to open the panel: <span class="badge b-admin">admin</span>. Keeps an in-memory ring buffer of the last 100 admin actions.</p>
+      <ul class="api">
+        <li><code>GetContext(player) → {allowed, rank, server, players, items, jobs, crews, vehicles, weather, logs}</code><span class="desc">One snapshot powering every panel page.</span></li>
+        <li><code>HandleAction(player, action, payload) → ok, result</code><span class="desc">Dispatch table, permission-checked per call.</span></li>
+      </ul>
+      <p><strong>Actions:</strong> <code>selfHeal</code>, <code>announce</code>, <code>setTime</code>, <code>toggleFreezeTime</code>, <code>setWeather</code>, <code>toggleFreezeWeather</code>, <code>toggleBlackout</code>, <code>gotoPlayer</code>, <code>bringPlayer</code>, <code>teleportToCoords</code>, <code>healPlayer</code>, <code>kickPlayer</code>, <code>banPlayer</code>, <code>addMoney</code>, <code>setMoney</code>, <code>giveItem</code>, <code>spawnVehicle</code>, <code>setJob</code>, <code>setCrew</code>.</p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> Access.lua
+      <span class="sum-desc">Join gate: graded permissions, bans, whitelist.</span></summary>
+    <div class="svc-body">
+      <ul class="api">
+        <li><code>GetRank(userId) → rankName, rankLevel</code><span class="desc">Game creator and Studio testers are auto-god; otherwise the highest matching entry in <code>Config.Server.Permissions</code>.</span></li>
+        <li><code>HasPermission(userId, minRank) → boolean</code> · <code>IsAdmin(userId)</code></li>
+        <li><code>BanPlayer(userId, reason, expireAt)</code> · <code>UnbanPlayer(userId)</code> · <code>IsBanned(userId) → isBanned, reason</code><span class="desc"><code>QBCore_Bans</code> DataStore; expired bans auto-lift.</span></li>
+        <li><code>WhitelistPlayer(userId)</code> · <code>UnwhitelistPlayer(userId)</code> · <code>IsWhitelisted(userId)</code><span class="desc"><code>QBCore_Whitelist</code> DataStore; admins always pass.</span></li>
+        <li><code>CheckJoin(userId) → ok, kickReason?</code><span class="desc">Checks <code>Config.Server.Closed</code>, bans, then whitelist.</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> CommandService.lua &amp; Commands.lua
+      <span class="sum-desc">TextChatCommand registry plus the default command set.</span></summary>
+    <div class="svc-body">
+      <p>Replaces FiveM's "/" chat scan with Roblox's <code>TextChatService</code> command layer. All feedback goes through toast notifications, not chat lines.</p>
+      <ul class="api">
+        <li><code>CommandService.Add(name, help, arguments, argsRequired, callback, permission?, secondaryAlias?)</code><span class="desc"><code>arguments = {{name, help}, ...}</code> builds the usage string; callback gets <code>(player, args, rawText)</code>; permission defaults to <code>"user"</code>.</span></li>
+        <li><code>CommandService.GetVisibleCommands(userId) → info[]</code><span class="desc">Filtered by rank — powers <code>/commands</code>.</span></li>
+        <li><code>CommandService.List</code><span class="desc">All registered commands with usage strings.</span></li>
+      </ul>
+      <p>See the full <a href="#commands">command table</a>.</p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> AppearanceService.lua
+      <span class="sum-desc">Saved HumanoidDescription appearance backend (qb-clothing style).</span></summary>
+    <div class="svc-body">
+      <p>Serialized appearance shape: <code>{ scales, bodyParts, clothing, colors, accessories }</code>, stored on <code>PlayerData.appearance</code> and re-applied on every respawn.</p>
+      <ul class="api">
+        <li><code>Serialize(humanoidDescription) → table</code> · <code>Deserialize(table) → HumanoidDescription</code></li>
+        <li><code>ApplyToCharacter(character, appearance) → ok</code></li>
+        <li><code>OpenEditor(player, playerObj, isNewCharacter)</code><span class="desc">Fires <code>OpenAppearanceEditor</code> to the client.</span></li>
+        <li><code>Preview(player, payload)</code><span class="desc">Sanitizes and live-applies a preview.</span></li>
+        <li><code>SaveAppearance(player, playerObj, payload) → ok, err?</code><span class="desc">Validates catalog ownership via <code>MarketplaceService:PlayerOwnsAsset</code> when <code>Config.Appearance.ValidateOwnership</code> is on.</span></li>
+        <li><code>CancelEdit(player, playerObj)</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> TimeSyncService.lua
+      <span class="sum-desc">Server-authoritative day/night clock.</span></summary>
+    <div class="svc-body">
+      <p>Advances <code>Lighting.ClockTime</code> once per second (auto-replicates to clients). A full day takes <code>Config.World.Time.DayLengthMinutes</code> (default 48 real minutes).</p>
+      <ul class="api">
+        <li><code>SetTime(hour, minute?) → ok</code> · <code>GetTime() → number</code></li>
+        <li><code>SetFreeze(state)</code> · <code>IsFrozen() → boolean</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> WeatherService.lua
+      <span class="sum-desc">Synced weather cycling, transitions, and blackout.</span></summary>
+    <div class="svc-body">
+      <p>Publishes state as attributes on a <code>ReplicatedStorage/QBWeatherState</code> folder and fires <code>WeatherStateUpdated</code>. Auto-cycles with weighted randomness every 10–20 minutes by default.</p>
+      <ul class="api">
+        <li><code>GetState() → snapshot</code><span class="desc"><code>{currentWeather, nextWeather, transitionStartedAt, transitionDuration, frozen, dynamic, blackout, ...}</code></span></li>
+        <li><code>SetWeather(name, transitionSeconds?) → ok, message</code></li>
+        <li><code>SetFrozen(frozen)</code> · <code>SetDynamic(dynamic)</code></li>
+        <li><code>SetBlackout(enabled)</code><span class="desc">Toggles all <code>Light</code> instances under CollectionService-tagged instances (<code>Config.Weather.BlackoutLightTags</code>).</span></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> VehicleService.lua
+      <span class="sum-desc">Vehicle template spawning and cleanup.</span></summary>
+    <div class="svc-body">
+      <p>Templates live in <code>ServerStorage/QBVehicleModels</code>; spawned instances go under <code>Workspace/SpawnedVehicles</code> and are stamped with <code>QBVehicle*</code> attributes (name, label, plate, spawn ID, owner UserId).</p>
+      <ul class="api">
+        <li><code>GetVehicleDefinition(name) → definition, err?</code><span class="desc">Resolves by name / label / modelName / alias, case-insensitive.</span></li>
+        <li><code>SpawnVehicle(player, name, options?) → instance, definition, plate</code><span class="desc">Options: <code>{ignoreRestrictions, plate, cframe, distance, attributes}</code>.</span></li>
+        <li><code>DeleteClosestVehicle(player, maxDistance?) → ok, message</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> StageMusicService.lua
+      <span class="sum-desc">Proximity speaker jukebox with Creator Store search.</span></summary>
+    <div class="svc-body">
+      <ul class="api">
+        <li><code>OpenMenuFor(player) → ok</code><span class="desc">Finds the closest station within its menu distance and fires <code>OpenStageMusicMenu</code>.</span></li>
+        <li><code>OpenSearchMenuFor(player, query) → ok</code><span class="desc"><code>AssetService:SearchAudioAsync</code>, cached per-player for 120s and rate-limited (4s cooldown).</span></li>
+        <li><code>Start()</code><span class="desc">Listens on <code>StageMusicControl</code> for <code>play</code>, <code>play_search</code>, <code>stop</code>, <code>volume_up</code>, <code>volume_down</code>; builds AudioEmitter/AudioPlayer/Wire chains per station from <code>QBShared.StageMusic.Stations</code>.</span></li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<!-- ================= PLAYERCLASS ================= -->
+<section id="playerclass">
+  <h2>PlayerClass API</h2>
+  <p class="section-sub">
+    The OOP wrapper around one character's <code>PlayerData</code> — the object you get from
+    <code>PlayerService.GetPlayer(userId)</code>. This is the primary API for gameplay code.
+  </p>
+  <pre><code><span class="k">local</span> playerObj = PlayerService.GetPlayer(player.UserId)
+playerObj:<span class="f">AddMoney</span>(<span class="s">"cash"</span>, <span class="n">250</span>, <span class="s">"delivery-payout"</span>)
+playerObj:<span class="f">Notify</span>(<span class="s">"You earned $250"</span>, <span class="s">"success"</span>, <span class="n">4000</span>)</code></pre>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Method</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GetPlayerData()</code></td><td>Returns the raw <code>PlayerData</code> table.</td></tr>
+      <tr><td><code>UpdateClient(key?, val?)</code></td><td>Pushes a field (or everything) to the owning client via <code>PlayerDataUpdated</code>.</td></tr>
+      <tr><td><code>SetJob(job, grade)</code> / <code>SetCrew(crew, grade)</code></td><td>Validates against <code>QBShared.Jobs</code>/<code>Crews</code>, updates PlayerData, pushes to client.</td></tr>
+      <tr><td><code>SetJobDuty(onDuty)</code></td><td>Toggles <code>job.onduty</code>.</td></tr>
+      <tr><td><code>Notify(text, notifyType, length)</code></td><td>Fires a toast to the owning client (<code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code> / <code>primary</code>).</td></tr>
+      <tr><td><code>GetName()</code></td><td>Returns <code>"Firstname Lastname"</code>.</td></tr>
+      <tr><td><code>AddMoney / RemoveMoney / SetMoney / GetMoney(moneytype, amount, reason)</code></td><td>Money mutation for <code>cash</code> / <code>bank</code> / <code>crypto</code>; enforces <code>Config.Money.DontAllowMinus</code> and <code>MinusLimit</code>.</td></tr>
+      <tr><td><code>SetPlayerData(key, val)</code></td><td>Generic top-level field setter + client push.</td></tr>
+      <tr><td><code>SetMetaData(meta, val)</code> / <code>GetMetaData(meta)</code></td><td>Metadata accessors; hunger/thirst/stress/armor clamp to 0–100, <code>isdead</code> coerces to boolean.</td></tr>
+      <tr><td><code>AddRep / RemoveRep / GetRep(rep, amount)</code></td><td>Reputation counters stored in <code>metadata.rep</code>.</td></tr>
+      <tr><td><code>AddItem / RemoveItem / HasItem / GetItemBySlot / GetItemByName / GetItemsByName / GetItemCount / SetInventory / UseItemSlot / GiveItemSlot</code></td><td>Inventory helpers — all delegate to <code>InventoryService</code>.</td></tr>
+      <tr><td><code>CapturePosition(character?)</code></td><td>Snapshots x/y/z/ry into <code>PlayerData.position</code>.</td></tr>
+      <tr><td><code>Save()</code> / <code>Logout()</code></td><td>Persist via the save callback; logout also tears down the session (currently kicks).</td></tr>
+    </tbody>
+  </table></div>
+  <div class="toast info">
+    <div>
+      <div class="t-title">Offline instances</div>
+      <p><code>Player.new(source, ...)</code> with <code>source == nil</code> marks an offline/admin-tool instance (<code>Offline = true</code>) — network calls become no-ops, so the same methods work for offline edits.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DATA MODEL ================= -->
+<section id="data-model">
+  <h2>Data Model</h2>
+  <p class="section-sub">
+    The per-character <code>PlayerData</code> shape, reconciled onto every load from
+    <code>Config.Player.CharacterDefaults</code>.
+  </p>
+<pre><code>{
+  cid = <span class="n">1</span>,                          <span class="c">-- sequential per-account character id</span>
+  name = <span class="s">"&lt;DisplayName&gt;"</span>,           <span class="c">-- refreshed on select</span>
+  money = { cash = <span class="n">500</span>, bank = <span class="n">5000</span>, crypto = <span class="n">0</span> },
+  charinfo = {
+    firstname = <span class="s">"Firstname"</span>, lastname = <span class="s">"Lastname"</span>,
+    birthdate = <span class="s">"00-00-0000"</span>, gender = <span class="n">0</span>, nationality = <span class="s">"USA"</span>,
+  },
+  job = {
+    name = <span class="s">"unemployed"</span>, label = <span class="s">"Civilian"</span>, onduty = <span class="k">false</span>, type = <span class="s">"none"</span>,
+    grade = { name = <span class="s">"Freelancer"</span>, level = <span class="n">0</span>, payment = <span class="n">10</span>, isboss = <span class="k">false</span> },
+  },
+  crew = {
+    name = <span class="s">"none"</span>, label = <span class="s">"No Crew"</span>,
+    grade = { name = <span class="s">"none"</span>, level = <span class="n">0</span>, isboss = <span class="k">false</span> },
+  },
+  metadata = {
+    hunger = <span class="n">100</span>, thirst = <span class="n">100</span>, stress = <span class="n">0</span>, isdead = <span class="k">false</span>, armor = <span class="n">0</span>,
+    rep = {},
+    criminalrecord = { hasRecord = <span class="k">false</span>, date = <span class="k">nil</span> },
+    licences = { driver = <span class="k">true</span>, business = <span class="k">false</span>, weapon = <span class="k">false</span> },
+  },
+  items = {},        <span class="c">-- [tostring(slot)] = { name, amount, slot, info = {} }</span>
+  position = { x = <span class="n">-175.00</span>, y = <span class="n">3.70</span>, z = <span class="n">333.57</span>, ry = <span class="n">358.6</span> },
+  appearance = <span class="k">nil</span>,  <span class="c">-- { scales, bodyParts, clothing, colors, accessories }</span>
+}</code></pre>
+  <h3>DataStores</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Store</th><th>Key</th><th>Holds</th></tr></thead>
+    <tbody>
+      <tr><td><code>QBCore_PlayerAccounts</code></td><td><code>Account_&lt;UserId&gt;</code></td><td><code>{ characters = {[citizenId] = data}, nextCid }</code>, session-locked.</td></tr>
+      <tr><td><code>QBCore_CitizenIndex</code></td><td><code>&lt;citizenId&gt;</code></td><td>Maps citizen ID → UserId for offline lookups.</td></tr>
+      <tr><td><code>QBCore_Bans</code></td><td><code>&lt;UserId&gt;</code></td><td>Ban reason + optional expiry (auto-unbans when passed).</td></tr>
+      <tr><td><code>QBCore_Whitelist</code></td><td><code>&lt;UserId&gt;</code></td><td>Whitelist membership (checked only when <code>Config.Server.Whitelist</code> is on).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= PERMISSIONS ================= -->
+<section id="permissions">
+  <h2>Access &amp; Permissions</h2>
+  <p class="section-sub">Four graded ranks gate commands and admin actions.</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Rank</th><th>How it's granted</th><th>Unlocks</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-user">user</span></td><td>Everyone.</td><td>Player commands, all standard UIs.</td></tr>
+      <tr><td><span class="badge b-admin">mod</span></td><td><code>Config.Server.Permissions.mod</code> UserIds.</td><td>Reserved tier between user and admin.</td></tr>
+      <tr><td><span class="badge b-admin">admin</span></td><td><code>Config.Server.Permissions.admin</code> (legacy <code>Config.Server.Admins</code> also counts).</td><td>Admin menu, moderation and world commands.</td></tr>
+      <tr><td><span class="badge b-god">god</span></td><td><code>Config.Server.Permissions.god</code>; the game owner and Studio playtesters automatically.</td><td>Everything, including <code>/ban</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <pre><code>Config.Server.Permissions = {
+  god   = { <span class="n">123456789</span> },  <span class="c">-- Roblox UserIds</span>
+  admin = {},
+  mod   = {},
+}</code></pre>
+  <p>
+    Join access is gated in order: <code>Config.Server.Closed</code> → ban check → whitelist check
+    (when <code>Config.Server.Whitelist = true</code>; admins always pass).
+  </p>
+</section>
+
+<!-- ================= CLIENT SCRIPTS ================= -->
+<section id="client-scripts">
+  <h2>Client Scripts</h2>
+  <p class="section-sub">
+    Every LocalScript under <code>StarterPlayerScripts</code>. All UI is native Roblox UI —
+    ScreenGuis built in Luau, no web views.
+  </p>
+  <div class="card-grid">
+    <div class="card"><h4><span class="badge b-client">client</span> QBCoreClient</h4><p>Character select / create / delete UI. Card list with Play/Delete (confirm step) plus a create panel. Destroys itself once <code>PlayerLoaded</code> fires. Responsive with compact/tiny breakpoints.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBHUD</h4><p>Compact HUD: name, job + duty, cash and bank, and status bars for HP / AR / FOOD / WATR / STRS. Also renders the ammo panel for the equipped weapon. Disables the core health GUI and reset button.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBInventory</h4><p>30-slot inventory + 5-slot hotbar. Slot select → Move / Give / Use action bar, weight readout, full gamepad support. Disables core PlayerList/Backpack GUIs.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBNotify</h4><p>Toast stack (max 5 visible) fed by the <code>Notify</code> remote. Types: success, error, warning, info, primary. Durations auto-convert ms→s, clamped 1.5–12s.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBMenu</h4><p>Reusable QBCore-style list menu used by emotes and stage music. Exposed via <code>_G.QBMenu</code> and PlayerGui bindables. See <a href="#qbmenu">QBMenu</a>.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBAdmin</h4><p>Native admin panel: Dashboard, Players, Items, Jobs, Crews, Vehicles, Logs, Environment, Developer pages (Reports / Chat / Leaderboard are placeholders). Opened via <code>/admin</code>.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBAmbulance</h4><p>Death screen with countdown; the Respawn button unlocks after <code>RespawnDelay</code> and calls <code>RequestRespawn</code>. Keyboard <kbd>E</kbd> / gamepad <kbd>X</kbd>.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBAppearance</h4><p>In-game avatar editor: hair, hats, glasses, faces, classic + layered clothing, shoes, accessories, skin tones, and 5 body-scale sliders. Lists owned catalog items via AvatarEditorService, previews live (0.15s debounce).</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBEmotes</h4><p>Emote menu (<code>/emotes</code>) via QBMenu — default emotes plus any owned emotes on the applied HumanoidDescription. Re-selecting a playing emote stops it.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBStageMusic</h4><p>Stage speaker menu via QBMenu: fixed tracks + live Creator Store search results, play/stop/volume controls sent over <code>StageMusicControl</code>.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBTimeCycle</h4><p>Per-frame time-of-day color grading — smoothstep-samples <code>Config.World.TimeCycle.Keyframes</code> by clock time, blends the active weather layer, and drives Lighting, ColorCorrection, Atmosphere, SunRays, Bloom, and clouds.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBWeather</h4><p>Local precipitation and lightning: a camera-tracking ParticleEmitter configured from the sampled weather state, plus lightning flash and optional thunder audio.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBWeaponAmmo</h4><p>Client-side mirror of the server ammo clamp — prevents kit-predicted refills beyond actual reserve and toasts "No X left" on empty reload.</p></div>
+  </div>
+</section>
+
+<!-- ================= QBMENU ================= -->
+<section id="qbmenu">
+  <h2>QBMenu</h2>
+  <p class="section-sub">The reusable native menu controller — the Roblox equivalent of qb-menu.</p>
+  <p>
+    Exposed two ways: <code>_G.QBMenu</code> (<code>OpenMenu</code>, <code>RefreshMenu</code>,
+    <code>CloseMenu</code>, <code>IsOpen</code>, plus <code>Selected</code> / <code>Closed</code>
+    BindableEvents) and equivalently via BindableFunctions/Events under
+    <code>PlayerGui.QBMenu</code>. <kbd>Esc</kbd> or gamepad <kbd>B</kbd> closes.
+  </p>
+  <pre><code>_G.QBMenu.OpenMenu({
+  { header = <span class="s">"Emotes"</span>, isMenuHeader = <span class="k">true</span> },
+  {
+    header = <span class="s">"Wave"</span>,
+    txt = <span class="s">"Give a friendly wave"</span>,
+    params = {
+      event = <span class="s">"emote:play"</span>,          <span class="c">-- or action/callback</span>
+      args = { emote = <span class="s">"wave"</span> },
+      <span class="c">-- isServer = true, target/remote for server-bound actions</span>
+    },
+  },
+})</code></pre>
+  <p>
+    Item fields: <code>header</code>, <code>txt</code>, <code>isMenuHeader</code>,
+    <code>disabled</code>, <code>hidden</code>, <code>icon</code>/<code>image</code>,
+    <code>shouldClose</code>, and <code>params = {event, args, action/callback, target/remote, isServer}</code>.
+  </p>
+</section>
+
+<!-- ================= KEYBINDS ================= -->
+<section id="keybinds">
+  <h2>Keybinds</h2>
+  <p class="section-sub">Default input map across the client scripts.</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Input</th><th>Context</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>Tab</kbd></td><td>Anywhere</td><td>Toggle inventory</td></tr>
+      <tr><td><kbd>1</kbd>–<kbd>5</kbd></td><td>Anywhere</td><td>Use hotbar slot (number row or keypad)</td></tr>
+      <tr><td><kbd>M</kbd></td><td>Inventory open</td><td>Toggle move mode</td></tr>
+      <tr><td><kbd>E</kbd></td><td>Death screen</td><td>Respawn (after the delay elapses)</td></tr>
+      <tr><td><kbd>R</kbd></td><td>Weapon equipped</td><td>Reload (charged against reserve ammo items)</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>QBMenu open</td><td>Close menu</td></tr>
+      <tr><td><kbd>Y</kbd> (gamepad)</td><td>Anywhere</td><td>Toggle inventory</td></tr>
+      <tr><td><kbd>D-Pad ◀ ▶</kbd></td><td>Gamepad</td><td>Select hotbar slot</td></tr>
+      <tr><td><kbd>R2</kbd> / <kbd>X</kbd></td><td>Gamepad</td><td>Use selected slot · respawn / reload</td></tr>
+      <tr><td><kbd>B</kbd> (gamepad)</td><td>QBMenu open</td><td>Close menu</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= CONFIGURATION ================= -->
+<section id="configuration">
+  <h2>Configuration</h2>
+  <p class="section-sub">Everything tunable lives in <code>src/ReplicatedStorage/QBShared/Config.lua</code>.</p>
+
+  <h3>Status decay</h3>
+  <pre><code>Config.StatusInterval = <span class="n">120</span>   <span class="c">-- seconds between ticks</span>
+Config.StatusDecay = {
+    Enabled = <span class="k">true</span>,
+    Hunger = <span class="n">1</span>,               <span class="c">-- points lost per tick</span>
+    Thirst = <span class="n">1</span>,
+}</code></pre>
+  <p>Defaults are tuned for live gameplay; lower <code>StatusInterval</code> temporarily when you want the HUD to move quickly in Studio.</p>
+
+  <h3>Money</h3>
+  <pre><code>Config.Money = {
+    MoneyTypes = { cash = <span class="n">500</span>, bank = <span class="n">5000</span>, crypto = <span class="n">0</span> },  <span class="c">-- starting balances</span>
+    DontAllowMinus = { cash = <span class="k">true</span>, crypto = <span class="k">true</span> },
+    MinusLimit = <span class="n">-5000</span>,
+    PayCheckEnabled = <span class="k">true</span>,
+    PayCheckTimeOut = <span class="n">600</span>,      <span class="c">-- seconds between paycheck rounds</span>
+    PayCheckOnDutyOnly = <span class="k">true</span>,
+    PayCheckSociety = <span class="k">false</span>,   <span class="c">-- debit the matching Banking society account first</span>
+}</code></pre>
+
+  <h3>Banking</h3>
+  <pre><code>Config.Banking = {
+    Enabled = <span class="k">true</span>,
+    PromptDistance = <span class="n">10</span>,
+    ActionDistance = <span class="n">14</span>,          <span class="c">-- server-side proximity allowance</span>
+    MaxTransactionAmount = <span class="n">1000000</span>,
+    MaxStatements = <span class="n">50</span>,
+    CardPrice = <span class="n">50</span>,
+    UseDailyWithdrawalLimit = <span class="k">true</span>,
+    DailyWithdrawalLimit = <span class="n">5000</span>,
+    Society = { Enabled = <span class="k">true</span>, DefaultBalance = <span class="n">0</span>, StartingBalances = {} },
+    Locations = {
+        { id = <span class="s">"test_bank"</span>, label = <span class="s">"QBCore Bank"</span>, position = Vector3.new(<span class="n">6.21</span>, <span class="n">3.45</span>, <span class="n">-1492.88</span>) },
+    },
+    ATMLocations = {
+        { id = <span class="s">"test_atm"</span>, label = <span class="s">"QBCore ATM"</span>, position = Vector3.new(<span class="n">26.21</span>, <span class="n">3.45</span>, <span class="n">-1492.88</span>) },
+    },
+}</code></pre>
+
+  <h3>Inventory</h3>
+  <pre><code>Config.Inventory = {
+    Slots = <span class="n">30</span>,
+    HotbarSlots = <span class="n">5</span>,
+    MaxWeight = <span class="n">120000</span>,         <span class="c">-- grams</span>
+    MaxStack = <span class="n">999</span>,
+    GiveDistance = <span class="n">10</span>,
+    StarterItems = { <span class="c">-- sandwich ×2 @slot1, water_bottle ×2 @slot2</span> },
+}</code></pre>
+
+  <h3>Medical / death screen</h3>
+  <pre><code>Config.Medical.DeathScreen = { Enabled = <span class="k">true</span>, RespawnDelay = <span class="n">30</span>, RespawnKey = <span class="s">"E"</span>, GamepadRespawnKey = <span class="s">"ButtonX"</span> }
+Config.Medical.Respawn = {
+    WipeInventory = <span class="k">false</span>,
+    Health = <span class="n">100</span>,
+    UseConfiguredLocation = <span class="k">false</span>,
+    Location = { x = <span class="n">-175.00</span>, y = <span class="n">3.70</span>, z = <span class="n">333.57</span>, ry = <span class="n">358.6</span> },
+}</code></pre>
+
+  <h3>World &amp; time</h3>
+  <pre><code>Config.World.Time = { Enabled = <span class="k">true</span>, StartHour = <span class="n">12</span>, DayLengthMinutes = <span class="n">48</span>, Freeze = <span class="k">false</span> }
+Config.World.CloudCover = <span class="n">0.45</span>
+Config.World.TimeCycle.Enabled = <span class="k">true</span>   <span class="c">-- 9 keyframes: midnight → sunrise → noon → sunset → night</span></code></pre>
+
+  <h3>Weather</h3>
+  <pre><code>Config.Weather = {
+    Enabled = <span class="k">true</span>, Dynamic = <span class="k">true</span>,
+    StartWeather = <span class="s">"CLEAR"</span>,
+    TransitionSeconds = <span class="n">45</span>,
+    MinWeatherSeconds = <span class="n">600</span>, MaxWeatherSeconds = <span class="n">1200</span>,
+    BlackoutLightTags = { <span class="s">"QBBlackoutLight"</span>, <span class="s">"StreetLight"</span> },
+    ThunderSoundId = <span class="s">""</span>,
+}</code></pre>
+
+  <h3>Player &amp; appearance</h3>
+  <pre><code>Config.Player.MaxCharacterSlots = <span class="n">5</span>
+Config.Player.Camera = { MinZoomDistance = <span class="n">0.5</span>, MaxZoomDistance = <span class="n">22</span> }
+
+Config.Appearance = {
+    PromptNewCharacters = <span class="k">true</span>,
+    ValidateOwnership = <span class="k">true</span>,   <span class="c">-- MarketplaceService:PlayerOwnsAsset checks</span>
+    MaxAccessories = <span class="n">15</span>,
+}</code></pre>
+
+  <h3>Server access</h3>
+  <pre><code>Config.Server = {
+    Closed = <span class="k">false</span>, ClosedReason = <span class="s">"Server Closed"</span>,
+    Whitelist = <span class="k">false</span>,
+    PermissionRanks = { <span class="s">"user"</span>, <span class="s">"mod"</span>, <span class="s">"admin"</span>, <span class="s">"god"</span> },
+    Permissions = { god = { <span class="c">-- UserIds</span> }, admin = {}, mod = {} },
+    StudioTestersAreGod = <span class="k">true</span>,
+}</code></pre>
+</section>
+
+<!-- ================= COMMANDS ================= -->
+<section id="commands">
+  <h2>Slash Commands</h2>
+  <p class="section-sub">
+    Registered through TextChatService. <code>&lt;id&gt;</code> arguments accept a UserId or a
+    case-insensitive display-name prefix among online players. All feedback arrives as toasts.
+  </p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Command</th><th>Arguments</th><th>Rank</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>/commands</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>List the commands you can use</td></tr>
+      <tr><td><code>/id</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your UserId</td></tr>
+      <tr><td><code>/logout</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Save and return to character select</td></tr>
+      <tr><td><code>/appearance</code> · <code>/outfit</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Edit this character's appearance</td></tr>
+      <tr><td><code>/emotes</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Open the emote menu</td></tr>
+      <tr><td><code>/music</code></td><td><code>[query]</code></td><td><span class="badge b-user">user</span></td><td>Open the closest stage music menu, or search if a query is given</td></tr>
+      <tr><td><code>/musicsearch</code></td><td><code>&lt;query&gt;</code></td><td><span class="badge b-user">user</span></td><td>Search Creator Store audio for the closest stage</td></tr>
+      <tr><td><code>/job</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your current job</td></tr>
+      <tr><td><code>/duty</code> · <code>/toggleduty</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Toggle your current job duty state</td></tr>
+      <tr><td><code>/crew</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your current crew</td></tr>
+      <tr><td><code>/cash</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your cash balance</td></tr>
+      <tr><td><code>/bank</code></td><td>—</td><td><span class="badge b-user">user</span></td><td>Show your bank balance</td></tr>
+      <tr><td><code>/admin</code></td><td>—</td><td><span class="badge b-admin">admin</span></td><td>Open the admin menu</td></tr>
+      <tr><td><code>/setjob</code></td><td><code>&lt;id&gt; &lt;job&gt; &lt;grade&gt;</code></td><td><span class="badge b-admin">admin</span></td><td>Set a player's job</td></tr>
+      <tr><td><code>/setcrew</code></td><td><code>&lt;id&gt; &lt;crew&gt; &lt;grade&gt;</code></td><td><span class="badge b-admin">admin</span></td><td>Set a player's crew</td></tr>
+      <tr><td><code>/givemoney</code></td><td><code>&lt;id&gt; &lt;type&gt; &lt;amount&gt;</code></td><td><span class="badge b-admin">admin</span></td><td>Give a player money</td></tr>
+      <tr><td><code>/setmoney</code></td><td><code>&lt;id&gt; &lt;type&gt; &lt;amount&gt;</code></td><td><span class="badge b-admin">admin</span></td><td>Set a player's balance</td></tr>
+      <tr><td><code>/giveitem</code></td><td><code>&lt;id&gt; &lt;item&gt; [amount]</code></td><td><span class="badge b-admin">admin</span></td><td>Give a player an item</td></tr>
+      <tr><td><code>/car</code></td><td><code>&lt;vehicle&gt;</code></td><td><span class="badge b-admin">admin</span></td><td>Spawn a configured vehicle</td></tr>
+      <tr><td><code>/dv</code> · <code>/deletevehicle</code></td><td><code>[radius]</code></td><td><span class="badge b-admin">admin</span></td><td>Delete the closest spawned vehicle</td></tr>
+      <tr><td><code>/time</code></td><td><code>&lt;hour&gt; [minute]</code></td><td><span class="badge b-admin">admin</span></td><td>Set the in-game time</td></tr>
+      <tr><td><code>/freezetime</code></td><td>—</td><td><span class="badge b-admin">admin</span></td><td>Toggle the clock advancing</td></tr>
+      <tr><td><code>/weather</code></td><td><code>[type]</code></td><td><span class="badge b-admin">admin</span></td><td>Show or set the synced weather</td></tr>
+      <tr><td><code>/freezeweather</code></td><td>—</td><td><span class="badge b-admin">admin</span></td><td>Toggle automatic weather cycling</td></tr>
+      <tr><td><code>/blackout</code></td><td>—</td><td><span class="badge b-admin">admin</span></td><td>Toggle tagged world lights</td></tr>
+      <tr><td><code>/kick</code></td><td><code>&lt;id&gt; [reason]</code></td><td><span class="badge b-admin">admin</span></td><td>Kick a player</td></tr>
+      <tr><td><code>/ban</code></td><td><code>&lt;id&gt; &lt;hours&gt; [reason]</code></td><td><span class="badge b-god">god</span></td><td>Ban a player (0 hours = permanent)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= REMOTES ================= -->
+<section id="remotes">
+  <h2>Remotes</h2>
+  <p class="section-sub">
+    All remote names live in <code>QBRemoteNames.lua</code>; <code>QBRemotes.lua</code> creates
+    (server) or waits for (client) each instance under
+    <code>ReplicatedStorage/QBRemoteInstances</code>.
+  </p>
+
+  <h3>Session &amp; characters</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>PlayerLoaded</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Character selected and spawned</td></tr>
+      <tr><td><code>PlayerDataUpdated</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td><code>(key, val)</code> or <code>("all", PlayerData)</code></td></tr>
+      <tr><td><code>GetCharacters</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Character list for the select screen</td></tr>
+      <tr><td><code>SelectCharacter</code> / <code>CreateCharacter</code> / <code>DeleteCharacter</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Character CRUD</td></tr>
+      <tr><td><code>Notify</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td><code>(text, notifyType, length)</code> toast</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Inventory &amp; medical</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GetInventory</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Full inventory snapshot</td></tr>
+      <tr><td><code>MoveInventoryItem</code> / <code>GiveInventoryItem</code> / <code>UseInventorySlot</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Slot operations</td></tr>
+      <tr><td><code>RequestRespawn</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Self-respawn from the death screen</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Banking</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenBank</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the native panel after a server-side ProximityPrompt trigger</td></tr>
+      <tr><td><code>GetBanking</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Proximity/PIN-checked personal and accessible society account snapshot</td></tr>
+      <tr><td><code>BankingAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Deposit, withdraw, transfer, or issue a bank card</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Appearance</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenAppearanceEditor</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the editor UI</td></tr>
+      <tr><td><code>RequestAppearanceEditor</code> / <code>PreviewAppearance</code> / <code>CancelAppearanceEdit</code></td><td><span class="badge b-event">event</span></td><td>C → S</td><td>Editor lifecycle + live preview</td></tr>
+      <tr><td><code>SaveAppearance</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Validate and persist the look</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Admin, menus &amp; world</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenAdminMenu</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the admin panel (from <code>/admin</code>)</td></tr>
+      <tr><td><code>GetAdminContext</code> / <code>AdminAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Panel snapshot + action dispatch</td></tr>
+      <tr><td><code>OpenEmoteMenu</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the emote menu</td></tr>
+      <tr><td><code>OpenStageMusicMenu</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the stage music menu</td></tr>
+      <tr><td><code>StageMusicControl</code></td><td><span class="badge b-event">event</span></td><td>C → S</td><td><code>play</code> / <code>play_search</code> / <code>stop</code> / <code>volume_up</code> / <code>volume_down</code></td></tr>
+      <tr><td><code>WeatherStateUpdated</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Weather snapshot on change and on join</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= ITEMS ================= -->
+<section id="items">
+  <h2>Items</h2>
+  <p class="section-sub">
+    Defined in <code>QBShared/Items.lua</code> as a flat table keyed by item name.
+  </p>
+  <pre><code>sandwich = {
+    name = <span class="s">"sandwich"</span>, label = <span class="s">"Sandwich"</span>,
+    weight = <span class="n">200</span>,            <span class="c">-- grams</span>
+    type = <span class="s">"item"</span>, image = <span class="s">"rbxassetid://..."</span>,
+    unique = <span class="k">false</span>, useable = <span class="k">true</span>, shouldClose = <span class="k">true</span>,
+    consume = { hunger = <span class="n">25</span> },
+    description = <span class="s">"A quick bite"</span>,
+}</code></pre>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Category</th><th>Items</th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr><td>Consumables</td><td><code>sandwich</code> (+25 hunger), <code>water_bottle</code> (+30 thirst), <code>coffee</code> (+12 thirst)</td><td><code>consume = {hunger, thirst}</code> deltas applied on use.</td></tr>
+      <tr><td>Medical</td><td><code>bandage</code>, <code>firstaid</code>, <code>armor</code></td><td><code>medical</code> table: <code>heal</code> (+20 HP), <code>revive</code> (EMS-only, 10-stud range, 40 HP), <code>armor</code> (sets 100%).</td></tr>
+      <tr><td>Ammo</td><td><code>pistol_ammo</code>, <code>smg_ammo</code>, <code>shotgun_ammo</code>, <code>rifle_ammo</code>, <code>sniper_ammo</code>, <code>bolt_ammo</code>, <code>grenade_ammo</code>, <code>rocket_ammo</code>, <code>railgun_ammo</code></td><td>1 item = 1 round; consumed by reloads, not directly useable.</td></tr>
+      <tr><td>Weapons</td><td><code>weapon_pistol</code>, <code>weapon_shotgun</code>, <code>weapon_auto_rifle</code>, <code>weapon_submachine_gun</code>, <code>weapon_sniper_rifle</code>, <code>weapon_crossbow</code>, <code>weapon_grenade_launcher</code>, <code>weapon_rocket_launcher</code>, <code>weapon_railgun</code></td><td><code>type = "weapon"</code>, unique, <code>removeOnUse = false</code> — use to equip/holster.</td></tr>
+      <tr><td>Misc</td><td><code>lockpick</code></td><td>Placeholder for future systems.</td></tr>
+    </tbody>
+  </table></div>
+  <p>
+    Any item with <code>useable = true</code> either dispatches to a handler registered via
+    <code>InventoryService.CreateUseableItem</code> (medical and weapon items) or applies its
+    <code>consume</code> deltas directly.
+  </p>
+</section>
+
+<!-- ================= VEHICLES ================= -->
+<section id="vehicles">
+  <h2>Vehicles</h2>
+  <p class="section-sub">
+    A ~30-entry catalog in <code>QBShared/Vehicles.lua</code>, built with two factory helpers.
+  </p>
+  <ul>
+    <li><code>vehicle(def)</code> — drivable cars. Defaults: <code>brand = "Roblox"</code>, <code>fuel = 100</code>, <code>gloveboxSlots = 5</code>, <code>gloveboxWeight = 10000</code>. An <code>attributeProfile</code> (one of <code>emergency</code>, <code>sedan</code>, <code>sports</code>, <code>supercar</code>, <code>offroad</code>, <code>utility</code>, <code>pickup</code>, <code>suv</code>, <code>van</code>) expands into a full physics-tuning <code>attributes</code> table.</li>
+    <li><code>board(def)</code> — personal transport (skateboards, hoverboards): <code>fuel = 0</code>, <code>trunkSlots = 0</code>.</li>
+  </ul>
+  <p>
+    Each entry carries <code>name</code>, <code>label</code>, <code>modelName</code> (the Studio
+    template to match in <code>ServerStorage/QBVehicleModels</code>), <code>category</code>,
+    <code>trunkSlots</code>/<code>trunkWeight</code>, <code>aliases[]</code>, and an optional
+    Toolbox <code>assetId</code>. Spawn with <code>/car &lt;vehicle&gt;</code> or the admin panel;
+    delete the closest with <code>/dv</code>.
+  </p>
+  <div class="toast warning">
+    <div>
+      <div class="t-title">Templates required</div>
+      <p>Catalog entries only spawn if a matching model exists in <code>ServerStorage/QBVehicleModels</code>. Installing a template for every entry is a roadmap item.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WEAPONS ================= -->
+<section id="weapons">
+  <h2>Weapon Setup</h2>
+  <p class="section-sub">
+    Weapon item data lives in <code>QBShared/Items.lua</code>; the actual Roblox Tool templates go
+    in <code>ServerStorage/QBWeaponTools</code>, driven by the endorsed Weapons Kit.
+  </p>
+  <pre><code>ServerScriptService
+  WeaponsSystem          <span class="c">-- imported Weapons Kit</span>
+ServerStorage
+  QBWeaponTools
+    Pistol               <span class="c">-- Tool template, matched by weapon.toolName</span></code></pre>
+  <p>Each weapon item can override the Tool template's <code>Configuration</code> values:</p>
+  <pre><code>weapon = {
+    toolName = <span class="s">"Pistol"</span>,
+    ammoItem = <span class="s">"pistol_ammo"</span>,
+    config = {
+        AmmoCapacity = <span class="n">12</span>,
+        FireMode = <span class="s">"Semiautomatic"</span>,
+        HitDamage = <span class="n">24</span>,
+        MaxSpread = <span class="n">2</span>,
+        ShotCooldown = <span class="n">0.18</span>,
+    },
+}</code></pre>
+  <p>
+    Existing ValueBase objects are reused, missing number/string/boolean values are created, and
+    omitted values keep the template's settings. Other kit values work too:
+    <code>GravityFactor</code>, <code>MuzzleFlashSize0/1</code>, <code>RecoilDecay</code>,
+    <code>RecoilMin/Max</code>, <code>TotalRecoilMax</code>, <code>ShotEffect</code>,
+    <code>CasingEffect</code>.
+  </p>
+  <h3>Importing the endorsed pistol</h3>
+  <ol>
+    <li>Insert the free Roblox pistol from Toolbox — click <strong>No</strong> on the StarterPack prompt.</li>
+    <li>Move the <code>Pistol</code> Tool into <code>ServerStorage/QBWeaponTools</code> and the imported <code>WeaponsSystem</code> folder into <code>ServerScriptService</code>. (The server also tries to auto-collect loose copies at runtime.)</li>
+    <li>Test with <code>/giveitem &lt;userId-or-name&gt; weapon_pistol 1</code>.</li>
+  </ol>
+  <div class="toast info">
+    <div>
+      <div class="t-title">Kit patches</div>
+      <p>Studio Command Bar fixes live in <code>tools/</code>: <code>setup-weapons-kit.lua</code> (create folders), <code>patch-weapons-shoulder-camera.lua</code> (read-only <code>C0</code> error spam), and <code>patch-weapons-local-crosshair.lua</code> (remote players hijacking the local crosshair).</p>
+    </div>
+  </div>
+  <p>
+    Equipped weapon clones set <code>CanBeDropped = false</code>, so players can't drop gun pickups
+    onto the map. Damage routes through <code>MedicalService.ApplyWeaponDamage</code> for armor
+    absorption.
+  </p>
+</section>
+
+<!-- ================= JOBS & CREWS ================= -->
+<section id="jobs-crews">
+  <h2>Jobs &amp; Crews</h2>
+  <p class="section-sub">Registries in <code>QBShared/Jobs.lua</code> and <code>QBShared/Crews.lua</code>.</p>
+  <h3>Jobs</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Job</th><th>Type</th><th>Grades</th><th>Pay</th></tr></thead>
+    <tbody>
+      <tr><td><code>unemployed</code> — Civilian</td><td>none</td><td>0 Freelancer (defaultDuty)</td><td>$10</td></tr>
+      <tr><td><code>police</code> — Police</td><td>leo</td><td>0 Recruit → 1 Officer → 2 Sergeant → 3 Lieutenant → 4 Chief (boss)</td><td>$50–150</td></tr>
+      <tr><td><code>ambulance</code> — EMS</td><td>ems</td><td>0 Recruit → 1 Paramedic → 2 Doctor → 3 Surgeon → 4 Chief (boss)</td><td>$50–150</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>Jobs.ForceJobDefaultDutyAtLogin = true</code> resets duty state to the job's default on every login.</p>
+  <h3>Crews</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Crew</th><th>Flavor</th><th>Grades</th></tr></thead>
+    <tbody>
+      <tr><td><code>vantage_row</code> — Vantage Row</td><td>Corporate heist crew</td><td>Associate → Operator → Broker → Director (boss)</td></tr>
+      <tr><td><code>static_line</code> — Static Line</td><td>Street crew</td><td>Runner → Regular → Corner Lead → Shot Caller (boss)</td></tr>
+      <tr><td><code>the_undertow</code> — The Undertow</td><td>Dockside crew</td><td>Deckhand → Handler → Harbor Lead → Tide Boss (boss)</td></tr>
+      <tr><td><code>ironclad_motor_co</code> — Ironclad Motor Co.</td><td>Motor club</td><td>Prospect → Patch → Road Captain → President (boss)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Assign with <code>/setjob</code> / <code>/setcrew</code> or the admin panel. Players can toggle duty with <code>/duty</code>; map prompts, blips, and grade-gated actions remain on the <a href="#roadmap">roadmap</a>.</p>
+</section>
+
+<!-- ================= WEATHER ================= -->
+<section id="weather">
+  <h2>Weather &amp; Time</h2>
+  <p class="section-sub">
+    Eight presets in <code>QBShared/Weather.lua</code>, blended server-side and rendered locally.
+  </p>
+  <p>
+    Preset order: <code>CLEAR</code>, <code>EXTRASUNNY</code>, <code>CLOUDS</code>,
+    <code>OVERCAST</code>, <code>FOG</code>, <code>RAIN</code>, <code>THUNDER</code>,
+    <code>SNOW</code>. Each defines label, random-cycle weight, wind, clouds, lighting, atmosphere,
+    color correction, sun rays, precipitation (kind/rate/speed), and thunder timing.
+  </p>
+  <ul>
+    <li><strong>Server</strong>: <code>WeatherService</code> picks the next preset by weighted random every 10–20 minutes and blends over <code>TransitionSeconds</code> (45s default).</li>
+    <li><strong>Client visuals</strong>: <code>QBWeather</code> renders precipitation particles and lightning; <code>QBTimeCycle</code> blends the weather layer into the time-of-day grade every frame.</li>
+    <li><strong>Blackout</strong>: <code>/blackout</code> disables every <code>Light</code> under instances tagged <code>QBBlackoutLight</code> or <code>StreetLight</code>.</li>
+    <li><strong>Clock</strong>: <code>TimeSyncService</code> drives <code>Lighting.ClockTime</code>; a full day lasts 48 real minutes by default. Control via <code>/time</code> and <code>/freezetime</code>.</li>
+  </ul>
+  <p>Admins can drive all of this from the Environment tab of the admin panel too.</p>
+</section>
+
+<!-- ================= UI THEME ================= -->
+<section id="ui-theme">
+  <h2>UI Theme</h2>
+  <p class="section-sub">
+    The palette shared by every native UI script — and the one this docs site is built from.
+  </p>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:rgb(12,15,20)"></div><div class="meta"><b>Background</b><span>12, 15, 20</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(18,21,27)"></div><div class="meta"><b>Panel</b><span>18, 21, 27</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(28,33,42)"></div><div class="meta"><b>Card</b><span>28, 33, 42</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(48,57,70)"></div><div class="meta"><b>Stroke</b><span>48, 57, 70</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(240,243,246)"></div><div class="meta"><b>Text</b><span>240, 243, 246</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(156,167,182)"></div><div class="meta"><b>Muted</b><span>156, 167, 182</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(235,184,76)"></div><div class="meta"><b>Accent gold</b><span>235, 184, 76</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(62,166,105)"></div><div class="meta"><b>Success green</b><span>62, 166, 105</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(191,75,75)"></div><div class="meta"><b>Danger red</b><span>191, 75, 75</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(67,133,194)"></div><div class="meta"><b>Info blue</b><span>67, 133, 194</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(214,76,86)"></div><div class="meta"><b>HUD health</b><span>214, 76, 86</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(72,141,213)"></div><div class="meta"><b>HUD armor</b><span>72, 141, 213</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(224,151,67)"></div><div class="meta"><b>HUD hunger</b><span>224, 151, 67</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(73,177,205)"></div><div class="meta"><b>HUD thirst</b><span>73, 177, 205</span></div></div>
+    <div class="swatch"><div class="chip" style="background:rgb(190,102,212)"></div><div class="meta"><b>HUD stress</b><span>190, 102, 212</span></div></div>
+  </div>
+  <div class="toast warning">
+    <div>
+      <div class="t-title">Roadmap note</div>
+      <p>Each LocalScript currently duplicates its own UI helper functions and color constants — consolidating them into a shared theming module is a planned cleanup.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROADMAP ================= -->
+<section id="roadmap">
+  <h2>Roadmap</h2>
+  <p class="section-sub">
+    From <code>TODO.md</code> — working resource slices exist, but this is not a full QBCore
+    ecosystem yet. Suggested milestone order: production hardening → inventory economy → vehicles
+    → jobs → world.
+  </p>
+  <div class="card-grid">
+    <div class="card"><h4>Foundation</h4><p>Battle-tested profile library (or hardened retries/telemetry), Luau static checks and Studio smoke tests, structured audit logs, schema-migration helpers, localization.</p></div>
+    <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, phone), spawn selection, deeper deletion cleanup.</p></div>
+    <div class="card"><h4>Economy</h4><p>Shops, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, and richer business management.</p></div>
+    <div class="card"><h4>Jobs &amp; crews</h4><p>Map duty prompts, blips, and grade-gated actions; police/EMS/mechanic/taxi/delivery jobs; dispatch, fines, warrants, evidence; crew progression.</p></div>
+    <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, persistent ownership and garages, keys/locks, fuel and repair state, trunk/glovebox inventories, dealerships.</p></div>
+    <div class="card"><h4>Weapons &amp; combat</h4><p>Tool templates for every configured weapon, licenses and job restrictions, weapon/ammo shops, downed state (beyond death screen), combat audit tooling.</p></div>
+    <div class="card"><h4>World &amp; environment</h4><p>Weather polish (textures, puddles, shelter checks), broader blackout coverage, map-aware spawn/hospital/garage config, place asset validation.</p></div>
+    <div class="card"><h4>UI &amp; client</h4><p>Finish the blank admin tabs (Reports, Chat, Leaderboard), mobile/gamepad polish, configurable keybinds, a shared UI theming module.</p></div>
+  </div>
+  <h3>Still missing entirely</h3>
+  <p>
+    Housing/apartments, garages/impound, phone, full employee-management boss menu, door locks,
+    target/interact system, progress bars and minigames, dispatch/radio, shops/crafting/stashes,
+    clothing stores and outfit slots, drug loops, police MDT/jail/evidence, and EMS
+    hospitals/beds/billing.
+  </p>
+</section>
+
+<footer>
+  <div>qb-core Roblox Port — generated from the workspace source.</div>
+  <div>Built with the in-game UI palette.</div>
+</footer>
+
+</div>
+</main>
+</div>
+
+<button class="to-top" id="toTop" aria-label="Back to top">↑</button>
+
+<script>
+(function () {
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  var menuBtn = document.getElementById('menuBtn');
+
+  function closeDrawer() { sidebar.classList.remove('open'); scrim.classList.remove('show'); }
+  menuBtn.addEventListener('click', function () {
+    sidebar.classList.toggle('open');
+    scrim.classList.toggle('show', sidebar.classList.contains('open'));
+  });
+  scrim.addEventListener('click', closeDrawer);
+  sidebar.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') closeDrawer();
+  });
+
+  // nav filter
+  var filter = document.getElementById('navFilter');
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.nav-group'));
+  filter.addEventListener('input', function () {
+    var q = filter.value.trim().toLowerCase();
+    groups.forEach(function (g) {
+      var any = false;
+      Array.prototype.forEach.call(g.querySelectorAll('a'), function (a) {
+        var hit = !q || a.textContent.toLowerCase().indexOf(q) !== -1;
+        a.classList.toggle('nav-hidden', !hit);
+        if (hit) any = true;
+      });
+      g.classList.toggle('nav-hidden', !any);
+    });
+  });
+
+  // scrollspy
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav-group a[href^="#"]'));
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  var current = null;
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        var link = byId[entry.target.id];
+        if (link && link !== current) {
+          if (current) current.classList.remove('active');
+          link.classList.add('active');
+          current = link;
+        }
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px' });
+  document.querySelectorAll('main section[id]').forEach(function (s) { observer.observe(s); });
+
+  // back to top
+  var toTop = document.getElementById('toTop');
+  window.addEventListener('scroll', function () {
+    toTop.classList.toggle('show', window.scrollY > 600);
+  }, { passive: true });
+  toTop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 
 - Account profile loading with DataStore-backed session locking.
 - Character select, create, delete, and spawn.
-- Persistence for money, job, crew, charinfo, position, and metadata.
+- Persistence for money, banking statements, society accounts, queued transfers, job, crew, charinfo, position, and metadata.
 - Client-side QBCore player data cache.
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
 - Death screen with timer-based self-respawn.
@@ -17,8 +17,19 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - First-pass vehicle registry and admin/command spawning from Roblox templates.
 - QBMenu-style client menu, emotes menu, and proximity stage music controls.
 - Synced Roblox-native weather with clouds/fog/rain/thunder/snow presets and blackout.
+- Proximity-prompt personal/society banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
+
+## Reference Island Map
+
+The repository includes a three-stage Roblox Studio generator based on
+`reference_topdown.png`. It builds the terrain and districts, the traced road
+network, and a rerunnable landmark/detail layer containing the airport, port,
+farms, golf course, city façades, vegetation, and streetlights.
+
+See [MAP_GENERATION.md](MAP_GENERATION.md) for the exact generation order and
+Studio workflow.
 
 ## Layout
 
@@ -35,6 +46,8 @@ src/
       Access.lua           -- whitelist, bans, graded permissions
       ProfileStore.lua     -- simplified session-locked DataStore wrapper
       PlayerService.lua    -- account, character, spawn, save, status loop
+      PaycheckService.lua  -- configurable job-grade paycheck loop
+      BankingService.lua   -- personal/society banking, cards, ATMs, and transfer queue
       PlayerClass.lua      -- player money/job/crew/metadata methods
       AdminService.lua     -- permission-checked admin menu context/actions
       CommandService.lua   -- TextChatService command registry
@@ -50,6 +63,7 @@ src/
   StarterPlayer/StarterPlayerScripts/
     QBCoreClient.client.lua -- character select/create/delete UI
     QBAppearance.client.lua -- per-character avatar appearance editor
+    QBBanking.client.lua    -- personal/society account, ATM, and history UI
     QBAdmin.client.lua      -- native admin menu
     QBAmbulance.client.lua  -- death screen and self-respawn UI
     QBEmotes.client.lua     -- emote menu
@@ -185,6 +199,44 @@ Config.Weather.BlackoutLightTags = { "QBBlackoutLight", "StreetLight" }
 Admins can use `/weather`, `/freezeweather`, and `/blackout`; the native admin
 menu also exposes these controls on the Environment tab.
 
+Job-grade paychecks and the `/duty` toggle use the money configuration:
+
+```lua
+Config.Money.PayCheckEnabled = true
+Config.Money.PayCheckTimeOut = 10 * 60
+Config.Money.PayCheckOnDutyOnly = true
+Config.Money.PayCheckSociety = false
+```
+
+`BankingService` is registered as the society-funds provider during startup. When
+`PayCheckSociety` is enabled, the matching job account is debited atomically before
+each paycheck; insufficient society funds cause that paycheck to be skipped.
+
+Bank locations and transaction limits are configured in the same file. Each
+location becomes an invisible anchored part with a native `ProximityPrompt`:
+
+```lua
+Config.Banking.PromptDistance = 10
+Config.Banking.ActionDistance = 14
+Config.Banking.MaxTransactionAmount = 1000000
+Config.Banking.MaxStatements = 50
+Config.Banking.CardPrice = 50
+Config.Banking.UseDailyWithdrawalLimit = true
+Config.Banking.DailyWithdrawalLimit = 5000
+Config.Banking.Society = { Enabled = true, DefaultBalance = 0, StartingBalances = {} }
+Config.Banking.Locations = {
+    { id = "test_bank", label = "QBCore Bank", position = Vector3.new(6.21, 3.45, -1492.88) },
+}
+Config.Banking.ATMLocations = {
+    { id = "test_atm", label = "QBCore ATM", position = Vector3.new(26.21, 3.45, -1492.88) },
+}
+```
+
+Boss grades can deposit, withdraw, and transfer from their job's society account.
+Transfers use citizen IDs; online recipients are credited immediately, while
+offline recipients receive a durable, deduplicated transfer on their next login.
+Cards are issued from the bank UI and are required with their PIN at ATM prompts.
+
 ## Extending It
 
 - Add real jobs/crews by expanding `QBShared/Jobs.lua` and `QBShared/Crews.lua`.
@@ -194,7 +246,7 @@ menu also exposes these controls on the Environment tab.
 - Extend the admin menu with reports, chat moderation, leaderboard, and deeper developer tools.
 - Extend the first-pass vehicle spawner into persistent ownership, garages, keys, fuel, and trunks.
 - Polish weather with custom precipitation textures, thunder audio, puddles, shelter checks, and map-specific blackout tags.
-- Add paychecks and richer job/crew loops as separate systems.
+- Expand the `/duty` toggle into map prompts, blips, permissions, and richer job/crew loops.
 
 ## Weapon Tool Setup
 

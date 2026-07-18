@@ -154,6 +154,25 @@ function Commands.Register()
 		)
 	end)
 
+	CommandService.Add("duty", "Toggle your current job duty", {}, false, function(player)
+		local playerObj = getOwnPlayerObj(player)
+		if not playerObj then
+			return
+		end
+
+		local job = playerObj.PlayerData.job
+		local onDuty = job.onduty ~= true
+		playerObj:SetJobDuty(onDuty)
+		notify(
+			player,
+			("You are now %s for %s."):format(
+				onDuty and "on duty" or "off duty",
+				tostring(job.label or job.name or "your job")
+			),
+			onDuty and "success" or "primary"
+		)
+	end, "user", "toggleduty")
+
 	CommandService.Add("crew", "Show your current crew", {}, false, function(player)
 		local playerObj = getOwnPlayerObj(player)
 		if not playerObj then

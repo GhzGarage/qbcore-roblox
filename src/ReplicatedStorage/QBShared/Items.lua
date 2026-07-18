@@ -99,6 +99,18 @@ return {
 		description = "A small tool for future systems.",
 	},
 
+	bank_card = {
+		name = "bank_card",
+		label = "Bank Card",
+		weight = 10,
+		type = "item",
+		image = "",
+		unique = true,
+		useable = false,
+		shouldClose = true,
+		description = "A personal bank card used to access ATMs.",
+	},
+
 	-- Ammo items: one item is one bullet. A weapon lists which item it reloads
 	-- from via weapon.ammoItem; reload pulls from these and is refused without them.
 	pistol_ammo = {

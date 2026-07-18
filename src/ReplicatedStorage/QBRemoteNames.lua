@@ -10,6 +10,7 @@ return {
 		"PreviewAppearance", -- client -> server: (serializedAppearance) live try-on, applied to the character
 		"CancelAppearanceEdit", -- client -> server: () revert the character to the last saved look
 		"OpenAdminMenu", -- server -> client: () open the native admin panel
+		"OpenBank", -- server -> client: ({ mode, locationId }) open the bank/ATM panel
 		"OpenEmoteMenu", -- server -> client: () open the native emote menu
 		"OpenStageMusicMenu", -- server -> client: (station snapshot) open the stage music menu
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
@@ -28,5 +29,7 @@ return {
 		"RequestRespawn", -- client -> server: () -> boolean, errorMessage?
 		"GetAdminContext", -- client -> server: () -> admin menu snapshot, permission checked
 		"AdminAction", -- client -> server: (action, payload) -> boolean, resultOrError
+		"GetBanking", -- client -> server: (access) -> banking snapshot, errorMessage?
+		"BankingAction", -- client -> server: (action, payloadWithAccess) -> boolean, snapshotOrError
 	},
 }

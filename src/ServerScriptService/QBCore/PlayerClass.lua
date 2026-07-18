@@ -366,8 +366,9 @@ function Player:Save()
 	end
 
 	if self._saveCallback then
-		self._saveCallback(self.PlayerData)
+		return self._saveCallback(self.PlayerData)
 	end
+	return false
 end
 
 function Player:Logout()

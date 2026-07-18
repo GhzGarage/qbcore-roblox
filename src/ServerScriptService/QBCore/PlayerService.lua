@@ -177,6 +177,22 @@ function PlayerService.GetPlayersByJob(job, checkOnDuty)
 	return list, count
 end
 
+-- Resolves the owning Roblox account without opening or mutating its profile. Banking
+-- uses this to validate recipients and filter queued transfer text for the right user.
+function PlayerService.GetAccountUserIdByCitizenId(citizenId)
+	if type(citizenId) ~= "string" or citizenId == "" then
+		return nil
+	end
+	local ok, userId = pcall(function()
+		return citizenIndex:GetAsync(citizenId)
+	end)
+	if not ok then
+		warn(("[QBCore.PlayerService] Citizen lookup failed for %s: %s"):format(citizenId, tostring(userId)))
+		return nil
+	end
+	return tonumber(userId)
+end
+
 function PlayerService.StartStatusLoop()
 	if statusLoopStarted then
 		return
@@ -299,10 +315,10 @@ local function saveCallbackFor(player, citizenId)
 	return function(playerData)
 		local profile = accountProfiles[player.UserId]
 		if not profile then
-			return
+			return false
 		end
 		profile.Data.characters[citizenId] = playerData
-		profile:Save()
+		return profile:Save()
 	end
 end
 
