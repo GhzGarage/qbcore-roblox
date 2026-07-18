@@ -331,7 +331,9 @@ local function updateVisualState()
 	respawnButton.Active = canRespawn
 	respawnButton.AutoButtonColor = canRespawn
 	respawnButton.BackgroundColor3 = canRespawn and COLORS.green or Color3.fromRGB(80, 89, 102)
-	respawnButton.Text = busy and "Respawning..." or canRespawn and ("Respawn (" .. RESPAWN_KEY.Name .. ")") or "Respawn Locked"
+	respawnButton.Text = busy and "Respawning..."
+		or canRespawn and ("Respawn (" .. RESPAWN_KEY.Name .. ")")
+		or "Respawn Locked"
 
 	if lastError ~= "" and statusClearAt > 0 and os.clock() >= statusClearAt then
 		lastError = ""

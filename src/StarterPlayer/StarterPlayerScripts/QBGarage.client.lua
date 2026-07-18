@@ -12,13 +12,20 @@ local Remotes = require(ReplicatedStorage.QBRemotes)
 local player = Players.LocalPlayer
 
 local COLORS = {
-	page = Color3.fromRGB(10, 13, 18), shell = Color3.fromRGB(25, 31, 39),
-	panel = Color3.fromRGB(32, 39, 49), panelSoft = Color3.fromRGB(38, 46, 58),
-	input = Color3.fromRGB(19, 24, 31), stroke = Color3.fromRGB(73, 87, 104),
-	strokeSoft = Color3.fromRGB(57, 69, 84), text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(157, 170, 184), green = Color3.fromRGB(65, 172, 110),
-	blue = Color3.fromRGB(74, 143, 216), blueDark = Color3.fromRGB(48, 99, 157),
-	gold = Color3.fromRGB(229, 181, 77), red = Color3.fromRGB(202, 79, 83),
+	page = Color3.fromRGB(10, 13, 18),
+	shell = Color3.fromRGB(25, 31, 39),
+	panel = Color3.fromRGB(32, 39, 49),
+	panelSoft = Color3.fromRGB(38, 46, 58),
+	input = Color3.fromRGB(19, 24, 31),
+	stroke = Color3.fromRGB(73, 87, 104),
+	strokeSoft = Color3.fromRGB(57, 69, 84),
+	text = Color3.fromRGB(240, 244, 248),
+	muted = Color3.fromRGB(157, 170, 184),
+	green = Color3.fromRGB(65, 172, 110),
+	blue = Color3.fromRGB(74, 143, 216),
+	blueDark = Color3.fromRGB(48, 99, 157),
+	gold = Color3.fromRGB(229, 181, 77),
+	red = Color3.fromRGB(202, 79, 83),
 	disabled = Color3.fromRGB(79, 89, 101),
 }
 
@@ -107,7 +114,9 @@ local function formatMoney(value)
 	while true do
 		local nextFormatted, replacements = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
 		formatted = nextFormatted
-		if replacements == 0 then break end
+		if replacements == 0 then
+			break
+		end
 	end
 	return "$" .. formatted
 end
@@ -160,7 +169,8 @@ eyebrow.Size = UDim2.new(1, -60, 0, 17)
 local titleLabel = makeLabel(header, "Title", "Public Garage", 25, COLORS.text, Enum.Font.GothamBold)
 titleLabel.Position = UDim2.fromOffset(0, 16)
 titleLabel.Size = UDim2.new(0.7, 0, 0, 31)
-local subtitleLabel = makeLabel(header, "Subtitle", "Store and retrieve your owned vehicles.", 12, COLORS.muted, Enum.Font.GothamMedium)
+local subtitleLabel =
+	makeLabel(header, "Subtitle", "Store and retrieve your owned vehicles.", 12, COLORS.muted, Enum.Font.GothamMedium)
 subtitleLabel.Position = UDim2.fromOffset(0, 47)
 subtitleLabel.Size = UDim2.new(0.76, 0, 0, 18)
 local closeButton = makeButton(header, "Close", "×", COLORS.panelSoft)
@@ -241,7 +251,8 @@ stateCard.Parent = details
 addCorner(stateCard, 8)
 addStroke(stateCard, COLORS.blue, 0.38, 1)
 addPadding(stateCard, 14, 11, 14, 11)
-local stateCaption = makeLabel(stateCard, "Caption", "VEHICLE STATE", 10, Color3.fromRGB(190, 217, 245), Enum.Font.GothamBold)
+local stateCaption =
+	makeLabel(stateCard, "Caption", "VEHICLE STATE", 10, Color3.fromRGB(190, 217, 245), Enum.Font.GothamBold)
 stateCaption.Size = UDim2.new(1, 0, 0, 17)
 local stateLabel = makeLabel(stateCard, "State", "—", 22, COLORS.text, Enum.Font.GothamBold)
 stateLabel.Position = UDim2.fromOffset(0, 24)
@@ -271,7 +282,8 @@ installedLabel.Size = UDim2.new(1, 0, 0, 15)
 local statsTitle = makeLabel(details, "StatsTitle", "Stored condition", 15, COLORS.text, Enum.Font.GothamBold)
 statsTitle.Position = UDim2.fromOffset(0, 200)
 statsTitle.Size = UDim2.new(1, 0, 0, 23)
-local statsLabel = makeLabel(details, "Stats", "Fuel —   Engine —   Body —", 12, COLORS.muted, Enum.Font.GothamMedium)
+local statsLabel =
+	makeLabel(details, "Stats", "Fuel —   Engine —   Body —", 12, COLORS.muted, Enum.Font.GothamMedium)
 statsLabel.Position = UDim2.fromOffset(0, 228)
 statsLabel.Size = UDim2.new(1, 0, 0, 24)
 
@@ -305,7 +317,9 @@ end
 
 local function selectedVehicle()
 	for _, entry in ipairs(snapshot and snapshot.vehicles or {}) do
-		if entry.id == selectedOwnershipId then return entry end
+		if entry.id == selectedOwnershipId then
+			return entry
+		end
 	end
 	local first = snapshot and snapshot.vehicles and snapshot.vehicles[1]
 	selectedOwnershipId = first and first.id or nil
@@ -314,7 +328,9 @@ end
 
 local function clearList()
 	for _, child in ipairs(listFrame:GetChildren()) do
-		if child ~= listLayout then child:Destroy() end
+		if child ~= listLayout then
+			child:Destroy()
+		end
 	end
 end
 
@@ -330,14 +346,26 @@ local function renderList()
 		local haystack = (entry.label .. " " .. entry.brand .. " " .. entry.plate .. " " .. entry.stateLabel):lower()
 		if query == "" or haystack:find(query, 1, true) then
 			shown += 1
-			local button = makeButton(listFrame, "Vehicle_" .. index, "", entry.id == selectedOwnershipId and COLORS.blueDark or COLORS.panelSoft)
+			local button = makeButton(
+				listFrame,
+				"Vehicle_" .. index,
+				"",
+				entry.id == selectedOwnershipId and COLORS.blueDark or COLORS.panelSoft
+			)
 			button.LayoutOrder = index
 			button.Size = UDim2.new(1, -6, 0, 64)
 			button.Text = ""
 			local name = makeLabel(button, "Name", entry.label, 13, COLORS.text, Enum.Font.GothamBold)
 			name.Position = UDim2.fromOffset(12, 8)
 			name.Size = UDim2.new(0.68, -12, 0, 21)
-			local plate = makeLabel(button, "Plate", entry.plate .. "  ·  " .. entry.stateLabel, 10, COLORS.muted, Enum.Font.GothamMedium)
+			local plate = makeLabel(
+				button,
+				"Plate",
+				entry.plate .. "  ·  " .. entry.stateLabel,
+				10,
+				COLORS.muted,
+				Enum.Font.GothamMedium
+			)
 			plate.Position = UDim2.fromOffset(12, 34)
 			plate.Size = UDim2.new(0.76, -12, 0, 18)
 			local tint = entry.state == 1 and COLORS.green or entry.state == 2 and COLORS.red or COLORS.gold
@@ -347,7 +375,9 @@ local function renderList()
 			tag.Size = UDim2.new(0.31, 0, 0, 18)
 			tag.TextXAlignment = Enum.TextXAlignment.Right
 			button.Activated:Connect(function()
-				if busy then return end
+				if busy then
+					return
+				end
 				selectedOwnershipId = entry.id
 				setStatus("")
 				render()
@@ -355,7 +385,14 @@ local function renderList()
 		end
 	end
 	if shown == 0 then
-		local empty = makeLabel(listFrame, "Empty", #vehicles == 0 and "No vehicles are assigned to this garage." or "No vehicles match your search.", 12, COLORS.muted, Enum.Font.Gotham)
+		local empty = makeLabel(
+			listFrame,
+			"Empty",
+			#vehicles == 0 and "No vehicles are assigned to this garage." or "No vehicles match your search.",
+			12,
+			COLORS.muted,
+			Enum.Font.Gotham
+		)
 		empty.Size = UDim2.new(1, -6, 0, 72)
 		empty.TextWrapped = true
 		empty.TextXAlignment = Enum.TextXAlignment.Center
@@ -365,18 +402,29 @@ end
 render = function()
 	local garage = snapshot and snapshot.garage or {}
 	titleLabel.Text = tostring(garage.label or "Public Garage")
-	subtitleLabel.Text = snapshot and snapshot.sharedGarages and "Shared public storage — retrieve owned vehicles from any garage." or "Vehicles are retrieved from the garage where they were stored."
+	subtitleLabel.Text = snapshot
+			and snapshot.sharedGarages
+			and "Shared public storage — retrieve owned vehicles from any garage."
+		or "Vehicles are retrieved from the garage where they were stored."
 	local entry = selectedVehicle()
 	detailEyebrow.Text = entry and string.upper(entry.category) or "OWNED VEHICLE"
 	vehicleTitle.Text = entry and entry.label or "Select a vehicle"
 	identityLabel.Text = entry and (entry.brand .. "  ·  Plate " .. entry.plate) or "No vehicle selected."
 	stateLabel.Text = entry and entry.stateLabel or "—"
-	stateLabel.TextColor3 = entry and (entry.state == 1 and COLORS.text or entry.state == 2 and COLORS.red or COLORS.gold) or COLORS.text
+	stateLabel.TextColor3 = entry
+			and (entry.state == 1 and COLORS.text or entry.state == 2 and COLORS.red or COLORS.gold)
+		or COLORS.text
 	garageLabel.Text = entry and ("Stored at " .. entry.garage) or ""
 	balanceLabel.Text = formatMoney(entry and entry.balance or 0)
 	installedLabel.Text = entry and (entry.installed and "Template installed" or "Template missing") or ""
 	installedLabel.TextColor3 = entry and entry.installed and COLORS.muted or COLORS.red
-	statsLabel.Text = entry and ("Fuel %d%%   ·   Engine %d%%   ·   Body %d%%"):format(entry.fuel, math.floor(entry.engine / 10), math.floor(entry.body / 10)) or "Fuel —   Engine —   Body —"
+	statsLabel.Text = entry
+			and ("Fuel %d%%   ·   Engine %d%%   ·   Body %d%%"):format(
+				entry.fuel,
+				math.floor(entry.engine / 10),
+				math.floor(entry.body / 10)
+			)
+		or "Fuel —   Engine —   Body —"
 	setButtonEnabled(retrieveButton, entry ~= nil and entry.state == 1 and entry.installed, COLORS.green)
 	local nearby = snapshot and snapshot.nearby
 	storeButton.Text = nearby and ("Store " .. nearby.label .. "  ·  " .. nearby.plate) or "Store nearby owned vehicle"
@@ -389,7 +437,9 @@ local function setBusy(nextBusy)
 	busy = nextBusy
 	closeButton.Active = not busy
 	searchBox.TextEditable = not busy
-	if snapshot then render() end
+	if snapshot then
+		render()
+	end
 end
 
 local function updateResponsiveLayout()
@@ -399,7 +449,9 @@ local function updateResponsiveLayout()
 end
 
 local function closeGarage(force)
-	if not isOpen or (busy and force ~= true) then return end
+	if not isOpen or (busy and force ~= true) then
+		return
+	end
 	isOpen = false
 	screenGui.Enabled = false
 	GuiService.SelectedObject = nil
@@ -408,15 +460,26 @@ local function closeGarage(force)
 end
 
 local function fetchSnapshot(silent)
-	if not isOpen or busy then return false end
+	if not isOpen or busy then
+		return false
+	end
 	setBusy(true)
-	if not silent then setStatus("Loading garage...", COLORS.muted) end
+	if not silent then
+		setStatus("Loading garage...", COLORS.muted)
+	end
 	local nextSnapshot, err = callRemote(Remotes.GetGarage, accessContext)
 	setBusy(false)
-	if not nextSnapshot then setStatus(err or "The garage could not be loaded.", COLORS.red); return false end
+	if not nextSnapshot then
+		setStatus(err or "The garage could not be loaded.", COLORS.red)
+		return false
+	end
 	snapshot = nextSnapshot
-	if not selectedVehicle() then selectedOwnershipId = nil end
-	if not silent then setStatus("Garage ready.", COLORS.green) end
+	if not selectedVehicle() then
+		selectedOwnershipId = nil
+	end
+	if not silent then
+		setStatus("Garage ready.", COLORS.green)
+	end
 	render()
 	return true
 end
@@ -430,49 +493,86 @@ local function openGarage(context)
 	screenGui.Enabled = true
 	searchBox.Text = ""
 	updateResponsiveLayout()
-	if not fetchSnapshot(false) then task.delay(3, function() if isOpen and not snapshot then closeGarage() end end) end
+	if not fetchSnapshot(false) then
+		task.delay(3, function()
+			if isOpen and not snapshot then
+				closeGarage()
+			end
+		end)
+	end
 end
 
 local function runAction(action, payload, closeOnSuccess)
-	if busy or not isOpen then return end
+	if busy or not isOpen then
+		return
+	end
 	payload = type(payload) == "table" and payload or {}
 	payload.access = accessContext
 	setBusy(true)
 	setStatus("Processing garage request...", COLORS.muted)
 	local ok, result = callRemote(Remotes.GarageAction, action, payload)
 	setBusy(false)
-	if ok ~= true then setStatus(result or "The garage request was declined.", COLORS.red); return end
+	if ok ~= true then
+		setStatus(result or "The garage request was declined.", COLORS.red)
+		return
+	end
 	snapshot = result.snapshot or snapshot
 	setStatus(result.message or "Garage request complete.", COLORS.green)
 	render()
-	if closeOnSuccess then closeGarage() end
+	if closeOnSuccess then
+		closeGarage()
+	end
 end
 
 retrieveButton.Activated:Connect(function()
 	local entry = selectedVehicle()
-	if entry and entry.state == 1 then runAction("retrieve", { ownershipId = entry.id }, true) end
+	if entry and entry.state == 1 then
+		runAction("retrieve", { ownershipId = entry.id }, true)
+	end
 end)
 
 storeButton.Activated:Connect(function()
-	if snapshot and snapshot.nearby then runAction("store", {}, true) end
+	if snapshot and snapshot.nearby then
+		runAction("store", {}, true)
+	end
 end)
 
-refreshButton.Activated:Connect(function() fetchSnapshot(false) end)
-searchBox:GetPropertyChangedSignal("Text"):Connect(function() if isOpen and snapshot and not busy then renderList() end end)
+refreshButton.Activated:Connect(function()
+	fetchSnapshot(false)
+end)
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if isOpen and snapshot and not busy then
+		renderList()
+	end
+end)
 closeButton.Activated:Connect(closeGarage)
 Remotes.OpenGarage.OnClientEvent:Connect(openGarage)
 
-QBCoreClient.OnPlayerLoaded.Event:Connect(function() if isOpen then closeGarage(true) end end)
-player.CharacterRemoving:Connect(function() if isOpen then closeGarage(true) end end)
+QBCoreClient.OnPlayerLoaded.Event:Connect(function()
+	if isOpen then
+		closeGarage(true)
+	end
+end)
+player.CharacterRemoving:Connect(function()
+	if isOpen then
+		closeGarage(true)
+	end
+end)
 UserInputService.InputBegan:Connect(function(input)
-	if isOpen and not busy and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.ButtonB) then closeGarage() end
+	if isOpen and not busy and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.ButtonB) then
+		closeGarage()
+	end
 end)
 
 local viewportConnection = nil
 local function bindResponsiveLayout()
-	if viewportConnection then viewportConnection:Disconnect() end
+	if viewportConnection then
+		viewportConnection:Disconnect()
+	end
 	local camera = Workspace.CurrentCamera
-	if camera then viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveLayout) end
+	if camera then
+		viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveLayout)
+	end
 	updateResponsiveLayout()
 end
 

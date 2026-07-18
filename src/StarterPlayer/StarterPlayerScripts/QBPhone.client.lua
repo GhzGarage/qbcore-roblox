@@ -275,7 +275,8 @@ contactsList.Parent = contactsScreen
 listLayout(contactsList, 8)
 
 addHeader(messagesScreen, "Messages")
-local messageContactTitle = label(messagesScreen, "Contact", "Choose a contact", 13, COLORS.muted, Enum.Font.GothamMedium)
+local messageContactTitle =
+	label(messagesScreen, "Contact", "Choose a contact", 13, COLORS.muted, Enum.Font.GothamMedium)
 messageContactTitle.Position = UDim2.fromOffset(50, 34)
 messageContactTitle.Size = UDim2.new(1, -100, 0, 25)
 local messageList = Instance.new("ScrollingFrame")
@@ -324,7 +325,8 @@ viewfinder.Size = UDim2.new(1, 0, 1, -130)
 viewfinder.Parent = cameraScreen
 addCorner(viewfinder, 18)
 addStroke(viewfinder, Color3.fromRGB(190, 199, 214), 0.45, 1)
-local viewfinderText = label(viewfinder, "Hint", "The game camera is your viewfinder", 14, COLORS.ink, Enum.Font.GothamMedium)
+local viewfinderText =
+	label(viewfinder, "Hint", "The game camera is your viewfinder", 14, COLORS.ink, Enum.Font.GothamMedium)
 viewfinderText.AnchorPoint = Vector2.new(0.5, 0.5)
 viewfinderText.Position = UDim2.fromScale(0.5, 0.5)
 viewfinderText.Size = UDim2.new(1, -30, 0, 40)
@@ -353,7 +355,8 @@ photoGrid.CellSize = UDim2.new(0.5, -4, 0, 155)
 photoGrid.Parent = photoList
 
 addHeader(socialScreen, "StudSpace")
-local socialTag = label(socialScreen, "Tagline", "Posts travel through Roblox chat safety.", 11, COLORS.muted, Enum.Font.GothamMedium)
+local socialTag =
+	label(socialScreen, "Tagline", "Posts travel through Roblox chat safety.", 11, COLORS.muted, Enum.Font.GothamMedium)
 socialTag.Position = UDim2.fromOffset(50, 35)
 socialTag.Size = UDim2.new(1, -55, 0, 22)
 local socialList = Instance.new("ScrollingFrame")
@@ -441,10 +444,15 @@ for _, value in ipairs(calcValues) do
 			a, b = tonumber(a), tonumber(b)
 			local result
 			if a and b then
-				if operator == "+" then result = a + b
-				elseif operator == "-" then result = a - b
-				elseif operator == "*" then result = a * b
-				elseif operator == "/" and b ~= 0 then result = a / b end
+				if operator == "+" then
+					result = a + b
+				elseif operator == "-" then
+					result = a - b
+				elseif operator == "*" then
+					result = a * b
+				elseif operator == "/" and b ~= 0 then
+					result = a / b
+				end
 			end
 			calcTokens = result and { tostring(result) } or {}
 			calcDisplay.Text = result and tostring(result) or "Error"
@@ -468,7 +476,14 @@ dndButton.Size = UDim2.new(1, -10, 0, 52)
 local soundButton = button(settingsScreen, "Sounds", "Phone sounds: On", COLORS.panel2)
 soundButton.Position = UDim2.fromOffset(5, 207)
 soundButton.Size = UDim2.new(1, -10, 0, 52)
-local privacyCopy = label(settingsScreen, "Privacy", "Messages and StudSpace use Roblox TextChatService. Calls require Roblox voice eligibility and compatible communication groups. Camera saves use the native Captures gallery.", 13, COLORS.muted, Enum.Font.Gotham)
+local privacyCopy = label(
+	settingsScreen,
+	"Privacy",
+	"Messages and StudSpace use Roblox TextChatService. Calls require Roblox voice eligibility and compatible communication groups. Camera saves use the native Captures gallery.",
+	13,
+	COLORS.muted,
+	Enum.Font.Gotham
+)
 privacyCopy.Position = UDim2.fromOffset(10, 290)
 privacyCopy.Size = UDim2.new(1, -20, 0, 160)
 privacyCopy.TextWrapped = true
@@ -574,7 +589,8 @@ end
 local function renderContacts()
 	clearGenerated(contactsList)
 	if #contacts == 0 then
-		local empty = label(contactsList, "Empty", "No other online phone users.", 14, COLORS.muted, Enum.Font.GothamMedium)
+		local empty =
+			label(contactsList, "Empty", "No other online phone users.", 14, COLORS.muted, Enum.Font.GothamMedium)
 		empty.Size = UDim2.new(1, 0, 0, 50)
 		empty.TextXAlignment = Enum.TextXAlignment.Center
 		return
@@ -585,7 +601,8 @@ local function renderContacts()
 		row.Size = UDim2.new(1, -4, 0, 76)
 		row.Parent = contactsList
 		addCorner(row, 14)
-		local initial = label(row, "Initial", string.upper(string.sub(contact.name, 1, 1)), 18, COLORS.ink, Enum.Font.GothamBold)
+		local initial =
+			label(row, "Initial", string.upper(string.sub(contact.name, 1, 1)), 18, COLORS.ink, Enum.Font.GothamBold)
 		initial.BackgroundColor3 = Color3.fromRGB(48, 72, 110)
 		initial.BackgroundTransparency = 0
 		initial.Position = UDim2.fromOffset(11, 13)
@@ -603,7 +620,9 @@ local function renderContacts()
 		chat.Position = UDim2.new(1, -70, 0.5, 0)
 		chat.Size = UDim2.fromOffset(58, 38)
 		chat.TextSize = 12
-		chat.Activated:Connect(function() openConversation(contact) end)
+		chat.Activated:Connect(function()
+			openConversation(contact)
+		end)
 		local call = button(row, "Call", "Call", COLORS.green)
 		call.AnchorPoint = Vector2.new(1, 0.5)
 		call.Position = UDim2.new(1, -7, 0.5, 0)
@@ -611,7 +630,9 @@ local function renderContacts()
 		call.TextSize = 12
 		call.Activated:Connect(function()
 			local ok, result = remoteRequest("startCall", { userId = contact.userId })
-			if not ok then showToast(result, true) end
+			if not ok then
+				showToast(result, true)
+			end
 		end)
 	end
 end
@@ -645,14 +666,22 @@ renderMessages = function()
 		addCorner(bubble, 14)
 	end
 	task.defer(function()
-		messageList.CanvasPosition = Vector2.new(0, math.max(0, messageLayout.AbsoluteContentSize.Y - messageList.AbsoluteSize.Y))
+		messageList.CanvasPosition =
+			Vector2.new(0, math.max(0, messageLayout.AbsoluteContentSize.Y - messageList.AbsoluteSize.Y))
 	end)
 end
 
 local function renderSocial()
 	clearGenerated(socialList)
 	if #socialPosts == 0 then
-		local empty = label(socialList, "Empty", "StudSpace is quiet. Be the first to post.", 13, COLORS.muted, Enum.Font.GothamMedium)
+		local empty = label(
+			socialList,
+			"Empty",
+			"StudSpace is quiet. Be the first to post.",
+			13,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
 		empty.Size = UDim2.new(1, 0, 0, 55)
 		empty.TextXAlignment = Enum.TextXAlignment.Center
 		return
@@ -703,7 +732,9 @@ local function renderPhotos()
 					end
 				end)
 			end)
-			if not ok then showToast("This device could not open the Captures prompt: " .. tostring(err), true) end
+			if not ok then
+				showToast("This device could not open the Captures prompt: " .. tostring(err), true)
+			end
 		end)
 	end
 end
@@ -719,25 +750,37 @@ local function updateSettingsUI()
 end
 
 navigate = function(name)
-	if not screens[name] then return end
+	if not screens[name] then
+		return
+	end
 	currentScreen = name
 	shell.BackgroundTransparency = name == "camera" and 0.82 or 0
 	for screenName, frame in pairs(screens) do
 		frame.Visible = screenName == name
 	end
-	if name == "contacts" then renderContacts()
-	elseif name == "messages" then renderMessages()
-	elseif name == "photos" then renderPhotos()
+	if name == "contacts" then
+		renderContacts()
+	elseif name == "messages" then
+		renderMessages()
+	elseif name == "photos" then
+		renderPhotos()
 	elseif name == "social" then
 		renderSocial()
 		local ok, result = remoteRequest("prepareSocial")
-		if not ok then showToast(result, true)
-		elseif result and result.channel then channelContacts[result.channel] = { social = true } end
-	elseif name == "settings" then updateSettingsUI() end
+		if not ok then
+			showToast(result, true)
+		elseif result and result.channel then
+			channelContacts[result.channel] = { social = true }
+		end
+	elseif name == "settings" then
+		updateSettingsUI()
+	end
 end
 
 local function applySnapshot(newSnapshot)
-	if type(newSnapshot) ~= "table" then return end
+	if type(newSnapshot) ~= "table" then
+		return
+	end
 	snapshot = newSnapshot
 	contacts = type(newSnapshot.contacts) == "table" and newSnapshot.contacts or {}
 	settings = type(newSnapshot.settings) == "table" and newSnapshot.settings or settings
@@ -748,10 +791,16 @@ local function applySnapshot(newSnapshot)
 end
 
 local function connectChannel(channel)
-	if not channel:IsA("TextChannel") or connectedChannels[channel] then return end
-	if channel.Name ~= "QBStudSpace" and not string.match(channel.Name, "^QBPhone_") then return end
+	if not channel:IsA("TextChannel") or connectedChannels[channel] then
+		return
+	end
+	if channel.Name ~= "QBStudSpace" and not string.match(channel.Name, "^QBPhone_") then
+		return
+	end
 	connectedChannels[channel] = channel.MessageReceived:Connect(function(message)
-		if not message.TextSource then return end
+		if not message.TextSource then
+			return
+		end
 		local sourceUserId = message.TextSource.UserId
 		local sourcePlayer = Players:GetPlayerByUserId(sourceUserId)
 		if channel.Name == "QBStudSpace" then
@@ -759,8 +808,12 @@ local function connectChannel(channel)
 				author = sourcePlayer and sourcePlayer.DisplayName or "Player",
 				text = message.Text,
 			})
-			while #socialPosts > 50 do table.remove(socialPosts) end
-			if currentScreen == "social" then renderSocial() end
+			while #socialPosts > 50 do
+				table.remove(socialPosts)
+			end
+			if currentScreen == "social" then
+				renderSocial()
+			end
 			return
 		end
 
@@ -779,7 +832,9 @@ local function connectChannel(channel)
 				end
 			end
 		end
-		if not contact then return end
+		if not contact then
+			return
+		end
 		channelContacts[channel.Name] = contact
 		local conversation = getConversation(contact)
 		table.insert(conversation.messages, { text = message.Text, mine = sourceUserId == player.UserId })
@@ -791,12 +846,18 @@ local function connectChannel(channel)
 	end)
 end
 
-for _, child in ipairs(TextChatService:GetChildren()) do connectChannel(child) end
-TextChatService.ChildAdded:Connect(function(child) task.defer(connectChannel, child) end)
+for _, child in ipairs(TextChatService:GetChildren()) do
+	connectChannel(child)
+end
+TextChatService.ChildAdded:Connect(function(child)
+	task.defer(connectChannel, child)
+end)
 
 sendButton.Activated:Connect(function()
 	local text = compose.Text:match("^%s*(.-)%s*$")
-	if text == "" or not currentContact then return end
+	if text == "" or not currentContact then
+		return
+	end
 	local ok, result = remoteRequest("prepareText", { userId = currentContact.userId })
 	if not ok then
 		showToast(result, true)
@@ -810,13 +871,19 @@ sendButton.Activated:Connect(function()
 	end
 	channelContacts[channelName] = result.contact or currentContact
 	compose.Text = ""
-	local sendOk, sendErr = pcall(function() channel:SendAsync(text, "QBPhone") end)
-	if not sendOk then showToast("Roblox blocked the message: " .. tostring(sendErr), true) end
+	local sendOk, sendErr = pcall(function()
+		channel:SendAsync(text, "QBPhone")
+	end)
+	if not sendOk then
+		showToast("Roblox blocked the message: " .. tostring(sendErr), true)
+	end
 end)
 
 postButton.Activated:Connect(function()
 	local text = postBox.Text:match("^%s*(.-)%s*$")
-	if text == "" then return end
+	if text == "" then
+		return
+	end
 	local ok, result = remoteRequest("prepareSocial")
 	if not ok then
 		showToast(result, true)
@@ -828,12 +895,18 @@ postButton.Activated:Connect(function()
 		return
 	end
 	postBox.Text = ""
-	local sendOk, sendErr = pcall(function() channel:SendAsync(text, "StudSpace") end)
-	if not sendOk then showToast("Roblox blocked the post: " .. tostring(sendErr), true) end
+	local sendOk, sendErr = pcall(function()
+		channel:SendAsync(text, "StudSpace")
+	end)
+	if not sendOk then
+		showToast("Roblox blocked the post: " .. tostring(sendErr), true)
+	end
 end)
 
 shutter.Activated:Connect(function()
-	if captureBusy then return end
+	if captureBusy then
+		return
+	end
 	captureBusy = true
 	viewfinderText.Text = "Capturing…"
 	local started, startErr = pcall(function()
@@ -845,7 +918,9 @@ shutter.Activated:Connect(function()
 				viewfinderText.Text = "The game camera is your viewfinder"
 				if result == Enum.ScreenshotCaptureResult.Success and capture then
 					table.insert(captures, 1, { object = capture, takenAt = os.time() })
-					while #captures > 24 do table.remove(captures) end
+					while #captures > 24 do
+						table.remove(captures)
+					end
 					showToast("Photo captured — tap it in Photos to save")
 				else
 					showToast("Roblox could not capture this photo.", true)
@@ -885,7 +960,9 @@ end)
 local function setPhoneOpen(open)
 	phoneOpen = open
 	screenGui.Enabled = open or currentCall ~= nil
-	if open and not currentCall then navigate(currentScreen or "home") end
+	if open and not currentCall then
+		navigate(currentScreen or "home")
+	end
 	GuiService.SelectedObject = nil
 end
 
@@ -893,18 +970,24 @@ closeButton.Activated:Connect(function()
 	setPhoneOpen(false)
 end)
 homeBar.Activated:Connect(function()
-	if currentCall then return end
+	if currentCall then
+		return
+	end
 	navigate("home")
 end)
 
 acceptButton.Activated:Connect(function()
 	local ok, result = remoteRequest("acceptCall")
-	if not ok then showToast(result, true) end
+	if not ok then
+		showToast(result, true)
+	end
 end)
 hangupButton.Activated:Connect(function()
 	local action = currentCall and currentCall.state == "incoming" and "declineCall" or "hangupCall"
 	local ok, result = remoteRequest(action)
-	if not ok then showToast(result, true) end
+	if not ok then
+		showToast(result, true)
+	end
 end)
 
 Remotes.OpenPhone.OnClientEvent:Connect(function(newSnapshot)
@@ -919,7 +1002,9 @@ Remotes.PhonePush.OnClientEvent:Connect(function(action, payload)
 	if action == "conversationReady" and payload.channel and payload.contact then
 		channelContacts[payload.channel] = payload.contact
 		local channel = TextChatService:FindFirstChild(payload.channel)
-		if channel then connectChannel(channel) end
+		if channel then
+			connectChannel(channel)
+		end
 	elseif action == "callState" then
 		local state = payload.state
 		if state == "ended" or state == "declined" or state == "missed" or state == "failed" then
@@ -944,9 +1029,13 @@ Remotes.PhonePush.OnClientEvent:Connect(function(action, payload)
 end)
 
 local function hasPhoneInItems(items)
-	if type(items) ~= "table" then return false end
+	if type(items) ~= "table" then
+		return false
+	end
 	for _, item in pairs(items) do
-		if type(item) == "table" and item.name == "phone" and (tonumber(item.amount) or 0) > 0 then return true end
+		if type(item) == "table" and item.name == "phone" and (tonumber(item.amount) or 0) > 0 then
+			return true
+		end
 	end
 	return false
 end
@@ -961,7 +1050,9 @@ end)
 
 local function updateScale()
 	local camera = workspace.CurrentCamera
-	if not camera then return end
+	if not camera then
+		return
+	end
 	local viewport = camera.ViewportSize
 	local availableHeight = math.max(300, viewport.Y - 28)
 	local availableWidth = math.max(220, viewport.X - 28)
@@ -972,9 +1063,13 @@ end
 
 local cameraConnection
 local function bindCamera()
-	if cameraConnection then cameraConnection:Disconnect() end
+	if cameraConnection then
+		cameraConnection:Disconnect()
+	end
 	local camera = workspace.CurrentCamera
-	if camera then cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale) end
+	if camera then
+		cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	end
 	updateScale()
 end
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
@@ -984,7 +1079,9 @@ task.spawn(function()
 	while true do
 		local now = os.date("*t")
 		local hour = now.hour % 12
-		if hour == 0 then hour = 12 end
+		if hour == 0 then
+			hour = 12
+		end
 		local suffix = now.hour >= 12 and "PM" or "AM"
 		local time = ("%d:%02d %s"):format(hour, now.min, suffix)
 		timeLabel.Text = time

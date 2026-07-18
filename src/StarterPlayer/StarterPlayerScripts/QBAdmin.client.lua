@@ -294,7 +294,13 @@ local function makePanel(parent, name, height)
 	panel.Parent = parent
 	addCorner(panel, 8)
 	addStroke(panel, COLORS.strokeSoft, 0.2, 1)
-	addPadding(panel, responsive.tiny and 9 or 14, responsive.tiny and 9 or 12, responsive.tiny and 9 or 14, responsive.tiny and 9 or 12)
+	addPadding(
+		panel,
+		responsive.tiny and 9 or 14,
+		responsive.tiny and 9 or 12,
+		responsive.tiny and 9 or 14,
+		responsive.tiny and 9 or 12
+	)
 	return panel
 end
 
@@ -636,8 +642,20 @@ local function updateResponsiveLayout()
 
 	sidebar.Size = UDim2.new(0, sidebarWidth, 1, 0)
 	main.Size = UDim2.new(1, -sidebarWidth, 1, 0)
-	setPaddingOffsets(sidebarPadding, tiny and 6 or compact and 9 or 12, tiny and 7 or 12, tiny and 6 or compact and 9 or 12, tiny and 7 or 12)
-	setPaddingOffsets(mainPadding, tiny and 7 or compact and 10 or 16, tiny and 7 or compact and 10 or 14, tiny and 7 or compact and 10 or 16, tiny and 7 or compact and 10 or 16)
+	setPaddingOffsets(
+		sidebarPadding,
+		tiny and 6 or compact and 9 or 12,
+		tiny and 7 or 12,
+		tiny and 6 or compact and 9 or 12,
+		tiny and 7 or 12
+	)
+	setPaddingOffsets(
+		mainPadding,
+		tiny and 7 or compact and 10 or 16,
+		tiny and 7 or compact and 10 or 14,
+		tiny and 7 or compact and 10 or 16,
+		tiny and 7 or compact and 10 or 16
+	)
 	sidebarLayout.Padding = UDim.new(0, tiny and 5 or 10)
 	mainLayout.Padding = UDim.new(0, tiny and 6 or compact and 9 or 12)
 
@@ -800,7 +818,8 @@ local function makeCompactStat(parent, title, value, tint)
 	titleLabel.TextWrapped = false
 	titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-	local valueLabel = makeLabel(stat, "Value", value, responsive.tiny and 13 or 16, tint or COLORS.text, Enum.Font.GothamBold)
+	local valueLabel =
+		makeLabel(stat, "Value", value, responsive.tiny and 13 or 16, tint or COLORS.text, Enum.Font.GothamBold)
 	valueLabel.Position = UDim2.fromOffset(0, 17)
 	valueLabel.Size = UDim2.new(1, 0, 0, responsive.tiny and 18 or 24)
 	valueLabel.TextWrapped = false
@@ -1092,9 +1111,15 @@ local function renderSelectedPlayerDetails(parent, info)
 		end
 	end)
 	crewDropdown.button.Size = responsive.tiny and UDim2.new(0.42, -4, 1, 0) or UDim2.new(1, -292, 1, 0)
-	crewGradeDropdown = makeDropdown(crewRow, "CrewGrade", makeGradeOptions(crewRecord), selectedCrewGrade, function(value)
-		selectedCrewGrade = value
-	end)
+	crewGradeDropdown = makeDropdown(
+		crewRow,
+		"CrewGrade",
+		makeGradeOptions(crewRecord),
+		selectedCrewGrade,
+		function(value)
+			selectedCrewGrade = value
+		end
+	)
 	crewGradeDropdown.button.Size = responsive.tiny and UDim2.new(0.28, -4, 1, 0) or UDim2.new(0, 168, 1, 0)
 	local setCrew = makeButton(crewRow, "SetCrew", "Set Crew", COLORS.accentDark)
 	setCrew.Size = responsive.tiny and UDim2.new(0.24, -4, 1, 0) or UDim2.new(0, 108, 1, 0)
@@ -1340,7 +1365,10 @@ local function renderCatalog(kind, records)
 				detailsText = "No description"
 			end
 		else
-			detailsText = ("Type: %s | %s"):format(record.type or "none", record.defaultDuty and "default duty" or "off duty")
+			detailsText = ("Type: %s | %s"):format(
+				record.type or "none",
+				record.defaultDuty and "default duty" or "off duty"
+			)
 		end
 
 		local details = makeLabel(row, "Details", detailsText, 12, COLORS.muted, Enum.Font.GothamMedium)
@@ -1395,7 +1423,12 @@ local function renderCatalog(kind, records)
 				end
 
 				local isCurrent = target and currentName == record.name and tonumber(currentGrade) == gradeLevel
-				local assign = makeButton(gradeRow, "Assign", isCurrent and "Current" or "Assign", isCurrent and COLORS.disabled or COLORS.green)
+				local assign = makeButton(
+					gradeRow,
+					"Assign",
+					isCurrent and "Current" or "Assign",
+					isCurrent and COLORS.disabled or COLORS.green
+				)
 				assign.Size = UDim2.new(0, responsive.tiny and 70 or 88, 0, responsive.tiny and 26 or 30)
 				if isCurrent then
 					assign.Active = false
@@ -1450,10 +1483,7 @@ local function renderVehicles()
 		local meta = makeLabel(
 			row,
 			"Meta",
-			("Model: %s  |  Category: %s"):format(
-				vehicle.modelName or vehicle.name,
-				vehicle.category or "vehicle"
-			),
+			("Model: %s  |  Category: %s"):format(vehicle.modelName or vehicle.name, vehicle.category or "vehicle"),
 			12,
 			COLORS.muted,
 			Enum.Font.GothamMedium
@@ -1592,19 +1622,16 @@ local function renderEnvironment()
 		})
 	end)
 
-	local freezeWeather = makeButton(
-		weatherRow,
-		"FreezeWeather",
-		weather.frozen and "Resume Weather" or "Freeze Weather",
-		COLORS.blue
-	)
+	local freezeWeather =
+		makeButton(weatherRow, "FreezeWeather", weather.frozen and "Resume Weather" or "Freeze Weather", COLORS.blue)
 	freezeWeather.Size = responsive.tiny and UDim2.new(0.34, -4, 1, 0) or UDim2.new(0, 144, 1, 0)
 	freezeWeather.Activated:Connect(function()
 		runAction("toggleFreezeWeather")
 	end)
 
 	local blackoutRow = makeFieldRow(panel, 38)
-	local blackout = makeButton(blackoutRow, "Blackout", weather.blackout and "Disable Blackout" or "Enable Blackout", COLORS.red)
+	local blackout =
+		makeButton(blackoutRow, "Blackout", weather.blackout and "Disable Blackout" or "Enable Blackout", COLORS.red)
 	blackout.Size = responsive.tiny and UDim2.new(0.5, -4, 1, 0) or UDim2.new(0, 156, 1, 0)
 	blackout.Activated:Connect(function()
 		runAction("toggleBlackout")

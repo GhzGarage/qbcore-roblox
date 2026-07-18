@@ -519,7 +519,8 @@ local function updateResponsiveLayout()
 	local rightMargin = compact and 10 or 30
 	local availableWidth = math.max(MIN_MENU_WIDTH, (viewport.X - margin * 2) / scale)
 	local width = round(math.clamp(MENU_WIDTH, MIN_MENU_WIDTH, availableWidth))
-	local visibleRows = math.clamp(visibleItemCount(currentItems, currentOptions.skipFirstHeader) + 0.5, 2, MAX_VISIBLE_ROWS)
+	local visibleRows =
+		math.clamp(visibleItemCount(currentItems, currentOptions.skipFirstHeader) + 0.5, 2, MAX_VISIBLE_ROWS)
 	local maxHeight = math.max(188, (viewport.Y - margin * 2) / scale)
 	local desiredHeight = HEADER_HEIGHT + 10 + visibleRows * (ROW_HEIGHT + 6)
 	local height = round(math.min(maxHeight, math.max(174, desiredHeight)))

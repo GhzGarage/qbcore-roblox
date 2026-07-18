@@ -441,15 +441,14 @@ local function makeCharacterCard(info, layoutOrder)
 	addStroke(card, Color3.fromRGB(67, 80, 98), 0.2)
 	addPadding(card, tiny and 10 or 14, tiny and 9 or 12, tiny and 10 or 14, tiny and 9 or 12)
 
-	local nameLabel =
-		makeLabel(
-			card,
-			"Name",
-			("%s %s"):format(info.firstname, info.lastname),
-			tiny and 16 or compact and 18 or 20,
-			COLORS.text,
-			Enum.Font.GothamBold
-		)
+	local nameLabel = makeLabel(
+		card,
+		"Name",
+		("%s %s"):format(info.firstname, info.lastname),
+		tiny and 16 or compact and 18 or 20,
+		COLORS.text,
+		Enum.Font.GothamBold
+	)
 	nameLabel.Position = UDim2.fromOffset(0, 0)
 	nameLabel.Size = UDim2.new(1, -8, 0, tiny and 22 or 26)
 	nameLabel.TextWrapped = false
