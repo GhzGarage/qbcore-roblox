@@ -510,6 +510,7 @@
     <div class="card"><h4>Status &amp; Medical</h4><p>Server-side hunger/thirst decay, HUD bars, armor absorption, death screen with timed self-respawn, EMS revives.</p></div>
     <div class="card"><h4>Inventory</h4><p>30-slot weight-based inventory with a five-slot hotbar, item give/move/use, and starter items.</p></div>
     <div class="card"><h4>Banking</h4><p>Personal and society accounts, bank cards, PIN-gated ATMs, queued citizen-ID transfers, limits, and persistent statements.</p></div>
+    <div class="card"><h4>Management</h4><p>Standalone job/crew boss panel with indexed rosters, nearby hiring, grades, removal, offline queues, and shared funds.</p></div>
     <div class="card"><h4>Weapons</h4><p>Inventory-backed Roblox Tool equip flow on the endorsed Weapons Kit, with ammo item consumption and persisted loaded rounds.</p></div>
     <div class="card"><h4>World</h4><p>Server-authoritative day/night clock, synced weather presets with rain/snow/thunder, blackout, and client-side time-of-day grading.</p></div>
     <div class="card"><h4>Admin</h4><p>Graded permissions (user/mod/admin/god), a native admin panel, bans and whitelist DataStores, and slash commands.</p></div>
@@ -595,12 +596,18 @@
       TimeSyncService.lua   <span class="c">-- day/night clock, /time and /freezetime</span>
       WeaponService.lua     <span class="c">-- inventory-backed Roblox Tool equip flow</span>
       VehicleService.lua    <span class="c">-- vehicle template spawn/delete helpers</span>
+      VehicleShopService.lua <span class="c">-- showroom, purchases, ownership, finance, test drives</span>
+      GarageService.lua      <span class="c">-- public storage/retrieval and persistent vehicle state</span>
+      ManagementService.lua  <span class="c">-- job/crew rosters, hiring, grades, shared funds</span>
       WeatherService.lua    <span class="c">-- synced weather cycling and blackout</span>
       StageMusicService.lua <span class="c">-- proximity speaker playback and audio search</span>
   <span class="f">StarterPlayer/StarterPlayerScripts/</span>
     QBCoreClient.client.lua <span class="c">-- character select/create/delete UI</span>
     QBAppearance.client.lua <span class="c">-- per-character avatar appearance editor</span>
     QBBanking.client.lua    <span class="c">-- personal/society account, ATM, and history UI</span>
+    QBVehicleShop.client.lua <span class="c">-- dealership catalog, owned vehicles, finance UI</span>
+    QBGarage.client.lua      <span class="c">-- public garage list and storage UI</span>
+    QBManagement.client.lua  <span class="c">-- standalone job/crew management UI</span>
     QBAdmin.client.lua      <span class="c">-- native admin menu</span>
     QBAmbulance.client.lua  <span class="c">-- death screen and self-respawn UI</span>
     QBEmotes.client.lua     <span class="c">-- emote menu</span>
@@ -694,9 +701,25 @@ Players.PlayerAdded
         <li><code>GetBanking(access)</code><span class="desc">Returns accessible personal/society accounts, ATM usage, limits, location, and newest-first statements.</span></li>
         <li><code>BankingAction("deposit" | "withdraw" | "transfer" | "order_card", payload)</code><span class="desc">Validates proximity, account access, whole-dollar limits, funds, and ATM credentials.</span></li>
         <li><code>WithdrawSocietyFunds(job, amount, playerObj)</code><span class="desc">Atomic provider used by optional society-backed paychecks.</span></li>
+        <li><code>GetOrganizationFunds(type, name)</code> Â· <code>ChangeOrganizationFunds(type, name, delta, statement)</code><span class="desc">Atomic job/crew shared-account API used by ManagementService.</span></li>
         <li><code>DeliverPendingTransfers(player, playerObj)</code><span class="desc">Credits ready offline transfers once, saves their processed IDs, then clears the inbox.</span></li>
       </ul>
       <p>Personal statements and ATM counters live under <code>PlayerData.banking</code>. Society accounts and transfer inboxes use dedicated DataStores; transfer IDs prevent duplicate delivery after a retry or crash.</p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> ManagementService.lua
+      <span class="sum-desc">Job/crew rosters, nearby hiring, grades, removal, offline queues, shared funds.</span></summary>
+    <div class="svc-body">
+      <p>Inspired by qb-management, with crew data replacing gang references and a standalone native GUI replacing qb-menu. Every request revalidates the prompt location, current organization, boss flag, grade ceiling, and target distance on the server.</p>
+      <ul class="api">
+        <li><code>ManagementService.Start(BankingService)</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBManagementLocations</code> and binds management remotes.</span></li>
+        <li><code>GetManagement(access)</code><span class="desc">Returns the authorized organization, grades, indexed online/offline roster, nearby candidates, cash, and shared balance.</span></li>
+        <li><code>ManagementAction("hire" | "set_grade" | "fire" | "deposit" | "withdraw", payload)</code><span class="desc">Performs the validated mutation and returns a refreshed snapshot.</span></li>
+        <li><code>OnCharacterLoaded(player, playerObj)</code><span class="desc">Applies safe offline changes and synchronizes the character into job and crew roster indexes.</span></li>
+      </ul>
+      <p>Because account profiles are session locked, changes to offline or cross-server members are queued in a dedicated DataStore and applied on their next character load. Existing characters appear in indexed rosters after their first post-install load. The panel's Appearance shortcut opens the current character editor; shared stashes and saved organization outfit slots remain dependent on future container/outfit systems.</p>
     </div>
   </details>
 
@@ -857,9 +880,38 @@ Players.PlayerAdded
       <p>Templates live in <code>ServerStorage/QBVehicleModels</code>; spawned instances go under <code>Workspace/SpawnedVehicles</code> and are stamped with <code>QBVehicle*</code> attributes (name, label, plate, spawn ID, owner UserId).</p>
       <ul class="api">
         <li><code>GetVehicleDefinition(name) → definition, err?</code><span class="desc">Resolves by name / label / modelName / alias, case-insensitive.</span></li>
-        <li><code>SpawnVehicle(player, name, options?) → instance, definition, plate</code><span class="desc">Options: <code>{ignoreRestrictions, plate, cframe, distance, attributes}</code>.</span></li>
+        <li><code>SpawnVehicle(player, name, options?) → instance, definition, plate</code><span class="desc">Options include <code>{plate, cframe, distance, attributes, parent, anchored, canCollide, disableScripts}</code>.</span></li>
+        <li><code>HasVehicleTemplate(name)</code> · <code>GetVehiclePosition(instance)</code></li>
         <li><code>DeleteClosestVehicle(player, maxDistance?) → ok, message</code></li>
       </ul>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> VehicleShopService.lua
+      <span class="sum-desc">Showroom displays, persistent purchases, financing, and timed test drives.</span></summary>
+    <div class="svc-body">
+      <p>Roblox adaptation of <code>qb-vehicleshop</code>. It creates anchored showroom clones and invisible ProximityPrompt anchors, then revalidates location, catalog eligibility, price, ownership, payment, and exit occupancy for every action.</p>
+      <ul class="api">
+        <li><code>GetVehicleShop(access)</code><span class="desc">Returns the filtered catalog, template availability, owned vehicles, finance balances, and shop limits.</span></li>
+        <li><code>VehicleShopAction("purchase" | "finance" | "test_drive" | "spawn_owned" | "finance_payment", payload)</code></li>
+        <li><code>Start(VehicleService)</code><span class="desc">Builds four configured displays plus showroom and finance prompts under <code>Workspace.QBVehicleShop</code>.</span></li>
+      </ul>
+      <p>Ownership is stored under <code>PlayerData.vehicles</code>. Taxi and police definitions are excluded server-side; current shared prices default to <code>$0</code>.</p>
+    </div>
+  </details>
+
+  <details class="svc">
+    <summary><span class="badge b-server">server</span> GarageService.lua
+      <span class="sum-desc">Public garage ownership checks, storage, condition persistence, and retrieval.</span></summary>
+    <div class="svc-body">
+      <p>Roblox adaptation of the public flow from <code>qb-garages</code>. Vehicle state follows the familiar convention: <code>0</code> out, <code>1</code> garaged, and <code>2</code> impounded.</p>
+      <ul class="api">
+        <li><code>GetGarage(access)</code><span class="desc">Returns vehicles assigned to the current garage, state, plate, finance balance, stored condition, and nearby deposit eligibility.</span></li>
+        <li><code>GarageAction("retrieve" | "store", payload)</code><span class="desc">Revalidates proximity, ownership ID, garage assignment, template availability, persistence, and spawn occupancy.</span></li>
+        <li><code>Start(VehicleService)</code><span class="desc">Creates configured invisible ProximityPrompt anchors under <code>Workspace.QBGarages</code>.</span></li>
+      </ul>
+      <p>The two initial public locations are placeholders at <code>Vector3.new(0, 0, 0)</code>. Depot, job, and house restrictions remain future work.</p>
     </div>
   </details>
 
@@ -1192,6 +1244,7 @@ Config.Appearance = {
       <tr><td><code>/ban</code></td><td><code>&lt;id&gt; &lt;hours&gt; [reason]</code></td><td><span class="badge b-god">god</span></td><td>Ban a player (0 hours = permanent)</td></tr>
     </tbody>
   </table></div>
+
 </section>
 
 <!-- ================= REMOTES ================= -->
@@ -1232,6 +1285,36 @@ Config.Appearance = {
       <tr><td><code>OpenBank</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the native panel after a server-side ProximityPrompt trigger</td></tr>
       <tr><td><code>GetBanking</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Proximity/PIN-checked personal and accessible society account snapshot</td></tr>
       <tr><td><code>BankingAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Deposit, withdraw, transfer, or issue a bank card</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Vehicle shop</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenVehicleShop</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the native catalog/finance panel from a validated prompt</td></tr>
+      <tr><td><code>GetVehicleShop</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Filtered catalog and persistent owned-vehicle snapshot</td></tr>
+      <tr><td><code>VehicleShopAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Purchase, finance, test drive, release, or make a payment</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Garages</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenGarage</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open a validated public-garage panel from its prompt</td></tr>
+      <tr><td><code>GetGarage</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Assigned owned vehicles, state, condition, and nearby deposit snapshot</td></tr>
+      <tr><td><code>GarageAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Store a nearby owned runtime vehicle or retrieve a garaged one</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Management</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>OpenManagement</code></td><td><span class="badge b-event">event</span></td><td>S â†’ C</td><td>Open the standalone boss/crew panel from a validated prompt</td></tr>
+      <tr><td><code>GetManagement</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Authorized organization, roster, grades, nearby candidates, and balance snapshot</td></tr>
+      <tr><td><code>ManagementAction</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Hire, grade, remove, deposit, or withdraw with server-side revalidation</td></tr>
     </tbody>
   </table></div>
 
@@ -1301,11 +1384,12 @@ Config.Appearance = {
     <li><code>board(def)</code> — personal transport (skateboards, hoverboards): <code>fuel = 0</code>, <code>trunkSlots = 0</code>.</li>
   </ul>
   <p>
-    Each entry carries <code>name</code>, <code>label</code>, <code>modelName</code> (the Studio
+    Each entry carries <code>name</code>, <code>label</code>, <code>price</code>, <code>modelName</code> (the Studio
     template to match in <code>ServerStorage/QBVehicleModels</code>), <code>category</code>,
     <code>trunkSlots</code>/<code>trunkWeight</code>, <code>aliases[]</code>, and an optional
     Toolbox <code>assetId</code>. Spawn with <code>/car &lt;vehicle&gt;</code> or the admin panel;
-    delete the closest with <code>/dv</code>.
+    delete the closest with <code>/dv</code>. The dealership exposes every catalog entry except
+    <code>taxi</code> and <code>police</code>; prices currently default to <code>$0</code>.
   </p>
   <div class="toast warning">
     <div>
@@ -1389,7 +1473,7 @@ ServerStorage
       <tr><td><code>ironclad_motor_co</code> — Ironclad Motor Co.</td><td>Motor club</td><td>Prospect → Patch → Road Captain → President (boss)</td></tr>
     </tbody>
   </table></div>
-  <p>Assign with <code>/setjob</code> / <code>/setcrew</code> or the admin panel. Players can toggle duty with <code>/duty</code>; map prompts, blips, and grade-gated actions remain on the <a href="#roadmap">roadmap</a>.</p>
+  <p>Assign with <code>/setjob</code> / <code>/setcrew</code> or the admin panel. Boss grades can use the standalone management prompts to view indexed rosters, hire nearby players, change grades, remove members, and manage job or crew shared funds. The starter job and crew offices both use <code>Vector3.new(0, 0, 0)</code> and should be moved in <code>Config.Management.Locations</code>. Players can toggle duty with <code>/duty</code>; richer job actions and blips remain on the <a href="#roadmap">roadmap</a>.</p>
 </section>
 
 <!-- ================= WEATHER ================= -->
@@ -1455,16 +1539,16 @@ ServerStorage
   <div class="card-grid">
     <div class="card"><h4>Foundation</h4><p>Battle-tested profile library (or hardened retries/telemetry), Luau static checks and Studio smoke tests, structured audit logs, schema-migration helpers, localization.</p></div>
     <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, phone), spawn selection, deeper deletion cleanup.</p></div>
-    <div class="card"><h4>Economy</h4><p>Shops, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, and richer business management.</p></div>
+    <div class="card"><h4>Economy</h4><p>Shops, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, management stashes, and organization outfit slots.</p></div>
     <div class="card"><h4>Jobs &amp; crews</h4><p>Map duty prompts, blips, and grade-gated actions; police/EMS/mechanic/taxi/delivery jobs; dispatch, fines, warrants, evidence; crew progression.</p></div>
-    <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, persistent ownership and garages, keys/locks, fuel and repair state, trunk/glovebox inventories, dealerships.</p></div>
+    <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, impound/depot and persistent world parking, job/house garages, keys/locks, real fuel/repair integrations, and trunk/glovebox inventories.</p></div>
     <div class="card"><h4>Weapons &amp; combat</h4><p>Tool templates for every configured weapon, licenses and job restrictions, weapon/ammo shops, downed state (beyond death screen), combat audit tooling.</p></div>
     <div class="card"><h4>World &amp; environment</h4><p>Weather polish (textures, puddles, shelter checks), broader blackout coverage, map-aware spawn/hospital/garage config, place asset validation.</p></div>
     <div class="card"><h4>UI &amp; client</h4><p>Finish the blank admin tabs (Reports, Chat, Leaderboard), mobile/gamepad polish, configurable keybinds, a shared UI theming module.</p></div>
   </div>
   <h3>Still missing entirely</h3>
   <p>
-    Housing/apartments, garages/impound, phone, full employee-management boss menu, door locks,
+    Housing/apartments, garages/impound, phone, door locks,
     target/interact system, progress bars and minigames, dispatch/radio, shops/crafting/stashes,
     clothing stores and outfit slots, drug loops, police MDT/jail/evidence, and EMS
     hospitals/beds/billing.

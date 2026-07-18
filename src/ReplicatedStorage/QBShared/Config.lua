@@ -333,6 +333,98 @@ Config.Banking = {
 	},
 }
 
+Config.VehicleShop = {
+	Enabled = true,
+	Label = "Premium Deluxe Motorsport",
+	PromptDistance = 10,
+	ActionDistance = 14,
+	DefaultPrice = 0,
+	AllowDuplicatePurchases = false,
+	TestDriveSeconds = 60,
+	MinimumDownPercent = 10,
+	MaximumPayments = 24,
+	PaymentIntervalHours = 24,
+	ExcludedVehicles = { taxi = true, police = true },
+	Prices = {}, -- optional per-vehicle overrides; shared vehicle prices currently default to $0
+	ShowroomSpots = {
+		{
+			id = "showroom_1",
+			vehicle = "dune_buggy_beige",
+			position = Vector3.new(-146.919, 0.997, -36.539),
+			heading = -45,
+		},
+		{
+			id = "showroom_2",
+			vehicle = "light_utility_black",
+			position = Vector3.new(-146.958, 0.997, -55.219),
+			heading = -45,
+		},
+		{ id = "showroom_3", vehicle = "pickup_blue", position = Vector3.new(-146.998, 0.997, -73.758), heading = -45 },
+		{ id = "showroom_4", vehicle = "sports", position = Vector3.new(-147.036, 0.997, -91.908), heading = -45 },
+	},
+	FinanceSpot = {
+		id = "finance",
+		position = Vector3.new(-143.852, 4.707, -115.063),
+	},
+	VehicleSpawn = {
+		position = Vector3.new(-208.801, 2.524, -146.146),
+		heading = 180,
+	},
+}
+
+Config.Garages = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 16,
+	StoreDistance = 20,
+	SpawnClearRadius = 12,
+	AutoRespawn = true, -- return out vehicles to their last/default garage when the owner leaves
+	SharedGarages = false, -- false restricts retrieval to the garage where the vehicle was stored
+	DefaultGarage = "garage_1",
+	Locations = {
+		{
+			id = "garage_1",
+			label = "Public Garage 1",
+			type = "public",
+			takeVehicle = Vector3.new(0, 0, 0),
+			spawnPoints = { { position = Vector3.new(0, 0, 0), heading = 0 } },
+		},
+		{
+			id = "garage_2",
+			label = "Public Garage 2",
+			type = "public",
+			takeVehicle = Vector3.new(0, 0, 0),
+			spawnPoints = { { position = Vector3.new(0, 0, 0), heading = 0 } },
+		},
+	},
+}
+
+-- Boss/crew management locations. A location with no `organization` restriction
+-- follows the boss's current job or crew, which makes these two origin placeholders
+-- useful until each headquarters has its final map position. Copy a location and set
+-- organization = "police" (or a crew id) when an office should be organization-specific.
+Config.Management = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 14,
+	HireDistance = 12,
+	MaxTransactionAmount = 1000000,
+	Locations = {
+		{
+			id = "job_management_1",
+			label = "Job Management",
+			type = "job",
+			position = Vector3.new(0, 0, 0),
+		},
+		{
+			id = "crew_management_1",
+			label = "Crew Management",
+			type = "crew",
+			position = Vector3.new(0, 0, 0),
+		},
+	},
+}
+
 Config.Inventory = {
 	Slots = 30,
 	HotbarSlots = 5,
@@ -412,6 +504,7 @@ Config.Player = {
 			atm = { dayKey = 0, withdrawn = 0 },
 			processedTransferIds = {},
 		},
+		vehicles = {},
 		charinfo = {
 			firstname = "Firstname",
 			lastname = "Lastname",

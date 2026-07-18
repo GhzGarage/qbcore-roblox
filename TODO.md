@@ -67,6 +67,12 @@ it is still not a full QBCore ecosystem.
       shared vehicle catalog, ServerStorage template folder, spawned vehicle
       folder, spawn/delete commands, admin vehicle catalog, plates, attributes,
       aliases, and template-name matching.
+- [x] Free-use vehicle dealership with four anchored showroom displays, catalog
+      browsing, timed test drives, persistent character ownership, future-ready
+      financing, and finance-desk vehicle release.
+- [x] Public garage system with proximity prompts, per-garage storage, owned-only
+      deposit validation, state/condition persistence, spawn occupancy checks,
+      retrieval, and automatic return on disconnect.
 - [x] Native QBMenu-style client menu controller for other resources.
 - [x] Emote menu using Roblox avatar emotes through QBMenu.
 - [x] Stage speaker music system:
@@ -117,6 +123,8 @@ it is still not a full QBCore ecosystem.
 
 ### Jobs, Crews, And Gameplay Loops
 
+- [x] Add proximity-prompt job/crew management with indexed rosters, nearby
+      hiring, grade changes, removal, offline change queues, and shared funds.
 - [ ] Turn the current job/crew registries into real gameplay systems with map
       duty prompts, blips, role permissions, and grade-specific actions.
 - [ ] Port or redesign core jobs:
@@ -130,14 +138,15 @@ it is still not a full QBCore ecosystem.
 
 - [ ] Install or build Roblox vehicle templates for every catalog entry in
       `QBShared/Vehicles.lua`.
-- [ ] Add persistent owned vehicles, garage storage, impound, parking state, and
-      spawn limits.
+- [x] Add persistent character-owned vehicle records and dealership spawn limits.
+- [x] Add public garage storage/retrieval and persistent in/out garage assignment.
+- [ ] Add impound/depot release, persistent world parking, and job/house garages.
 - [ ] Add keys/locks, ownership checks, hotwire/lockpick flow, carjacking rules,
       and police access rules.
 - [ ] Add fuel consumption/refill, repair state, damage persistence, and cleanup
       for abandoned spawned vehicles.
 - [ ] Wire trunks/gloveboxes to the inventory container system.
-- [ ] Add dealership/purchase flow and vehicle pricing/classes.
+- [x] Add dealership/purchase flow and shared vehicle prices (currently `$0`).
 
 ### Weapons And Combat
 
@@ -178,9 +187,10 @@ it is still not a full QBCore ecosystem.
 ### QBCore Ecosystem Still Missing
 
 - [ ] Housing/apartments.
-- [ ] Garages/impound.
+- [ ] Impound/depot plus job/house garages beyond the public garage system.
 - [ ] Phone.
-- [ ] Management/boss menu beyond society banking (employees, grades, hiring/firing).
+- [x] Management/boss menu for job employees and crew members, including grades,
+      nearby hiring/firing, offline change queues, and shared banking funds.
 - [ ] Door locks.
 - [ ] Target/interact system.
 - [ ] Progress bars/skill checks/minigames.

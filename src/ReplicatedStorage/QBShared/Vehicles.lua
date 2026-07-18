@@ -184,6 +184,7 @@ end
 
 local function vehicle(definition)
 	definition.brand = definition.brand or "Roblox"
+	definition.price = tonumber(definition.price) or 0
 	definition.fuel = definition.fuel or 100
 	definition.gloveboxSlots = definition.gloveboxSlots or 5
 	definition.gloveboxWeight = definition.gloveboxWeight or 10000
@@ -201,6 +202,7 @@ end
 
 local function board(definition)
 	definition.brand = definition.brand or "Roblox"
+	definition.price = tonumber(definition.price) or 0
 	definition.category = definition.category or "personal"
 	definition.fuel = definition.fuel or 0
 	definition.trunkSlots = definition.trunkSlots or 0

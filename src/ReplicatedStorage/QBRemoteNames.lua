@@ -11,6 +11,9 @@ return {
 		"CancelAppearanceEdit", -- client -> server: () revert the character to the last saved look
 		"OpenAdminMenu", -- server -> client: () open the native admin panel
 		"OpenBank", -- server -> client: ({ mode, locationId }) open the bank/ATM panel
+		"OpenVehicleShop", -- server -> client: ({ mode, locationId, vehicleName? })
+		"OpenGarage", -- server -> client: ({ garageId }) open a public garage
+		"OpenManagement", -- server -> client: ({ locationId }) open boss/crew management
 		"OpenEmoteMenu", -- server -> client: () open the native emote menu
 		"OpenStageMusicMenu", -- server -> client: (station snapshot) open the stage music menu
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
@@ -31,5 +34,11 @@ return {
 		"AdminAction", -- client -> server: (action, payload) -> boolean, resultOrError
 		"GetBanking", -- client -> server: (access) -> banking snapshot, errorMessage?
 		"BankingAction", -- client -> server: (action, payloadWithAccess) -> boolean, snapshotOrError
+		"GetVehicleShop", -- client -> server: (access) -> catalog/owned snapshot, errorMessage?
+		"VehicleShopAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
+		"GetGarage", -- client -> server: (access) -> garage/vehicle snapshot, errorMessage?
+		"GarageAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
+		"GetManagement", -- client -> server: (access) -> authorized organization snapshot
+		"ManagementAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 	},
 }

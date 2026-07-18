@@ -55,6 +55,15 @@
         "QBBanking": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBBanking.client.lua"
         },
+        "QBVehicleShop": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBVehicleShop.client.lua"
+        },
+        "QBGarage": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBGarage.client.lua"
+        },
+        "QBManagement": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBManagement.client.lua"
+        },
         "QBAdmin": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBAdmin.client.lua"
         },

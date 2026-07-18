@@ -4,7 +4,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 
 - Account profile loading with DataStore-backed session locking.
 - Character select, create, delete, and spawn.
-- Persistence for money, banking statements, society accounts, queued transfers, job, crew, charinfo, position, and metadata.
+- Persistence for money, banking statements, society accounts, queued transfers, owned vehicles, job, crew, charinfo, position, and metadata.
 - Client-side QBCore player data cache.
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
 - Death screen with timer-based self-respawn.
@@ -14,10 +14,13 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Per-character appearance editor backed by saved HumanoidDescriptions.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
-- First-pass vehicle registry and admin/command spawning from Roblox templates.
+- Vehicle registry plus admin/command/dealership spawning from Roblox templates.
+- Free-use dealership with showroom displays, test drives, ownership, and financing support.
+- Public garages with persistent storage state, condition values, and safe retrieval.
 - QBMenu-style client menu, emotes menu, and proximity stage music controls.
 - Synced Roblox-native weather with clouds/fog/rain/thunder/snow presets and blackout.
 - Proximity-prompt personal/society banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
+- Standalone job/crew management with rosters, nearby hiring, grades, removal, offline queues, and shared funds.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
 
@@ -58,12 +61,18 @@ src/
       TimeSyncService.lua  -- day/night clock, /time and /freezetime commands
       WeaponService.lua    -- inventory-backed Roblox Tool equip flow
       VehicleService.lua   -- vehicle template spawn/delete helpers
+      VehicleShopService.lua -- showroom, purchases, ownership, financing, test drives
+      GarageService.lua    -- public garage deposit/retrieval and persistent state
+      ManagementService.lua -- job/crew rosters, hiring, grades, and shared funds
       WeatherService.lua   -- synced weather cycling and tagged-light blackout
       StageMusicService.lua -- proximity speaker playback and Creator Store search
   StarterPlayer/StarterPlayerScripts/
     QBCoreClient.client.lua -- character select/create/delete UI
     QBAppearance.client.lua -- per-character avatar appearance editor
     QBBanking.client.lua    -- personal/society account, ATM, and history UI
+    QBVehicleShop.client.lua -- dealership catalog, owned vehicles, and finance UI
+    QBGarage.client.lua     -- public garage vehicle list and storage UI
+    QBManagement.client.lua -- standalone job/crew boss management UI
     QBAdmin.client.lua      -- native admin menu
     QBAmbulance.client.lua  -- death screen and self-respawn UI
     QBEmotes.client.lua     -- emote menu
@@ -237,6 +246,70 @@ Transfers use citizen IDs; online recipients are credited immediately, while
 offline recipients receive a durable, deduplicated transfer on their next login.
 Cards are issued from the bank UI and are required with their PIN at ATM prompts.
 
+The temporary vehicle dealership is configured under `Config.VehicleShop`.
+Every shared vehicle currently defaults to `$0`; `taxi` and `police` are excluded
+again on the server even if a client submits their names directly.
+
+```lua
+Config.VehicleShop.TestDriveSeconds = 60
+Config.VehicleShop.ShowroomSpots = {
+    { position = Vector3.new(-146.919, 0.997, -36.539), heading = -45 },
+    -- three more configured showroom positions
+}
+Config.VehicleShop.FinanceSpot.position = Vector3.new(-143.852, 4.707, -115.063)
+Config.VehicleShop.VehicleSpawn = {
+    position = Vector3.new(-208.801, 2.524, -146.146),
+    heading = 180,
+}
+```
+
+Showroom and finance anchors use native `ProximityPrompt`s. Purchases are saved
+on the selected character before release, test drives expire automatically, and
+the shared exit refuses to spawn while another runtime vehicle blocks it.
+
+Public garages use the same prompt and owned-vehicle records. Both placeholder
+locations currently use the origin and should be replaced before a real playtest:
+
+```lua
+Config.Garages.DefaultGarage = "garage_1"
+Config.Garages.AutoRespawn = true
+Config.Garages.SharedGarages = false
+Config.Garages.Locations = {
+    {
+        id = "garage_1",
+        takeVehicle = Vector3.new(0, 0, 0),
+        spawnPoints = { { position = Vector3.new(0, 0, 0), heading = 0 } },
+    },
+    -- garage_2 is also at 0, 0, 0 until replaced
+}
+```
+
+Storing validates the runtime ownership ID, saves fuel/engine/body condition and
+garage state, then removes the vehicle. Retrieval saves the out state and refuses
+blocked spawn points. With `AutoRespawn`, out vehicles return to their last or
+default garage when the owner disconnects.
+
+Job and crew bosses use the standalone management panel from invisible prompt
+anchors under `Config.Management`. The two starter locations overlap at the origin
+and should be moved to the real headquarters before playtesting:
+
+```lua
+Config.Management.Locations = {
+    { id = "job_management_1", type = "job", position = Vector3.new(0, 0, 0) },
+    { id = "crew_management_1", type = "crew", position = Vector3.new(0, 0, 0) },
+}
+```
+
+Every request revalidates proximity, the current organization, and boss grade on
+the server. Bosses can view indexed online/offline rosters, hire nearby loaded
+characters, assign grades no higher than their own, remove members, and deposit or
+withdraw cash from job or crew shared accounts. Session-locked offline profiles are
+never edited unsafely: changes are queued and applied on that character's next load.
+Existing characters enter the roster index the first time they load after this
+system is installed. The Appearance shortcut opens the existing character editor;
+shared stashes and saved organization outfit slots still depend on their corresponding
+future inventory/appearance systems.
+
 ## Extending It
 
 - Add real jobs/crews by expanding `QBShared/Jobs.lua` and `QBShared/Crews.lua`.
@@ -244,7 +317,7 @@ Cards are issued from the bank UI and are required with their PIN at ATM prompts
 - Show a toast from server code with `playerObj:Notify("Message", "success", 4000)`.
 - Extend inventory with shops, stashes, drops, vehicles, tools/weapons, and crafting.
 - Extend the admin menu with reports, chat moderation, leaderboard, and deeper developer tools.
-- Extend the first-pass vehicle spawner into persistent ownership, garages, keys, fuel, and trunks.
+- Extend owned vehicles with impound/depot, job/house garages, keys, real fuel/damage integrations, and trunks.
 - Polish weather with custom precipitation textures, thunder audio, puddles, shelter checks, and map-specific blackout tags.
 - Expand the `/duty` toggle into map prompts, blips, permissions, and richer job/crew loops.
 

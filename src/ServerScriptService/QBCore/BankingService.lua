@@ -181,13 +181,25 @@ local function societyConfig()
 	return type(config().Society) == "table" and config().Society or {}
 end
 
-local function validJob(jobName)
-	return type(jobName) == "string" and jobName ~= "" and QBShared.Jobs[jobName] ~= nil
+local function validOrganization(organizationType, organizationName)
+	if type(organizationName) ~= "string" or organizationName == "" then
+		return false
+	end
+	if organizationType == "crew" then
+		return QBShared.Crews[organizationName] ~= nil and organizationName ~= "none"
+	end
+	return QBShared.Jobs[organizationName] ~= nil and organizationName ~= "unemployed"
 end
 
-local function newSocietyRecord(jobName)
+local function organizationStoreKey(organizationType, organizationName)
+	return (organizationType == "crew" and "Crew_" or "Society_") .. organizationName
+end
+
+local function newSocietyRecord(organizationName, organizationType)
 	local starts = societyConfig().StartingBalances
-	local start = type(starts) == "table" and tonumber(starts[jobName]) or nil
+	local nested = type(starts) == "table" and starts[organizationType or "job"] or nil
+	local start = type(nested) == "table" and tonumber(nested[organizationName])
+		or (type(starts) == "table" and tonumber(starts[organizationName]) or nil)
 	return {
 		balance = math.max(0, math.floor(start or tonumber(societyConfig().DefaultBalance) or 0)),
 		nextStatementId = 1,
@@ -195,9 +207,9 @@ local function newSocietyRecord(jobName)
 	}
 end
 
-local function reconcileSociety(record, jobName)
+local function reconcileSociety(record, organizationName, organizationType)
 	if type(record) ~= "table" then
-		record = newSocietyRecord(jobName)
+		record = newSocietyRecord(organizationName, organizationType)
 	end
 	record.balance = math.max(0, math.floor(tonumber(record.balance) or 0))
 	record.nextStatementId = math.max(1, math.floor(tonumber(record.nextStatementId) or 1))
@@ -207,18 +219,19 @@ local function reconcileSociety(record, jobName)
 	return record
 end
 
-local function mutateSociety(jobName, delta, statement)
+local function mutateSociety(organizationName, delta, statement, organizationType)
+	organizationType = organizationType == "crew" and "crew" or "job"
 	if societyConfig().Enabled == false then
 		return false, "Society banking is disabled."
 	end
-	if not validJob(jobName) then
+	if not validOrganization(organizationType, organizationName) then
 		return false, "Unknown society account."
 	end
 	delta = math.floor(tonumber(delta) or 0)
 	local outcome
 	local ok, storeErr = pcall(function()
-		societyStore:UpdateAsync("Society_" .. jobName, function(record)
-			record = reconcileSociety(record, jobName)
+		societyStore:UpdateAsync(organizationStoreKey(organizationType, organizationName), function(record)
+			record = reconcileSociety(record, organizationName, organizationType)
 			if delta < 0 and record.balance < -delta then
 				outcome = { false, "The society account has insufficient funds.", record.balance }
 				return record
@@ -228,7 +241,7 @@ local function mutateSociety(jobName, delta, statement)
 				local entry = {
 					id = record.nextStatementId,
 					time = os.time(),
-					account = "society:" .. jobName,
+					account = (organizationType == "crew" and "crew:" or "society:") .. organizationName,
 					kind = statement.kind or (delta >= 0 and "deposit" or "withdraw"),
 					amount = math.abs(delta),
 					reason = statement.reason or "Society transaction",
@@ -247,22 +260,23 @@ local function mutateSociety(jobName, delta, statement)
 		end)
 	end)
 	if not ok then
-		warn(("[QBCore.BankingService] Society update failed for %s: %s"):format(jobName, tostring(storeErr)))
+		warn(("[QBCore.BankingService] Society update failed for %s:%s: %s"):format(organizationType, organizationName, tostring(storeErr)))
 		return false, "The society account is temporarily unavailable."
 	end
 	return table.unpack(outcome or { false, "The society account could not be updated." })
 end
 
-local function getSocietyRecord(jobName)
+local function getSocietyRecord(organizationName, organizationType)
+	organizationType = organizationType == "crew" and "crew" or "job"
 	local record
 	local ok, err = pcall(function()
-		record = societyStore:GetAsync("Society_" .. jobName)
+		record = societyStore:GetAsync(organizationStoreKey(organizationType, organizationName))
 	end)
 	if not ok then
-		warn(("[QBCore.BankingService] Society read failed for %s: %s"):format(jobName, tostring(err)))
+		warn(("[QBCore.BankingService] Society read failed for %s:%s: %s"):format(organizationType, organizationName, tostring(err)))
 		return nil, "The society account is temporarily unavailable."
 	end
-	return reconcileSociety(record, jobName)
+	return reconcileSociety(record, organizationName, organizationType)
 end
 
 local function bossJob(playerObj)
@@ -270,7 +284,7 @@ local function bossJob(playerObj)
 	local grade = type(job) == "table" and job.grade or nil
 	if
 		type(job) == "table"
-		and validJob(job.name)
+		and validOrganization("job", job.name)
 		and (job.isboss == true or (type(grade) == "table" and grade.isboss == true))
 	then
 		return job.name, tostring(job.label or (QBShared.Jobs[job.name] and QBShared.Jobs[job.name].label) or job.name)
@@ -842,6 +856,20 @@ function BankingService.AddSocietyFunds(jobName, amount, reason)
 		math.max(0, math.floor(tonumber(amount) or 0)),
 		{ kind = "deposit", reason = reason or "Society deposit" }
 	)
+end
+
+-- Shared account API used by the management service. Job keys intentionally retain
+-- the original Society_<job> storage format; crew accounts use Crew_<crew> keys.
+function BankingService.GetOrganizationFunds(organizationType, organizationName)
+	if not validOrganization(organizationType, organizationName) then
+		return nil, "Unknown organization account."
+	end
+	local record, err = getSocietyRecord(organizationName, organizationType)
+	return record and record.balance or nil, err
+end
+
+function BankingService.ChangeOrganizationFunds(organizationType, organizationName, delta, statement)
+	return mutateSociety(organizationName, delta, statement, organizationType)
 end
 
 function BankingService.DeliverPendingTransfers(player, playerObj)

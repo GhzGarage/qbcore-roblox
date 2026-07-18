@@ -247,6 +247,30 @@ function VehicleService.GetVehicleDefinition(vehicleName)
 	return nil, ("Unknown vehicle %q."):format(tostring(vehicleName))
 end
 
+function VehicleService.HasVehicleTemplate(vehicleName)
+	local definition = VehicleService.GetVehicleDefinition(vehicleName)
+	if not definition then
+		return false
+	end
+	return findVehicleTemplate(definition) ~= nil
+end
+
+function VehicleService.GetVehiclePosition(instance)
+	return instance and getVehiclePosition(instance) or nil
+end
+
+function VehicleService.FindSpawnedOwnedVehicle(ownershipId)
+	if ownershipId == nil then
+		return nil
+	end
+	for _, vehicle in ipairs(ensureSpawnedFolder():GetChildren()) do
+		if tostring(vehicle:GetAttribute("QBOwnedVehicleId") or "") == tostring(ownershipId) then
+			return vehicle
+		end
+	end
+	return nil
+end
+
 function VehicleService.SpawnVehicle(player, vehicleName, options)
 	options = type(options) == "table" and options or {}
 
@@ -280,10 +304,38 @@ function VehicleService.SpawnVehicle(player, vehicleName, options)
 		clone:SetAttribute(VEHICLE_OWNER_ATTRIBUTE, player.UserId)
 	end
 	applyConfiguredAttributes(clone, definition, options.attributes)
+	if options.disableScripts == true then
+		if clone:IsA("BaseScript") then
+			clone.Enabled = false
+		end
+		for _, descendant in ipairs(clone:GetDescendants()) do
+			if descendant:IsA("BaseScript") then
+				descendant.Enabled = false
+			end
+		end
+	end
+	if options.anchored ~= nil or options.canCollide ~= nil then
+		local function configurePart(part)
+			if options.anchored ~= nil then
+				part.Anchored = options.anchored == true
+			end
+			if options.canCollide ~= nil then
+				part.CanCollide = options.canCollide == true
+			end
+		end
+		if clone:IsA("BasePart") then
+			configurePart(clone)
+		end
+		for _, descendant in ipairs(clone:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				configurePart(descendant)
+			end
+		end
+	end
 
 	local spawnCFrame = options.cframe or getSpawnCFrame(player, options.distance)
 	pivotVehicle(clone, spawnCFrame)
-	clone.Parent = ensureSpawnedFolder()
+	clone.Parent = options.parent or ensureSpawnedFolder()
 
 	return clone, definition, plate
 end
