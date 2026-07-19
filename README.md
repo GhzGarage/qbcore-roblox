@@ -11,7 +11,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Toast notification UI for `Player:Notify`.
 - Shared QBCore-style proximity prompt UI for keyboard, gamepad, and touch.
 - Server-authoritative hunger/thirst decay.
-- Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu.
+- Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu with a live loaded-character economy leaderboard.
 - Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
@@ -406,7 +406,7 @@ and reuse the same snapshot/action path.
 - Grant staff ranks by adding Roblox UserIds under `Config.Server.Permissions` (mod/admin/god); the game owner and Studio playtests are god automatically.
 - Show a toast from server code with `playerObj:Notify("Message", "success", 4000)`.
 - Extend inventory with stashes, drops, vehicle containers, richer shop catalogs, and crafting.
-- Extend the admin menu with reports, chat moderation, leaderboard, and deeper developer tools.
+- Extend the admin menu with reports, chat moderation, and deeper developer tools.
 - Extend owned vehicles with impound/depot, job/house garages, keys, real fuel/damage integrations, and trunks.
 - Polish weather with custom precipitation textures, thunder audio, puddles, shelter checks, and map-specific blackout tags.
 - Expand the `/duty` toggle into map prompts, blips, permissions, and richer job/crew loops.

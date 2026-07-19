@@ -62,7 +62,8 @@ it is still not a full QBCore ecosystem.
       `/time`, `/freezetime`, `/kick`, and `/ban`.
 - [x] Native admin menu:
       dashboard, player details, goto/bring/heal/kick/ban, money/job/crew/item
-      actions, vehicle spawning, time controls, logs, and developer position tools.
+      actions, vehicle spawning, time controls, logs, developer position tools,
+      and a searchable cash/bank/crypto leaderboard with manual refresh.
 - [x] Time sync:
       configurable day length, `/time`, `/freezetime`, server-applied world
       environment, and client-side time-of-day visual grading.
@@ -190,8 +191,9 @@ it is still not a full QBCore ecosystem.
 
 ### UI And Client Experience
 
-- [ ] Finish currently blank admin tabs:
-      Reports, Chat, and Leaderboard.
+- [x] Add a loaded-character admin leaderboard with wealth/cash/bank/crypto
+      sorting, search, aggregate statistics, and page-local refresh.
+- [ ] Finish the currently blank Reports and Chat admin tabs.
 - [ ] Add admin moderation tools for reports/chat/player history beyond the current
       action log.
 - [ ] Add mobile/gamepad polish across character select, appearance, inventory,

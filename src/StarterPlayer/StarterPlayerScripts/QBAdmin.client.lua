@@ -51,6 +51,8 @@ local loaded = false
 local menuOpen = false
 local busy = false
 local selectedUserId = nil
+local leaderboardMetric = "wealth"
+local leaderboardSearchQuery = ""
 local responsive = {
 	compact = false,
 	tiny = false,
@@ -1726,6 +1728,273 @@ local function renderDeveloper()
 	end)
 end
 
+local LEADERBOARD_METRICS = {
+	{ key = "wealth", label = "Total Wealth" },
+	{ key = "cash", label = "Cash" },
+	{ key = "bank", label = "Bank" },
+	{ key = "crypto", label = "Crypto" },
+}
+
+local function leaderboardMetricLabel(metric)
+	for _, option in ipairs(LEADERBOARD_METRICS) do
+		if option.key == metric then
+			return option.label
+		end
+	end
+	return "Total Wealth"
+end
+
+local function leaderboardMoney(info)
+	local money = type(info.money) == "table" and info.money or {}
+	local cash = math.floor(tonumber(money.cash) or 0)
+	local bank = math.floor(tonumber(money.bank) or 0)
+	local crypto = math.floor(tonumber(money.crypto) or 0)
+	return cash, bank, crypto, cash + bank + crypto
+end
+
+local function leaderboardEntries()
+	local entries = {}
+	local query = trim(leaderboardSearchQuery):lower()
+	for _, info in ipairs(context.players or {}) do
+		local job = type(info.job) == "table" and info.job or {}
+		local crew = type(info.crew) == "table" and info.crew or {}
+		local haystack = table.concat({
+			tostring(info.character or ""),
+			tostring(info.displayName or ""),
+			tostring(info.name or ""),
+			tostring(info.citizenId or ""),
+			tostring(job.label or job.name or ""),
+			tostring(crew.label or crew.name or ""),
+		}, " "):lower()
+
+		if query == "" or haystack:find(query, 1, true) then
+			local cash, bank, crypto, wealth = leaderboardMoney(info)
+			entries[#entries + 1] = {
+				info = info,
+				cash = cash,
+				bank = bank,
+				crypto = crypto,
+				wealth = wealth,
+			}
+		end
+	end
+
+	table.sort(entries, function(a, b)
+		local aValue = tonumber(a[leaderboardMetric]) or 0
+		local bValue = tonumber(b[leaderboardMetric]) or 0
+		if aValue ~= bValue then
+			return aValue > bValue
+		end
+		local aName = tostring(a.info.character or a.info.displayName or ""):lower()
+		local bName = tostring(b.info.character or b.info.displayName or ""):lower()
+		if aName ~= bName then
+			return aName < bName
+		end
+		return (tonumber(a.info.userId) or 0) < (tonumber(b.info.userId) or 0)
+	end)
+
+	return entries
+end
+
+local function makeLeaderboardRank(parent, rank)
+	local tint = rank == 1 and COLORS.accent or rank == 2 and COLORS.muted or rank == 3 and COLORS.orange or COLORS.stroke
+	local badge = Instance.new("Frame")
+	badge.Name = "Rank"
+	badge.BackgroundColor3 = rank <= 3 and COLORS.input or COLORS.panel
+	badge.BorderSizePixel = 0
+	badge.Position = UDim2.fromOffset(0, responsive.tiny and 8 or 10)
+	badge.Size = UDim2.fromOffset(responsive.tiny and 30 or 34, responsive.tiny and 30 or 34)
+	badge.Parent = parent
+	addCorner(badge, 999)
+	addStroke(badge, tint, rank <= 3 and 0.05 or 0.4, 1)
+
+	local label = makeLabel(badge, "Value", tostring(rank), responsive.tiny and 11 or 13, tint, Enum.Font.GothamBold)
+	label.Size = UDim2.fromScale(1, 1)
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextWrapped = false
+	return badge
+end
+
+local function makeLeaderboardValue(parent, name, text, xScale, widthScale, color)
+	local value = makeLabel(parent, name, text, 12, color, Enum.Font.GothamBold)
+	value.Position = UDim2.new(xScale, 0, 0, 0)
+	value.Size = UDim2.new(widthScale, 0, 1, 0)
+	value.TextXAlignment = Enum.TextXAlignment.Right
+	value.TextWrapped = false
+	value.TextTruncate = Enum.TextTruncate.AtEnd
+	return value
+end
+
+local function renderLeaderboard()
+	local entries = leaderboardEntries()
+	local metricLabel = leaderboardMetricLabel(leaderboardMetric)
+
+	local controls = makePanel(body, "LeaderboardControls", 104)
+	addVerticalLayout(controls, 8)
+
+	local searchRow = makeFieldRow(controls, 36)
+	local searchBox = makeTextBox(searchRow, "Search", "Search player, citizen ID, job, or crew", leaderboardSearchQuery)
+	local fixedWidth = responsive.tiny and 128 or 184
+	searchBox.Size = UDim2.new(1, -fixedWidth, 1, 0)
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		leaderboardSearchQuery = searchBox.Text
+	end)
+	searchBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			leaderboardSearchQuery = trim(searchBox.Text)
+			render()
+		end
+	end)
+
+	local searchButton = makeButton(searchRow, "ApplySearch", responsive.tiny and "Find" or "Search", COLORS.blue)
+	searchButton.Size = UDim2.fromOffset(responsive.tiny and 52 or 76, 36)
+	searchButton.Activated:Connect(function()
+		leaderboardSearchQuery = trim(searchBox.Text)
+		render()
+	end)
+
+	local pageRefresh = makeButton(searchRow, "RefreshLeaderboard", "Refresh", COLORS.green)
+	pageRefresh.Size = UDim2.fromOffset(responsive.tiny and 60 or 92, 36)
+	pageRefresh.Activated:Connect(function()
+		refreshContext(false)
+	end)
+
+	local metricRow = makeFieldRow(controls, 34)
+	for _, option in ipairs(LEADERBOARD_METRICS) do
+		local active = leaderboardMetric == option.key
+		local metricButton = makeButton(
+			metricRow,
+			"Metric_" .. option.key,
+			responsive.tiny and (option.key == "wealth" and "Wealth" or option.label) or option.label,
+			active and COLORS.accentDark or COLORS.panelSoft
+		)
+		metricButton.Size = UDim2.new(0.25, -6, 1, 0)
+		metricButton.TextColor3 = active and COLORS.text or COLORS.muted
+		metricButton.Activated:Connect(function()
+			leaderboardMetric = option.key
+			render()
+		end)
+	end
+
+	local totalWealth = 0
+	for _, entry in ipairs(entries) do
+		totalWealth += entry.wealth
+	end
+	local averageWealth = #entries > 0 and math.floor(totalWealth / #entries + 0.5) or 0
+	local topMetric = entries[1] and entries[1][leaderboardMetric] or 0
+
+	local summary = makePanel(body, "LeaderboardSummary", responsive.tiny and 62 or 78)
+	addHorizontalLayout(summary, 8)
+	makeCompactStat(summary, "Players", tostring(#entries), COLORS.accent)
+	makeCompactStat(summary, "Total Wealth", formatMoney(totalWealth), COLORS.green)
+	makeCompactStat(summary, "Avg Wealth", formatMoney(averageWealth), COLORS.blue)
+	makeCompactStat(summary, "Top " .. metricLabel, formatMoney(topMetric), COLORS.orange)
+
+	local headerHeight = responsive.tiny and 0 or 28
+	local rowHeight = responsive.tiny and 68 or 58
+	local listHeight = headerHeight + math.max(1, #entries) * (rowHeight + 8)
+	local list = Instance.new("Frame")
+	list.Name = "LeaderboardList"
+	list.BackgroundTransparency = 1
+	list.Size = UDim2.new(1, -6, 0, listHeight)
+	list.Parent = body
+	local listLayout = addVerticalLayout(list, 8)
+
+	if not responsive.tiny then
+		local header = Instance.new("Frame")
+		header.Name = "Header"
+		header.BackgroundTransparency = 1
+		header.Size = UDim2.new(1, -6, 0, headerHeight)
+		header.LayoutOrder = 1
+		header.Parent = list
+		local rankHeader = makeLabel(header, "Rank", "#", 10, COLORS.muted, Enum.Font.GothamBold)
+		rankHeader.Size = UDim2.new(0.08, 0, 1, 0)
+		local playerHeader = makeLabel(header, "Player", "PLAYER", 10, COLORS.muted, Enum.Font.GothamBold)
+		playerHeader.Position = UDim2.new(0.08, 0, 0, 0)
+		playerHeader.Size = UDim2.new(0.35, 0, 1, 0)
+		makeLeaderboardValue(header, "Cash", "CASH", 0.43, 0.18, leaderboardMetric == "cash" and COLORS.accent or COLORS.muted)
+		makeLeaderboardValue(header, "Bank", "BANK", 0.61, 0.2, leaderboardMetric == "bank" and COLORS.accent or COLORS.muted)
+		makeLeaderboardValue(header, "Crypto", "CRYPTO", 0.81, 0.19, leaderboardMetric == "crypto" and COLORS.accent or COLORS.muted)
+	end
+
+	for index, entry in ipairs(entries) do
+		local info = entry.info
+		local row = makePanel(list, "Leaderboard_" .. tostring(info.userId or index), rowHeight)
+		row.LayoutOrder = index + 1
+		row.BackgroundColor3 = index <= 3 and COLORS.panelSoft or COLORS.panel
+		makeLeaderboardRank(row, index)
+
+		local characterName = tostring(info.character or info.displayName or info.name or "Unknown")
+		local accountName = tostring(info.name or info.displayName or info.userId or "Unknown")
+		local job = type(info.job) == "table" and info.job or {}
+		local detailText = ("@%s  |  %s"):format(accountName, tostring(job.label or job.name or "Unemployed"))
+
+		if responsive.tiny then
+			local name = makeLabel(row, "Player", characterName, 12, COLORS.text, Enum.Font.GothamBold)
+			name.Position = UDim2.fromOffset(40, 2)
+			name.Size = UDim2.new(1, -152, 0, 23)
+			name.TextWrapped = false
+			name.TextTruncate = Enum.TextTruncate.AtEnd
+			local detail = makeLabel(row, "Detail", detailText, 9, COLORS.muted, Enum.Font.GothamMedium)
+			detail.Position = UDim2.fromOffset(40, 27)
+			detail.Size = UDim2.new(1, -152, 0, 18)
+			detail.TextWrapped = false
+			detail.TextTruncate = Enum.TextTruncate.AtEnd
+			local metric = makeLabel(row, "Metric", metricLabel:upper(), 8, COLORS.muted, Enum.Font.GothamBold)
+			metric.AnchorPoint = Vector2.new(1, 0)
+			metric.Position = UDim2.new(1, 0, 0, 5)
+			metric.Size = UDim2.fromOffset(102, 16)
+			metric.TextXAlignment = Enum.TextXAlignment.Right
+			metric.TextWrapped = false
+			local metricValue = makeLabel(
+				row,
+				"MetricValue",
+				formatMoney(entry[leaderboardMetric]),
+				12,
+				COLORS.green,
+				Enum.Font.GothamBold
+			)
+			metricValue.AnchorPoint = Vector2.new(1, 0)
+			metricValue.Position = UDim2.new(1, 0, 0, 23)
+			metricValue.Size = UDim2.fromOffset(102, 22)
+			metricValue.TextXAlignment = Enum.TextXAlignment.Right
+			metricValue.TextWrapped = false
+			metricValue.TextTruncate = Enum.TextTruncate.AtEnd
+		else
+			local name = makeLabel(row, "Player", characterName, 12, COLORS.text, Enum.Font.GothamBold)
+			name.Position = UDim2.new(0.08, 0, 0, 1)
+			name.Size = UDim2.new(0.35, -8, 0, 22)
+			name.TextWrapped = false
+			name.TextTruncate = Enum.TextTruncate.AtEnd
+			local detail = makeLabel(row, "Detail", detailText, 9, COLORS.muted, Enum.Font.GothamMedium)
+			detail.Position = UDim2.new(0.08, 0, 0, 23)
+			detail.Size = UDim2.new(0.35, -8, 0, 17)
+			detail.TextWrapped = false
+			detail.TextTruncate = Enum.TextTruncate.AtEnd
+			makeLeaderboardValue(row, "Cash", formatMoney(entry.cash), 0.43, 0.18, COLORS.green)
+			makeLeaderboardValue(row, "Bank", formatMoney(entry.bank), 0.61, 0.2, COLORS.blue)
+			makeLeaderboardValue(row, "Crypto", formatMoney(entry.crypto), 0.81, 0.19, COLORS.accent)
+		end
+	end
+
+	if #entries == 0 then
+		local empty = makePanel(list, "Empty", rowHeight)
+		empty.LayoutOrder = 2
+		local message = makeLabel(
+			empty,
+			"Message",
+			leaderboardSearchQuery ~= "" and "No loaded players match that search." or "No characters are loaded.",
+			12,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
+		message.Size = UDim2.fromScale(1, 1)
+		message.TextXAlignment = Enum.TextXAlignment.Center
+	end
+
+	listLayout.Padding = UDim.new(0, 8)
+end
+
 local function renderBlank()
 	local spacer = Instance.new("Frame")
 	spacer.Name = "Blank"
@@ -1782,6 +2051,8 @@ render = function()
 		renderEnvironment()
 	elseif currentPage == "Developer" then
 		renderDeveloper()
+	elseif currentPage == "Leaderboard" then
+		renderLeaderboard()
 	else
 		renderBlank()
 	end
