@@ -29,15 +29,20 @@ it is still not a full QBCore ecosystem.
 - [x] Server-authoritative hunger/thirst status loop.
 - [x] Configurable job-grade paychecks with duty gating, optional banking-backed
       society debits, and a `/duty` toggle.
-- [x] Personal, player-shared, and boss-accessible organization banking with bank/ATM proximity prompts,
-      deposits/withdrawals, online or queued citizen-ID transfers, cards/PINs,
-      daily ATM limits, and persistent statements.
+- [x] Personal, player-shared, and boss-accessible organization banking with
+      bank/ATM proximity prompts, deposits/withdrawals, online or queued citizen-ID
+      transfers, cards/PINs, daily ATM limits, and persistent statements.
 - [x] HUD for identity, job, cash/bank, health, armor, hunger, thirst, and
       equipped weapon ammo.
 - [x] Toast notification UI.
+- [x] Shared Roblox-native proximity prompt UI for keyboard, gamepad, and touch,
+      reused by banks, shops, garages, management, clothing, and other world
+      interactions.
 - [x] Player inventory and hotbar:
       30 slots, 5-slot hotbar, weights, stacks, starter items, move/use/give
       actions, and server-authoritative helpers.
+- [x] Inventory-backed item shops with configurable catalogs, pricing, session
+      stock, quantity purchases, previews, and job/crew/license restrictions.
 - [x] Consumable item support for hunger/thirst.
 - [x] Medical item support:
       bandages, armor, EMS-only first aid revives, death tracking, death screen,
@@ -76,6 +81,10 @@ it is still not a full QBCore ecosystem.
 - [x] Public garage system with proximity prompts, per-garage storage, owned-only
       deposit validation, state/condition persistence, spawn occupancy checks,
       retrieval, and automatic return on disconnect.
+- [x] Standalone job/crew management with indexed rosters, nearby hiring, grade
+      changes, removal, offline queues, shared banking funds, and outfit access.
+- [x] Inventory-opened StudOS smartphone with filtered private messaging,
+      eligible voice calls, social posts, camera captures, and per-character state.
 - [x] Native QBMenu-style client menu controller for other resources.
 - [x] Emote menu using Roblox avatar emotes through QBMenu.
 - [x] Stage speaker music system:
@@ -103,11 +112,12 @@ it is still not a full QBCore ecosystem.
 - [ ] Implement true in-session character switching instead of saving and kicking
       on `/logout`.
 - [ ] Expand character creation fields beyond first/last name:
-      birthdate, gender, nationality, phone number, and optional backstory fields.
+      birthdate, gender, nationality, and optional backstory fields. Phone numbers
+      are already generated automatically when a character loads.
 - [ ] Add spawn-selection support once apartments/housing/hospitals/garages exist.
-- [ ] Add stronger character deletion cleanup for future per-character stores
-      such as houses, vehicles, phone contacts, and warrants. Outfit share codes
-      are already revoked during character deletion.
+- [ ] Add stronger character deletion cleanup for external per-character records
+      such as phone-directory claims and future houses or warrants. Owned vehicles
+      are profile-local, and outfit share codes are already removed with a character.
 
 ### Inventory, Items, And Economy
 
@@ -191,18 +201,20 @@ it is still not a full QBCore ecosystem.
 - [ ] Add consistent UI theming/components so each LocalScript is not carrying its
       own duplicated UI helpers forever.
 
-### QBCore Ecosystem Still Missing
+### QBCore Ecosystem Coverage
 
 - [ ] Housing/apartments.
 - [ ] Impound/depot plus job/house garages beyond the public garage system.
-- [ ] Phone.
+- [x] Inventory-backed smartphone with messaging, eligible voice calls, social
+      posts, camera captures, settings, and persistent per-character state.
 - [x] Management/boss menu for job employees and crew members, including grades,
       nearby hiring/firing, offline change queues, and shared banking funds.
 - [ ] Door locks.
-- [ ] Target/interact system.
+- [ ] General-purpose target/interact abstraction beyond the existing configured
+      Roblox ProximityPrompt interactions.
 - [ ] Progress bars/skill checks/minigames.
 - [ ] Dispatch/radio.
-- [ ] Shops/crafting/stashes.
+- [ ] Crafting and shared stashes beyond the completed item-shop system.
 - [x] Clothing stores/barbers/outfit slots beyond the first appearance editor,
       including category enforcement and clothing-only share codes.
 - [ ] Drugs/black-market loops.
@@ -214,10 +226,10 @@ it is still not a full QBCore ecosystem.
 1. Production hardening pass:
    profile library, smoke tests, validation, logging, and data migration metadata.
 2. Inventory economy pass:
-   shops, drops, stashes, trunks/gloveboxes, and crafting.
+   shop selling/restocking, drops, stashes, trunks/gloveboxes, and crafting.
 3. Vehicle pass:
-   install templates, persistent ownership, garages, keys/locks, fuel, and trunk
-   inventories.
+   finish catalog templates, impound/depot, keys/locks, fuel/repair, persistent
+   parking, and trunk inventories.
 4. Job pass:
    map duty prompts, police/EMS/mechanic/taxi loops, dispatch/reports, and grade
    permissions.

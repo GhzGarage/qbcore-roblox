@@ -515,6 +515,7 @@
     <div class="card"><h4>World</h4><p>Server-authoritative day/night clock, synced weather presets with rain/snow/thunder, blackout, and client-side time-of-day grading.</p></div>
     <div class="card"><h4>Admin</h4><p>Graded permissions (user/mod/admin/god), a native admin panel, bans and whitelist DataStores, and slash commands.</p></div>
     <div class="card"><h4>Social</h4><p>Saved HumanoidDescription appearance, categorized clothing/barber shops, outfit share codes, emotes, and proximity stage music.</p></div>
+    <div class="card"><h4>Smartphone</h4><p>Inventory-opened StudOS phone with filtered private messaging, eligible voice calls, social posts, native captures, and persistent character state.</p></div>
   </div>
   <div class="toast info">
     <div>
@@ -1559,7 +1560,7 @@ ServerStorage
   </p>
   <div class="card-grid">
     <div class="card"><h4>Foundation</h4><p>Battle-tested profile library (or hardened retries/telemetry), Luau static checks and Studio smoke tests, structured audit logs, schema-migration helpers, localization.</p></div>
-    <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, phone), spawn selection, deeper deletion cleanup.</p></div>
+    <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, optional backstory), spawn selection, deeper deletion cleanup for external records.</p></div>
     <div class="card"><h4>Economy</h4><p>Shop selling and persistent stock, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, and management stashes.</p></div>
     <div class="card"><h4>Jobs &amp; crews</h4><p>Map duty prompts, blips, and grade-gated actions; police/EMS/mechanic/taxi/delivery jobs; dispatch, fines, warrants, evidence; crew progression.</p></div>
     <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, impound/depot and persistent world parking, job/house garages, keys/locks, real fuel/repair integrations, and trunk/glovebox inventories.</p></div>
@@ -1567,10 +1568,10 @@ ServerStorage
     <div class="card"><h4>World &amp; environment</h4><p>Weather polish (textures, puddles, shelter checks), broader blackout coverage, map-aware spawn/hospital/garage config, place asset validation.</p></div>
     <div class="card"><h4>UI &amp; client</h4><p>Finish the blank admin tabs (Reports, Chat, Leaderboard), mobile/gamepad polish, configurable keybinds, a shared UI theming module.</p></div>
   </div>
-  <h3>Still missing entirely</h3>
+  <h3>Major resource slices still missing</h3>
   <p>
-    Housing/apartments, impound, phone, door locks,
-    target/interact system, progress bars and minigames, dispatch/radio, shops/crafting/stashes,
+    Housing/apartments, impound, door locks,
+    a general target/interact abstraction, progress bars and minigames, dispatch/radio, crafting/shared stashes,
     drug loops, police MDT/jail/evidence, and EMS
     hospitals/beds/billing.
   </p>
