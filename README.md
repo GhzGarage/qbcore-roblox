@@ -14,6 +14,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu with a live loaded-character economy leaderboard.
 - Proximity-prompt City Hall with public job selection and instant cash purchases for eligible identity/license items.
 - QBAmbulance hospital POIs with patient check-in, staffed-EMS routing, timed bed treatment and billing, duty toggles, and grade-authorized ambulance retrieval.
+- QBPoliceJob station POIs with duty, armory, personal lockers, trash, fingerprinting, evidence drawers, grade-authorized fleet retrieval, impound, and air-support points.
 - Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
@@ -64,6 +65,7 @@ src/
       Commands.lua         -- default player/admin slash commands
       AppearanceService.lua -- appearance, categorized shops, saved outfits, and share codes
       MedicalService.lua   -- death, respawn, armor, medical items, hospitals, and EMS job POIs
+      PoliceService.lua    -- police station POIs, secure containers, fleet, fingerprints, and impound
       InventoryService.lua -- player inventory, external-provider contract, and useable item helpers
       ShopService.lua      -- proximity shops, filtered catalogs, stock, and purchases
       TimeSyncService.lua  -- day/night clock, /time and /freezetime commands
@@ -86,6 +88,7 @@ src/
     QBSpawn.client.lua      -- last/public/apartment spawn selector
     QBApartments.client.lua -- apartment entrance, doorbell, and stash panels
     QBAmbulance.client.lua  -- death/respawn UI plus hospital check-in and EMS garage menus
+    QBPoliceJob.client.lua  -- police fleet and fingerprint result menus
     QBEmotes.client.lua     -- emote menu
     QBHUD.client.lua        -- health, armor, hunger, thirst HUD
     QBInventory.client.lua  -- player/external inventory panes, shops, and hotbar
@@ -256,6 +259,22 @@ duty, grade, bed availability, and payment for every action.
 Config.Medical.Hospital.BillCost = 2000
 Config.Medical.Hospital.MinimalDoctors = 2
 Config.Medical.Hospital.Hospitals[1].checkIn = { Vector3.new(-249.08, 2.43, -1066.27) }
+```
+
+Police POIs live under `Config.PoliceJob.Stations`. A station can independently
+place `duty`, `armory`, `stash`, `trash`, `fingerprint`, `evidence`, `vehicle`,
+`impound`, and `helicopter` points. The included `mission_row` development block
+is near the current city-services test hub; move that one block when the final
+police interior is ready. Personal lockers persist with the character, while
+evidence and trash containers are shared for the server session. All container,
+armory, fleet, fingerprint, and impound actions revalidate police duty and distance.
+
+```lua
+Config.PoliceJob.Stations[1].duty = { Vector3.new(-255, 3.7, 315.57) }
+Config.PoliceJob.Stations[1].evidence[1].drawer = 1
+Config.PoliceJob.Stations[1].authorizedVehicles = {
+	{ name = "police", label = "Police Cruiser", minGrade = 0 },
+}
 ```
 
 Weather behavior is configured there too:

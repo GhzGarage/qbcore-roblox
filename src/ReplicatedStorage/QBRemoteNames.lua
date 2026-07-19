@@ -23,6 +23,7 @@ return {
 		"OpenApartment", -- server -> client: (view, payload) apartment menu, doorbell, or stash UI
 		"OpenCityHall", -- server -> client: ({ locationId }) open city services
 		"OpenHospital", -- server -> client: ({ view, access, ... }) open hospital check-in/job menus
+		"OpenPoliceJob", -- server -> client: ({ view, access, ... }) open police POI menus/results
 		"PhonePush", -- server -> client: (action, payload) incoming calls and phone state
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
 		"WeatherStateUpdated", -- server -> client: (weather snapshot) authoritative weather/blackout state
@@ -58,5 +59,6 @@ return {
 		"GetCityHall", -- client -> server: (access) -> city hall services snapshot, errorMessage?
 		"CityHallAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 		"HospitalAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
+		"PoliceAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 	},
 }

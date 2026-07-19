@@ -150,6 +150,9 @@ it is still not a full QBCore ecosystem.
 - [ ] Port or redesign core jobs:
       police, ambulance, mechanic, taxi, delivery/trucker, garbage, and civilian
       activities.
+- [x] Add the first-pass QBPoliceJob station loop: duty, armory, personal locker,
+      trash, fingerprint, evidence drawers, police fleet, impound, helicopter,
+      station marker POIs, and server-side job/duty/distance validation.
 - [ ] Add reports, calls, dispatch, panic buttons, fines, warrants, and evidence
       systems for public-service roles.
 - [ ] Add crew progression/reputation and crew-only activities.
@@ -174,8 +177,8 @@ it is still not a full QBCore ecosystem.
       only the initial weapon-kit imports.
 - [ ] Add weapon licenses, job restrictions, serial numbers, durability, evidence,
       recoil/balance passes, and safe-zone rules.
-- [ ] Finish the sample weapon/ammo shop with license issuance and add police
-      armory workflows.
+- [x] Add a grade-filtered, on-duty police armory workflow using the shared shop
+      and inventory UI. Public weapon-license issuance still needs a full pass.
 - [ ] Add downed/last-stand behavior if desired; current medical flow is death
       screen plus respawn/revive.
 - [ ] Add combat logging/admin review tools for damage events.

@@ -471,6 +471,15 @@ Config.Shops = {
 			{ name = "weapon_shotgun", price = 4000, amount = 5, requiredLicense = "weapon" },
 			{ name = "weapon_auto_rifle", price = 7500, amount = 3, requiredLicense = "weapon" },
 		},
+		police_armory = {
+			{ name = "pistol_ammo", price = 0, amount = 250 },
+			{ name = "shotgun_ammo", price = 0, amount = 100, requiredGrade = 1 },
+			{ name = "rifle_ammo", price = 0, amount = 150, requiredGrade = 2 },
+			{ name = "armor", price = 0, amount = 10 },
+			{ name = "weapon_pistol", price = 0, amount = 5 },
+			{ name = "weapon_shotgun", price = 0, amount = 5, requiredGrade = 1 },
+			{ name = "weapon_auto_rifle", price = 0, amount = 3, requiredGrade = 2 },
+		},
 	},
 	Locations = {
 		{
@@ -486,6 +495,55 @@ Config.Shops = {
 			position = Vector3.new(-166, 3.7, 348.57),
 			products = "weapons",
 			useStock = true,
+		},
+		{
+			id = "mission_row_armory",
+			label = "Police Armory",
+			position = Vector3.new(-255, 3.7, 331.57),
+			products = "police_armory",
+			useStock = false,
+			requiredJob = { police = 0 },
+			requiredDuty = true,
+			suppressPrompt = true, -- QBPoliceJob owns the station-labelled armory prompt
+		},
+	},
+}
+
+-- Roblox adaptation of qb-policejob's location-driven job loop. These development
+-- coordinates keep every reference POI immediately testable near the current city
+-- services hub. Move only this station block when the final police interior lands.
+Config.PoliceJob = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 14,
+	FingerprintDistance = 12,
+	ImpoundDistance = 24,
+	ContainerSlots = 30,
+	ContainerMaxWeight = 250000,
+	Stations = {
+		{
+			id = "mission_row",
+			label = "Mission Row Police Department",
+			station = Vector3.new(-255, 3.7, 315.57),
+			duty = { Vector3.new(-255, 3.7, 315.57) },
+			armory = { { position = Vector3.new(-255, 3.7, 331.57), shopId = "mission_row_armory" } },
+			stash = { Vector3.new(-255, 3.7, 347.57) },
+			trash = { Vector3.new(-255, 3.7, 363.57) },
+			fingerprint = { Vector3.new(-239, 3.7, 315.57) },
+			evidence = {
+				{ position = Vector3.new(-239, 3.7, 331.57), drawer = 1 },
+				{ position = Vector3.new(-239, 3.7, 347.57), drawer = 2 },
+				{ position = Vector3.new(-239, 3.7, 363.57), drawer = 3 },
+			},
+			vehicle = { Vector3.new(-287, 3.7, 315.57) },
+			vehicleSpawn = { position = Vector3.new(-303, 4.7, 315.57), heading = 90 },
+			impound = { Vector3.new(-287, 3.7, 347.57) },
+			helicopter = { Vector3.new(-287, 3.7, 379.57) },
+			helicopterSpawn = { position = Vector3.new(-303, 4.7, 379.57), heading = 90 },
+			authorizedVehicles = {
+				{ name = "police", label = "Police Cruiser", minGrade = 0 },
+			},
+			authorizedHelicopters = {},
 		},
 	},
 }

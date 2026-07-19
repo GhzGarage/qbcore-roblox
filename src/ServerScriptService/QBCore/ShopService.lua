@@ -133,6 +133,9 @@ local function playerCanAccess(playerObj, requirementSource)
 		return false
 	end
 	local metadata = type(data.metadata) == "table" and data.metadata or {}
+	if requirementSource.requiredDuty == true and job.onduty ~= true then
+		return false
+	end
 	if not licenseRequirementPasses(metadata.licences, requirementSource.requiredLicense) then
 		return false
 	end
@@ -388,6 +391,9 @@ local function safePartName(id, index)
 end
 
 local function createInteraction(location, index, folder)
+	if location.suppressPrompt == true then
+		return
+	end
 	local id = trim(location.id)
 	local position = locationPosition(location)
 	if id == "" or not position then

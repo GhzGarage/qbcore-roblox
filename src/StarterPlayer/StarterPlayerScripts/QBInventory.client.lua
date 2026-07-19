@@ -633,7 +633,10 @@ local function renderOtherSlotView(view, slot)
 	setInsetBorder(view.selectionBorder, COLORS.selected, (isSelected or isFocused) and 0 or 1, isSelected and 2 or 1)
 	view.number.Text = tostring(slot)
 	view.name.Text = item and item.label or ""
-	view.amount.Text = item and (("$%d · x%d"):format(item.price, item.stock)) or ""
+	view.amount.Text = item
+		and (otherInventory and otherInventory.type == "shop" and (("$%d · x%d"):format(item.price, item.stock))
+			or ("x%d"):format(item.stock))
+		or ""
 	view.empty.Visible = item == nil
 	view.icon.Visible = item ~= nil and type(item.image) == "string" and item.image ~= ""
 	view.icon.Image = view.icon.Visible and item.image or ""
@@ -651,29 +654,42 @@ local function renderOtherInventory()
 	end
 
 	local selectedItem = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
-	local canPurchase = selectedItem
-		and otherInventory.actions
-		and otherInventory.actions.purchase == true
-		and selectedItem.stock > 0
-		and not busy
+	local selectedPlayerItem = selectedSlot and currentItems[selectedSlot] or nil
+	local actions = otherInventory.actions or {}
+	local isPurchase = selectedItem and actions.purchase == true
+	local isWithdraw = selectedItem and actions.withdraw == true
+	local isDeposit = not selectedItem and selectedPlayerItem and actions.deposit == true
+	local actionItem = selectedItem or (isDeposit and selectedPlayerItem) or nil
+	local available = selectedItem and selectedItem.stock or selectedPlayerItem and selectedPlayerItem.amount or 0
+	local canAct = actionItem and available > 0 and not busy and (isPurchase or isWithdraw or isDeposit)
 	if selectedItem then
 		purchaseAmount = math.clamp(purchaseAmount, 1, math.max(1, selectedItem.stock))
-		otherSelectedNameLabel.Text = ("%s · $%d each"):format(selectedItem.label, selectedItem.price)
-		otherSelectedDescLabel.Text = selectedItem.stock > 0 and selectedItem.description or "Sold out"
+		otherSelectedNameLabel.Text = otherInventory.type == "shop"
+			and ("%s · $%d each"):format(selectedItem.label, selectedItem.price)
+			or ("%s x%d"):format(selectedItem.label, selectedItem.stock)
+		otherSelectedDescLabel.Text = selectedItem.stock > 0 and selectedItem.description or "Empty"
+	elseif isDeposit then
+		purchaseAmount = math.clamp(purchaseAmount, 1, math.max(1, selectedPlayerItem.amount))
+		otherSelectedNameLabel.Text = ("Deposit %s x%d"):format(selectedPlayerItem.label, selectedPlayerItem.amount)
+		otherSelectedDescLabel.Text = "Move this item into the selected container"
 	else
 		purchaseAmount = 1
 		otherSelectedNameLabel.Text = otherInventory.type == "shop" and "Select a product" or "Select an item"
-		otherSelectedDescLabel.Text = ""
+		otherSelectedDescLabel.Text = otherInventory.type == "shop" and ""
+			or "Choose a container item to withdraw or a player item to deposit"
 	end
 	purchaseAmountLabel.Text = tostring(purchaseAmount)
-	decreaseButton.Active = canPurchase and purchaseAmount > 1 or false
+	decreaseButton.Active = canAct and purchaseAmount > 1 or false
 	decreaseButton.AutoButtonColor = decreaseButton.Active
-	increaseButton.Active = canPurchase and purchaseAmount < selectedItem.stock or false
+	increaseButton.Active = canAct and purchaseAmount < available or false
 	increaseButton.AutoButtonColor = increaseButton.Active
-	buyButton.Active = canPurchase or false
+	buyButton.Active = canAct or false
 	buyButton.AutoButtonColor = buyButton.Active
 	buyButton.BackgroundColor3 = buyButton.Active and COLORS.green or Color3.fromRGB(83, 93, 105)
-	buyButton.Text = selectedItem and ("Buy $%d"):format(selectedItem.price * purchaseAmount) or "Buy"
+	buyButton.Text = isPurchase and ("Buy $%d"):format(selectedItem.price * purchaseAmount)
+		or isWithdraw and "Withdraw"
+		or isDeposit and "Deposit"
+		or (otherInventory.type == "shop" and "Buy" or "Transfer")
 end
 
 local function render()
@@ -968,6 +984,10 @@ local function handleOtherSlot(slot)
 	end
 	local item = otherItems[slot]
 	selectedOtherSlot = item and slot or nil
+	if selectedOtherSlot then
+		selectedSlot = nil
+		moveMode = false
+	end
 	purchaseAmount = 1
 	setStatus("")
 	render()
@@ -975,42 +995,58 @@ end
 
 local function adjustPurchaseAmount(delta)
 	local item = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
-	if busy or not item or item.stock <= 0 then
+	local playerItem = selectedSlot and currentItems[selectedSlot] or nil
+	local available = item and item.stock or playerItem and playerItem.amount or 0
+	if busy or available <= 0 then
 		return
 	end
-	purchaseAmount = math.clamp(purchaseAmount + delta, 1, item.stock)
+	purchaseAmount = math.clamp(purchaseAmount + delta, 1, available)
 	render()
 end
 
 local function purchaseSelectedItem()
 	local item = selectedOtherSlot and otherItems[selectedOtherSlot] or nil
-	if busy or not item or not currentAccess or not otherInventory then
+	local playerItem = selectedSlot and currentItems[selectedSlot] or nil
+	if busy or not currentAccess or not otherInventory then
 		return
 	end
-	if not otherInventory.actions or otherInventory.actions.purchase ~= true then
-		setStatus("That external inventory does not sell items.", COLORS.red)
+	local actions = otherInventory.actions or {}
+	local action = item and actions.purchase == true and "purchase"
+		or item and actions.withdraw == true and "withdraw"
+		or not item and playerItem and actions.deposit == true and "deposit"
+	if not action then
+		setStatus("Select an item that this external inventory can transfer.", COLORS.red)
 		return
 	end
-	if item.stock <= 0 then
-		setStatus("That product is sold out.", COLORS.red)
+	local available = item and item.stock or playerItem.amount
+	if available <= 0 then
+		setStatus("That item is unavailable.", COLORS.red)
 		return
 	end
 
 	busy = true
 	setStatus("")
 	render()
-	local ok, snapshotOrErr = callRemote(Remotes.InventoryAction, "purchase", {
+	local ok, snapshotOrErr = callRemote(Remotes.InventoryAction, action, {
 		access = currentAccess,
 		slot = selectedOtherSlot,
+		playerSlot = selectedSlot,
 		amount = purchaseAmount,
 	})
 	busy = false
 	if not ok then
-		setStatus(snapshotOrErr or "The purchase could not be completed.", COLORS.red)
+		setStatus(snapshotOrErr or "The transfer could not be completed.", COLORS.red)
 		render()
 		return
 	end
-	setStatus(("Purchased %dx %s."):format(purchaseAmount, item.label), COLORS.green)
+	setStatus(
+		("%s %dx %s."):format(
+			action == "purchase" and "Purchased" or action == "withdraw" and "Withdrew" or "Deposited",
+			purchaseAmount,
+			(item or playerItem).label
+		),
+		COLORS.green
+	)
 	purchaseAmount = 1
 	if type(snapshotOrErr) == "table" then
 		applyInventorySnapshot(snapshotOrErr)
@@ -1037,6 +1073,10 @@ local function handleInventorySlot(slot)
 	end
 
 	selectedSlot = item and slot or nil
+	if selectedSlot and otherInventory and otherInventory.actions and otherInventory.actions.deposit == true then
+		selectedOtherSlot = nil
+		purchaseAmount = 1
+	end
 	setStatus("")
 	render()
 end

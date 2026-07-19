@@ -92,6 +92,9 @@
         "QBAmbulance": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBAmbulance.client.lua"
         },
+        "QBPoliceJob": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBPoliceJob.client.lua"
+        },
         "QBNotify": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBNotify.client.lua"
         },
