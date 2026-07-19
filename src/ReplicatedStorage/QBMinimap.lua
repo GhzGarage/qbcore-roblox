@@ -31,6 +31,7 @@ local DEFAULT_BLIP_SIZE = 20
 
 local started = false
 local enabled = config.Enabled ~= false
+local visible = true
 local blips = {}
 local taggedBlipIds = {}
 local taggedBlipSequence = 0
@@ -220,6 +221,17 @@ function QBMinimap.SetBlipAlwaysShow(id, shouldAlwaysShow)
 	end
 	blip.options.alwaysShow = shouldAlwaysShow == true
 	return true
+end
+
+function QBMinimap.SetVisible(shouldShow)
+	visible = shouldShow == true
+	if minimapFrame and not visible then
+		minimapFrame.Visible = false
+	end
+end
+
+function QBMinimap.IsVisible()
+	return visible
 end
 
 local function addTaggedBlip(instance)
@@ -458,6 +470,12 @@ function QBMinimap.Start()
 	bindResponsiveLayout()
 	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindResponsiveLayout)
 
+	local function updateApartmentVisibility()
+		QBMinimap.SetVisible(player:GetAttribute("QBApartmentId") == nil)
+	end
+	player:GetAttributeChangedSignal("QBApartmentId"):Connect(updateApartmentVisibility)
+	updateApartmentVisibility()
+
 	local tag = tostring(config.CollectionTag or "QBMinimapBlip")
 	for _, instance in ipairs(CollectionService:GetTagged(tag)) do
 		addTaggedBlip(instance)
@@ -467,10 +485,11 @@ function QBMinimap.Start()
 
 	renderConnection = RunService.RenderStepped:Connect(function()
 		local root = getRootPart()
+		local shouldRender = root ~= nil and visible
 		if minimapFrame then
-			minimapFrame.Visible = root ~= nil
+			minimapFrame.Visible = shouldRender
 		end
-		if root then
+		if shouldRender then
 			updateMap(root)
 		end
 	end)

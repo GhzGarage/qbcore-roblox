@@ -247,7 +247,10 @@ Config.HUD.Minimap.Blips = {
 ```
 
 Client systems can also use `ReplicatedStorage.QBMinimap.AddBlip()`, or tag a
-Part, Attachment, or Model with `QBMinimapBlip`. Tagged instances accept the
+Part, Attachment, or Model with `QBMinimapBlip`. The minimap automatically hides
+while the local player's `QBApartmentId` attribute is set; status, ammo, and the
+rest of QBHUD stay visible. Other client systems can toggle it directly with
+`QBMinimap.SetVisible(false)` or `QBMinimap.SetVisible(true)`. Tagged instances accept the
 `MinimapAlwaysShow`, `MinimapDisplayRadius`, `MinimapColor`, `MinimapSymbol`,
 `MinimapImage`, `MinimapSize`, `MinimapLabel`, and optional `MinimapId`
 attributes.
