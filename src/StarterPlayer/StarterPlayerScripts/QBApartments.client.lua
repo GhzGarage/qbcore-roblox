@@ -132,22 +132,29 @@ local function resize()
 end
 
 local function clearContent()
-	for _, child in ipairs(content:GetChildren()) do child:Destroy() end
+	for _, child in ipairs(content:GetChildren()) do
+		child:Destroy()
+	end
 	content.CanvasSize = UDim2.fromOffset(0, 0)
 end
 
 local function closePanel()
-	if busy then return end
+	if busy then
+		return
+	end
 	screen.Enabled = false
 	currentView, currentPayload = nil, nil
 end
 
 local function call(action, payload)
-	if busy then return false end
+	if busy then
+		return false
+	end
 	busy = true
 	status.TextColor3 = COLORS.muted
 	status.Text = "Working..."
-	local result = table.pack(pcall(Remotes.ApartmentAction.InvokeServer, Remotes.ApartmentAction, action, payload or {}))
+	local result =
+		table.pack(pcall(Remotes.ApartmentAction.InvokeServer, Remotes.ApartmentAction, action, payload or {}))
 	busy = false
 	if not result[1] or result[2] ~= true then
 		status.TextColor3 = COLORS.red
@@ -201,27 +208,59 @@ renderMenu = function(payload)
 		or "Choose a home here or ring an occupied apartment."
 	local y = sectionHeading("YOUR APARTMENT", 0)
 	if payload.ownsHere then
-		y = actionRow(payload.apartmentLabel or "My Apartment", "Enter your private unit.", "ENTER", y, COLORS.green, function()
-			local ok = call("enter", { buildingId = payload.buildingId })
-			if ok then closePanel() end
-		end)
+		y = actionRow(
+			payload.apartmentLabel or "My Apartment",
+			"Enter your private unit.",
+			"ENTER",
+			y,
+			COLORS.green,
+			function()
+				local ok = call("enter", { buildingId = payload.buildingId })
+				if ok then
+					closePanel()
+				end
+			end
+		)
 	else
 		local detail = payload.hasApartment and "Move your current apartment assignment to this building."
 			or "Claim an apartment in this building."
-		y = actionRow(payload.label or "Apartment", detail, payload.hasApartment and "MOVE HERE" or "CLAIM", y, COLORS.blue, function()
-			local ok, nextPayload = call("move_here", { buildingId = payload.buildingId })
-			if ok and type(nextPayload) == "table" then renderMenu(nextPayload) end
-		end)
+		y = actionRow(
+			payload.label or "Apartment",
+			detail,
+			payload.hasApartment and "MOVE HERE" or "CLAIM",
+			y,
+			COLORS.blue,
+			function()
+				local ok, nextPayload = call("move_here", { buildingId = payload.buildingId })
+				if ok and type(nextPayload) == "table" then
+					renderMenu(nextPayload)
+				end
+			end
+		)
 	end
 	y = sectionHeading("RING A DOORBELL", y + 4)
 	local occupants = type(payload.occupants) == "table" and payload.occupants or {}
 	for _, occupant in ipairs(occupants) do
-		y = actionRow(tostring(occupant.name or "Resident"), tostring(occupant.label or "Occupied apartment"), "RING", y, COLORS.soft, function()
-			call("ring", { buildingId = payload.buildingId, citizenId = occupant.citizenId })
-		end)
+		y = actionRow(
+			tostring(occupant.name or "Resident"),
+			tostring(occupant.label or "Occupied apartment"),
+			"RING",
+			y,
+			COLORS.soft,
+			function()
+				call("ring", { buildingId = payload.buildingId, citizenId = occupant.citizenId })
+			end
+		)
 	end
 	if #occupants == 0 then
-		local empty = label(content, "Empty", "No residents in this building are currently home.", 13, COLORS.muted, Enum.Font.GothamMedium)
+		local empty = label(
+			content,
+			"Empty",
+			"No residents in this building are currently home.",
+			13,
+			COLORS.muted,
+			Enum.Font.GothamMedium
+		)
 		empty.Position = UDim2.fromOffset(4, y + 8)
 		empty.Size = UDim2.new(1, -8, 0, 42)
 		y = y + 58
@@ -237,7 +276,9 @@ local function itemRows(items)
 			result[#result + 1] = item
 		end
 	end
-	table.sort(result, function(a, b) return a._slot < b._slot end)
+	table.sort(result, function(a, b)
+		return a._slot < b._slot
+	end)
 	return result
 end
 
@@ -245,7 +286,10 @@ renderStash = function(payload)
 	currentView, currentPayload = "stash", payload
 	clearContent()
 	title.Text = string.upper(tostring(payload.label or "APARTMENT STASH"))
-	subtitle.Text = ("Stored weight: %.1f / %.1f kg"):format((tonumber(payload.weight) or 0) / 1000, (tonumber(payload.maxWeight) or 0) / 1000)
+	subtitle.Text = ("Stored weight: %.1f / %.1f kg"):format(
+		(tonumber(payload.weight) or 0) / 1000,
+		(tonumber(payload.maxWeight) or 0) / 1000
+	)
 	local width = content.AbsoluteSize.X
 	local compact = width < 560
 	local columnWidth = compact and width - 8 or (width - 18) / 2
@@ -268,10 +312,18 @@ renderStash = function(payload)
 			row.Parent = frame
 			corner(row, 7)
 			stroke(row)
-			local itemLabel = label(row, "Label", tostring(item.label or item.name), 13, COLORS.text, Enum.Font.GothamBold)
+			local itemLabel =
+				label(row, "Label", tostring(item.label or item.name), 13, COLORS.text, Enum.Font.GothamBold)
 			itemLabel.Position = UDim2.fromOffset(10, 7)
 			itemLabel.Size = UDim2.new(1, -108, 0, 20)
-			local amount = label(row, "Amount", ("Amount: %d"):format(tonumber(item.amount) or 1), 11, COLORS.muted, Enum.Font.Gotham)
+			local amount = label(
+				row,
+				"Amount",
+				("Amount: %d"):format(tonumber(item.amount) or 1),
+				11,
+				COLORS.muted,
+				Enum.Font.Gotham
+			)
 			amount.Position = UDim2.fromOffset(10, 31)
 			amount.Size = UDim2.new(1, -108, 0, 18)
 			local actionButton = button(row, "Action", actionText, color)
@@ -280,7 +332,9 @@ renderStash = function(payload)
 			actionButton.Size = UDim2.fromOffset(84, 40)
 			actionButton.Activated:Connect(function()
 				local ok, nextPayload = call(actionName, { slot = item._slot, amount = 1 })
-				if ok and type(nextPayload) == "table" then renderStash(nextPayload) end
+				if ok and type(nextPayload) == "table" then
+					renderStash(nextPayload)
+				end
 			end)
 			y = y + 68
 		end
@@ -293,16 +347,21 @@ renderStash = function(payload)
 		frame.Size = UDim2.fromOffset(columnWidth, y)
 		return y
 	end
-	local inventoryHeight = makeColumn("Your Inventory", 0, itemRows(payload.inventory), "STORE 1", "stash_store", COLORS.blue)
+	local inventoryHeight =
+		makeColumn("Your Inventory", 0, itemRows(payload.inventory), "STORE 1", "stash_store", COLORS.blue)
 	local stashX = compact and 0 or columnWidth + 12
 	local stashY = compact and inventoryHeight + 16 or 0
 	if compact then
 		-- Reposition the second generated column after creation.
 	end
-	local stashHeight = makeColumn("Stored Items", stashX, itemRows(payload.stash), "TAKE 1", "stash_take", COLORS.green)
+	local stashHeight =
+		makeColumn("Stored Items", stashX, itemRows(payload.stash), "TAKE 1", "stash_take", COLORS.green)
 	local storedFrame = content:FindFirstChild("Stored Items")
-	if compact and storedFrame then storedFrame.Position = UDim2.fromOffset(0, stashY) end
-	content.CanvasSize = UDim2.fromOffset(0, compact and (stashY + stashHeight + 8) or (math.max(inventoryHeight, stashHeight) + 8))
+	if compact and storedFrame then
+		storedFrame.Position = UDim2.fromOffset(0, stashY)
+	end
+	content.CanvasSize =
+		UDim2.fromOffset(0, compact and (stashY + stashHeight + 8) or (math.max(inventoryHeight, stashHeight) + 8))
 end
 
 local function renderDoorbell(payload)
@@ -310,7 +369,14 @@ local function renderDoorbell(payload)
 	clearContent()
 	title.Text = "DOORBELL"
 	subtitle.Text = "Someone is waiting at the building entrance."
-	local message = label(content, "Message", tostring(payload.visitorName or "A visitor") .. " rang your apartment doorbell.", 17, COLORS.text, Enum.Font.GothamBold)
+	local message = label(
+		content,
+		"Message",
+		tostring(payload.visitorName or "A visitor") .. " rang your apartment doorbell.",
+		17,
+		COLORS.text,
+		Enum.Font.GothamBold
+	)
 	message.Position = UDim2.fromOffset(12, 24)
 	message.Size = UDim2.new(1, -24, 0, 70)
 	message.TextXAlignment = Enum.TextXAlignment.Center
@@ -322,11 +388,15 @@ local function renderDoorbell(payload)
 	decline.Size = UDim2.fromOffset(170, 48)
 	accept.Activated:Connect(function()
 		local ok = call("answer", { requestId = payload.requestId, accept = true })
-		if ok then closePanel() end
+		if ok then
+			closePanel()
+		end
 	end)
 	decline.Activated:Connect(function()
 		local ok = call("answer", { requestId = payload.requestId, accept = false })
-		if ok then closePanel() end
+		if ok then
+			closePanel()
+		end
 	end)
 	content.CanvasSize = UDim2.fromOffset(0, 190)
 end
@@ -338,10 +408,15 @@ local function open(view, payload)
 	resize()
 	screen.Enabled = true
 	payload = type(payload) == "table" and payload or {}
-	if view == "menu" then renderMenu(payload)
-	elseif view == "stash" then renderStash(payload)
-	elseif view == "doorbell" then renderDoorbell(payload)
-	else closePanel() end
+	if view == "menu" then
+		renderMenu(payload)
+	elseif view == "stash" then
+		renderStash(payload)
+	elseif view == "doorbell" then
+		renderDoorbell(payload)
+	else
+		closePanel()
+	end
 end
 
 close.Activated:Connect(closePanel)

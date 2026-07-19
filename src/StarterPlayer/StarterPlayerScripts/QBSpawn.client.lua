@@ -92,7 +92,14 @@ local title = label(panel, "Title", "CHOOSE YOUR SPAWN", 23, COLORS.text, Enum.F
 title.Position = UDim2.fromOffset(24, 20)
 title.Size = UDim2.new(1, -48, 0, 32)
 
-local subtitle = label(panel, "Subtitle", "Select where this character should enter the city.", 13, COLORS.muted, Enum.Font.GothamMedium)
+local subtitle = label(
+	panel,
+	"Subtitle",
+	"Select where this character should enter the city.",
+	13,
+	COLORS.muted,
+	Enum.Font.GothamMedium
+)
 subtitle.Position = UDim2.fromOffset(24, 54)
 subtitle.Size = UDim2.new(1, -48, 0, 38)
 
@@ -135,7 +142,9 @@ local previousCameraSubject
 
 local function restoreCamera()
 	local camera = workspace.CurrentCamera
-	if not camera then return end
+	if not camera then
+		return
+	end
 	camera.CameraType = previousCameraType or Enum.CameraType.Custom
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 	camera.CameraSubject = humanoid or previousCameraSubject
@@ -143,9 +152,12 @@ end
 
 local function preview(choice)
 	local position = choice and choice.position
-	local x, y, z = position and tonumber(position.x), position and tonumber(position.y), position and tonumber(position.z)
+	local x, y, z =
+		position and tonumber(position.x), position and tonumber(position.y), position and tonumber(position.z)
 	local camera = workspace.CurrentCamera
-	if not camera or not x or not y or not z then return end
+	if not camera or not x or not y or not z then
+		return
+	end
 	local focus = Vector3.new(x, y + 3, z)
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.CFrame = CFrame.lookAt(focus + Vector3.new(38, 30, 42), focus)
@@ -156,7 +168,9 @@ local function selectChoice(choice)
 	for id, card in pairs(cards) do
 		card.BackgroundColor3 = id == selectedId and Color3.fromRGB(31, 73, 93) or COLORS.soft
 		local border = card:FindFirstChildOfClass("UIStroke")
-		if border then border.Color = id == selectedId and COLORS.accent or COLORS.line end
+		if border then
+			border.Color = id == selectedId and COLORS.accent or COLORS.line
+		end
 	end
 	spawnButton.Text = choice.kind == "apartment" and "CLAIM APARTMENT" or "SPAWN HERE"
 	spawnButton.Active = true
@@ -167,7 +181,9 @@ end
 local function clearCards()
 	table.clear(cards)
 	for _, child in ipairs(list:GetChildren()) do
-		if child:IsA("GuiObject") then child:Destroy() end
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
 	end
 end
 
@@ -186,16 +202,28 @@ local function makeCard(choice, order)
 	local kindText = choice.kind == "apartment" and "STARTER APARTMENT"
 		or choice.kind == "owned_apartment" and "MY APARTMENT"
 		or "SPAWN LOCATION"
-	local kind = label(card, "Kind", kindText, 10, choice.kind == "apartment" and COLORS.green or COLORS.muted, Enum.Font.GothamBold)
+	local kind = label(
+		card,
+		"Kind",
+		kindText,
+		10,
+		choice.kind == "apartment" and COLORS.green or COLORS.muted,
+		Enum.Font.GothamBold
+	)
 	kind.Position = UDim2.fromOffset(14, 9)
 	kind.Size = UDim2.new(1, -28, 0, 14)
 	local name = label(card, "Label", tostring(choice.label or "Location"), 16, COLORS.text, Enum.Font.GothamBold)
 	name.Position = UDim2.fromOffset(14, 25)
 	name.Size = UDim2.new(1, -28, 0, 23)
-	local description = label(card, "Description", tostring(choice.description or ""), 12, COLORS.muted, Enum.Font.Gotham)
+	local description =
+		label(card, "Description", tostring(choice.description or ""), 12, COLORS.muted, Enum.Font.Gotham)
 	description.Position = UDim2.fromOffset(14, 50)
 	description.Size = UDim2.new(1, -28, 0, 24)
-	card.Activated:Connect(function() if not busy then selectChoice(choice) end end)
+	card.Activated:Connect(function()
+		if not busy then
+			selectChoice(choice)
+		end
+	end)
 	cards[choice.id] = card
 end
 
@@ -217,7 +245,9 @@ local function open(snapshot)
 	spawnButton.Active = false
 	spawnButton.AutoButtonColor = false
 	clearCards()
-	for index, choice in ipairs(currentChoices) do makeCard(choice, index) end
+	for index, choice in ipairs(currentChoices) do
+		makeCard(choice, index)
+	end
 	local camera = workspace.CurrentCamera
 	if camera then
 		previousCameraType = camera.CameraType
@@ -225,11 +255,15 @@ local function open(snapshot)
 	end
 	resize()
 	screen.Enabled = true
-	if currentChoices[1] then selectChoice(currentChoices[1]) end
+	if currentChoices[1] then
+		selectChoice(currentChoices[1])
+	end
 end
 
 spawnButton.Activated:Connect(function()
-	if busy or not selectedId then return end
+	if busy or not selectedId then
+		return
+	end
 	busy = true
 	spawnButton.Active = false
 	spawnButton.AutoButtonColor = false
