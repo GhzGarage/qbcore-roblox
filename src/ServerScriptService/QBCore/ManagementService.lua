@@ -26,7 +26,6 @@ local pendingStore = DataStoreService:GetDataStore("QBCore_ManagementPending")
 local FOLDER_NAME = "QBManagementLocations"
 local ACTION_COOLDOWN = 0.35
 
-local bankingService = nil
 local appearanceService = nil
 local started = false
 local lastActionAt = {}
@@ -337,10 +336,6 @@ local function buildSnapshot(player, playerObj, access, location)
 		end
 		return a.grade > b.grade
 	end)
-	local balance, balanceErr = bankingService.GetOrganizationFunds(access.type, access.organization)
-	if balance == nil then
-		return nil, balanceErr
-	end
 	return {
 		access = access,
 		location = { id = access.locationId, label = tostring(location.label or "Management") },
@@ -351,8 +346,6 @@ local function buildSnapshot(player, playerObj, access, location)
 			grade = gradeLevel(organization),
 			gradeName = tostring((organization.grade or {}).name or "Boss"),
 		},
-		balance = balance,
-		cash = math.floor(tonumber(playerObj:GetMoney("cash")) or 0),
 		grades = serializeGrades(access.type, access.organization, gradeLevel(organization)),
 		members = serialized,
 		nearby = nearbyPlayers(player, access.type, access.organization),
@@ -532,100 +525,10 @@ local function hireMember(player, playerObj, payload, access)
 	return true, ("Hired %s."):format(memberName(targetObj))
 end
 
-local function parseAmount(value)
-	local amount = tonumber(value)
-	local limit = math.max(1, math.floor(tonumber(config().MaxTransactionAmount) or 1000000))
-	if not amount or amount ~= amount or amount == math.huge or amount <= 0 then
-		return nil, "Enter a positive amount."
-	end
-	amount = math.floor(amount)
-	if amount <= 0 then
-		return nil, "Enter a positive whole-dollar amount."
-	end
-	if amount > limit then
-		return nil, ("Transactions are limited to $%d."):format(limit)
-	end
-	return amount
-end
-
-local function depositFunds(player, playerObj, payload, access)
-	local amount, err = parseAmount(payload.amount)
-	if not amount then
-		return false, err
-	end
-	if (tonumber(playerObj:GetMoney("cash")) or 0) < amount then
-		return false, "You do not have enough cash."
-	end
-	if not playerObj:RemoveMoney("cash", amount, "management-deposit") then
-		return false, "The cash could not be removed."
-	end
-	local ok, accountErr = bankingService.ChangeOrganizationFunds(access.type, access.organization, amount, {
-		kind = "deposit",
-		reason = "Management deposit",
-		counterparty = memberName(playerObj),
-		counterpartyCitizenId = findCitizenId(playerObj),
-	})
-	if not ok then
-		playerObj:AddMoney("cash", amount, "management-deposit-rollback")
-		return false, accountErr
-	end
-	if playerObj:Save() ~= true then
-		bankingService.ChangeOrganizationFunds(
-			access.type,
-			access.organization,
-			-amount,
-			{ kind = "refund", reason = "Management deposit reversed" }
-		)
-		playerObj:AddMoney("cash", amount, "management-deposit-save-rollback")
-		playerObj:Save()
-		return false, "Your profile could not be saved; the deposit was reversed."
-	end
-	return true, ("Deposited $%d."):format(amount)
-end
-
-local function withdrawFunds(player, playerObj, payload, access)
-	local amount, err = parseAmount(payload.amount)
-	if not amount then
-		return false, err
-	end
-	local ok, accountErr = bankingService.ChangeOrganizationFunds(access.type, access.organization, -amount, {
-		kind = "withdraw",
-		reason = "Management withdrawal",
-		counterparty = memberName(playerObj),
-		counterpartyCitizenId = findCitizenId(playerObj),
-	})
-	if not ok then
-		return false, accountErr
-	end
-	if not playerObj:AddMoney("cash", amount, "management-withdrawal") then
-		bankingService.ChangeOrganizationFunds(
-			access.type,
-			access.organization,
-			amount,
-			{ kind = "refund", reason = "Management withdrawal reversed" }
-		)
-		return false, "The cash withdrawal could not be completed."
-	end
-	if playerObj:Save() ~= true then
-		playerObj:RemoveMoney("cash", amount, "management-withdrawal-save-rollback")
-		bankingService.ChangeOrganizationFunds(
-			access.type,
-			access.organization,
-			amount,
-			{ kind = "refund", reason = "Management withdrawal reversed" }
-		)
-		playerObj:Save()
-		return false, "Your profile could not be saved; the withdrawal was reversed."
-	end
-	return true, ("Withdrew $%d."):format(amount)
-end
-
 local ACTIONS = {
 	set_grade = setGrade,
 	fire = fireMember,
 	hire = hireMember,
-	deposit = depositFunds,
-	withdraw = withdrawFunds,
 }
 
 local function createInteractions()
@@ -710,19 +613,14 @@ function ManagementService.OnCharacterLoaded(player, playerObj)
 	syncMembership(playerObj, citizenId)
 end
 
-function ManagementService.Start(service, appearance)
+function ManagementService.Start(appearance)
 	if started then
 		return
 	end
 	assert(
-		type(service) == "table" and type(service.GetOrganizationFunds) == "function",
-		"ManagementService requires BankingService"
-	)
-	assert(
 		type(appearance) == "table" and type(appearance.OpenEditor) == "function",
 		"ManagementService requires AppearanceService"
 	)
-	bankingService = service
 	appearanceService = appearance
 	started = true
 	Remotes.GetManagement.OnServerInvoke = function(player, requestedAccess)

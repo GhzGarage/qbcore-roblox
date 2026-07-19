@@ -29,7 +29,7 @@ it is still not a full QBCore ecosystem.
 - [x] Server-authoritative hunger/thirst status loop.
 - [x] Configurable job-grade paychecks with duty gating, optional banking-backed
       society debits, and a `/duty` toggle.
-- [x] Personal and boss-accessible society banking with bank/ATM proximity prompts,
+- [x] Personal, player-shared, and boss-accessible organization banking with bank/ATM proximity prompts,
       deposits/withdrawals, online or queued citizen-ID transfers, cards/PINs,
       daily ATM limits, and persistent statements.
 - [x] HUD for identity, job, cash/bank, health, armor, hunger, thirst, and
@@ -130,7 +130,7 @@ it is still not a full QBCore ecosystem.
 ### Jobs, Crews, And Gameplay Loops
 
 - [x] Add proximity-prompt job/crew management with indexed rosters, nearby
-      hiring, grade changes, removal, offline change queues, and shared funds.
+      hiring, grade changes, removal, and offline change queues; shared funds live in banking.
 - [ ] Turn the current job/crew registries into real gameplay systems with map
       duty prompts, blips, role permissions, and grade-specific actions.
 - [ ] Port or redesign core jobs:

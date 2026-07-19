@@ -509,8 +509,8 @@
     <div class="card"><h4>Persistence</h4><p>Money, banking statements, job, crew, charinfo, position, metadata, inventory items, and saved appearance survive across sessions.</p></div>
     <div class="card"><h4>Status &amp; Medical</h4><p>Server-side hunger/thirst decay, HUD bars, armor absorption, death screen with timed self-respawn, EMS revives.</p></div>
     <div class="card"><h4>Inventory &amp; Shops</h4><p>30-slot weight-based inventory, five-slot hotbar, two-pane external inventory UI, and proximity item shops with stock and quantity purchases.</p></div>
-    <div class="card"><h4>Banking</h4><p>Personal and society accounts, bank cards, PIN-gated ATMs, queued citizen-ID transfers, limits, and persistent statements.</p></div>
-    <div class="card"><h4>Management</h4><p>Standalone job/crew boss panel with indexed rosters, nearby hiring, grades, removal, offline queues, and shared funds.</p></div>
+    <div class="card"><h4>Banking</h4><p>Personal, player-shared, job, and crew accounts; bank cards; PIN-gated ATMs; queued citizen-ID transfers; limits; and persistent statements.</p></div>
+    <div class="card"><h4>Management</h4><p>Standalone job/crew boss panel with indexed rosters, nearby hiring, grades, removal, and offline queues.</p></div>
     <div class="card"><h4>Weapons</h4><p>Inventory-backed Roblox Tool equip flow on the endorsed Weapons Kit, with ammo item consumption and persisted loaded rounds.</p></div>
     <div class="card"><h4>World</h4><p>Server-authoritative day/night clock, synced weather presets with rain/snow/thunder, blackout, and client-side time-of-day grading.</p></div>
     <div class="card"><h4>Admin</h4><p>Graded permissions (user/mod/admin/god), a native admin panel, bans and whitelist DataStores, and slash commands.</p></div>
@@ -585,7 +585,7 @@
       ProfileStore.lua      <span class="c">-- simplified session-locked DataStore wrapper</span>
       PlayerService.lua     <span class="c">-- account, character, spawn, save, status loop</span>
       PaycheckService.lua   <span class="c">-- configurable job-grade paycheck loop</span>
-      BankingService.lua    <span class="c">-- personal/society banking, cards, ATMs, and queued transfers</span>
+      BankingService.lua    <span class="c">-- personal/shared/organization banking, cards, ATMs, and queued transfers</span>
       PlayerClass.lua       <span class="c">-- player money/job/crew/metadata methods</span>
       AdminService.lua      <span class="c">-- permission-checked admin menu context/actions</span>
       CommandService.lua    <span class="c">-- TextChatService command registry</span>
@@ -599,13 +599,13 @@
       VehicleService.lua    <span class="c">-- vehicle template spawn/delete helpers</span>
       VehicleShopService.lua <span class="c">-- showroom, purchases, ownership, finance, test drives</span>
       GarageService.lua      <span class="c">-- public storage/retrieval and persistent vehicle state</span>
-      ManagementService.lua  <span class="c">-- job/crew rosters, hiring, grades, shared funds</span>
+      ManagementService.lua  <span class="c">-- job/crew rosters, hiring, grades, offline queues</span>
       WeatherService.lua    <span class="c">-- synced weather cycling and blackout</span>
       StageMusicService.lua <span class="c">-- proximity speaker playback and audio search</span>
   <span class="f">StarterPlayer/StarterPlayerScripts/</span>
     QBCoreClient.client.lua <span class="c">-- character select/create/delete UI</span>
     QBAppearance.client.lua <span class="c">-- appearance/shop editor and outfit manager</span>
-    QBBanking.client.lua    <span class="c">-- personal/society account, ATM, and history UI</span>
+    QBBanking.client.lua    <span class="c">-- personal/shared/organization accounts, ATM, and history UI</span>
     QBVehicleShop.client.lua <span class="c">-- dealership catalog, owned vehicles, finance UI</span>
     QBGarage.client.lua      <span class="c">-- public garage list and storage UI</span>
     QBManagement.client.lua  <span class="c">-- standalone job/crew management UI</span>
@@ -694,30 +694,30 @@ Players.PlayerAdded
 
   <details class="svc">
     <summary><span class="badge b-server">server</span> BankingService.lua
-      <span class="sum-desc">Personal/society accounts, cards, ATMs, queued transfers, and statements.</span></summary>
+      <span class="sum-desc">Personal, player-shared, job, and crew accounts; cards; ATMs; queued transfers; and statements.</span></summary>
     <div class="svc-body">
       <p>Inspired by qb-banking and adapted to Roblox ProximityPrompts. Every request revalidates the exact bank or ATM location, account permission, card/PIN, and available funds on the server.</p>
       <ul class="api">
         <li><code>BankingService.Start()</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBBankingLocations</code> and binds banking remotes.</span></li>
-        <li><code>GetBanking(access)</code><span class="desc">Returns accessible personal/society accounts, ATM usage, limits, location, and newest-first statements.</span></li>
-        <li><code>BankingAction("deposit" | "withdraw" | "transfer" | "order_card", payload)</code><span class="desc">Validates proximity, account access, whole-dollar limits, funds, and ATM credentials.</span></li>
+        <li><code>GetBanking(access)</code><span class="desc">Returns accessible personal, player-shared, job, and crew accounts, ATM usage, limits, location, and newest-first statements.</span></li>
+        <li><code>BankingAction(action, payload)</code><span class="desc">Deposits, withdraws, transfers, issues cards, and performs owner-only shared-account creation, rename, close, and membership actions.</span></li>
         <li><code>WithdrawSocietyFunds(job, amount, playerObj)</code><span class="desc">Atomic provider used by optional society-backed paychecks.</span></li>
-        <li><code>GetOrganizationFunds(type, name)</code> Â· <code>ChangeOrganizationFunds(type, name, delta, statement)</code><span class="desc">Atomic job/crew shared-account API used by ManagementService.</span></li>
+        <li><code>GetOrganizationFunds(type, name)</code> Â· <code>ChangeOrganizationFunds(type, name, delta, statement)</code><span class="desc">Atomic job/crew account API for server-side integrations.</span></li>
         <li><code>DeliverPendingTransfers(player, playerObj)</code><span class="desc">Credits ready offline transfers once, saves their processed IDs, then clears the inbox.</span></li>
       </ul>
-      <p>Personal statements and ATM counters live under <code>PlayerData.banking</code>. Society accounts and transfer inboxes use dedicated DataStores; transfer IDs prevent duplicate delivery after a retry or crash.</p>
+      <p>Personal statements and ATM counters live under <code>PlayerData.banking</code>. Player-shared accounts, organization accounts, membership indexes, and transfer inboxes use dedicated DataStores; transfer IDs prevent duplicate delivery after a retry or crash.</p>
     </div>
   </details>
 
   <details class="svc">
     <summary><span class="badge b-server">server</span> ManagementService.lua
-      <span class="sum-desc">Job/crew rosters, nearby hiring, grades, removal, offline queues, shared funds.</span></summary>
+      <span class="sum-desc">Job/crew rosters, nearby hiring, grades, removal, and offline queues.</span></summary>
     <div class="svc-body">
       <p>Inspired by qb-management, with crew data replacing gang references and a standalone native GUI replacing qb-menu. Every request revalidates the prompt location, current organization, boss flag, grade ceiling, and target distance on the server.</p>
       <ul class="api">
-        <li><code>ManagementService.Start(BankingService, AppearanceService)</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBManagementLocations</code> and binds management and wardrobe remotes.</span></li>
-        <li><code>GetManagement(access)</code><span class="desc">Returns the authorized organization, grades, indexed online/offline roster, nearby candidates, cash, and shared balance.</span></li>
-        <li><code>ManagementAction("hire" | "set_grade" | "fire" | "deposit" | "withdraw", payload)</code><span class="desc">Performs the validated mutation and returns a refreshed snapshot.</span></li>
+        <li><code>ManagementService.Start(AppearanceService)</code><span class="desc">Creates invisible prompt anchors in <code>Workspace.QBManagementLocations</code> and binds management and wardrobe remotes.</span></li>
+        <li><code>GetManagement(access)</code><span class="desc">Returns the authorized organization, grades, indexed online/offline roster, and nearby candidates.</span></li>
+        <li><code>ManagementAction("hire" | "set_grade" | "fire", payload)</code><span class="desc">Performs the validated roster mutation and returns a refreshed snapshot.</span></li>
         <li><code>OnCharacterLoaded(player, playerObj)</code><span class="desc">Applies safe offline changes and synchronizes the character into job and crew roster indexes.</span></li>
       </ul>
       <p>Because account profiles are session locked, changes to offline or cross-server members are queued in a dedicated DataStore and applied on their next character load. Existing characters appear in indexed rosters after their first post-install load. The panel's Wardrobe shortcut opens the clothing-only saved-outfit manager after boss access is revalidated; shared stashes remain dependent on the future container system.</p>
@@ -1149,6 +1149,7 @@ Config.StatusDecay = {
     UseDailyWithdrawalLimit = <span class="k">true</span>,
     DailyWithdrawalLimit = <span class="n">5000</span>,
     Society = { Enabled = <span class="k">true</span>, DefaultBalance = <span class="n">0</span>, StartingBalances = {} },
+    SharedAccounts = { Enabled = <span class="k">true</span>, MaxOwned = <span class="n">2</span>, MaxMembers = <span class="n">10</span> },
     Locations = {
         { id = <span class="s">"test_bank"</span>, label = <span class="s">"QBCore Bank"</span>, position = Vector3.new(<span class="n">6.21</span>, <span class="n">3.45</span>, <span class="n">-1492.88</span>) },
     },
@@ -1301,8 +1302,8 @@ Config.Clothing = {
     <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td><code>OpenBank</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td>Open the native panel after a server-side ProximityPrompt trigger</td></tr>
-      <tr><td><code>GetBanking</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Proximity/PIN-checked personal and accessible society account snapshot</td></tr>
-      <tr><td><code>BankingAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Deposit, withdraw, transfer, or issue a bank card</td></tr>
+      <tr><td><code>GetBanking</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Proximity/PIN-checked personal, shared, job, and crew account snapshot</td></tr>
+      <tr><td><code>BankingAction</code></td><td><span class="badge b-func">function</span></td><td>C → S</td><td>Transactions, card issuance, and player-shared account management</td></tr>
     </tbody>
   </table></div>
 
@@ -1331,8 +1332,8 @@ Config.Clothing = {
     <thead><tr><th>Remote</th><th>Kind</th><th>Direction</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td><code>OpenManagement</code></td><td><span class="badge b-event">event</span></td><td>S â†’ C</td><td>Open the standalone boss/crew panel from a validated prompt</td></tr>
-      <tr><td><code>GetManagement</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Authorized organization, roster, grades, nearby candidates, and balance snapshot</td></tr>
-      <tr><td><code>ManagementAction</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Hire, grade, remove, deposit, or withdraw with server-side revalidation</td></tr>
+      <tr><td><code>GetManagement</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Authorized organization, roster, grades, and nearby candidates</td></tr>
+      <tr><td><code>ManagementAction</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Hire, grade, or remove with server-side revalidation</td></tr>
       <tr><td><code>OpenManagementWardrobe</code></td><td><span class="badge b-func">function</span></td><td>C â†’ S</td><td>Revalidate boss access and open the clothing-only outfit manager</td></tr>
     </tbody>
   </table></div>
@@ -1493,7 +1494,7 @@ ServerStorage
       <tr><td><code>ironclad_motor_co</code> — Ironclad Motor Co.</td><td>Motor club</td><td>Prospect → Patch → Road Captain → President (boss)</td></tr>
     </tbody>
   </table></div>
-  <p>Assign with <code>/setjob</code> / <code>/setcrew</code> or the admin panel. Boss grades can use the standalone management prompts to view indexed rosters, hire nearby players, change grades, remove members, and manage job or crew shared funds. The starter job and crew offices both use <code>Vector3.new(0, 0, 0)</code> and should be moved in <code>Config.Management.Locations</code>. Players can toggle duty with <code>/duty</code>; richer job actions and blips remain on the <a href="#roadmap">roadmap</a>.</p>
+  <p>Assign with <code>/setjob</code> / <code>/setcrew</code> or the admin panel. Boss grades can use the standalone management prompts to view indexed rosters, hire nearby players, change grades, and remove members. Job and crew funds are handled exclusively in banking. The starter job and crew offices both use <code>Vector3.new(0, 0, 0)</code> and should be moved in <code>Config.Management.Locations</code>. Players can toggle duty with <code>/duty</code>; richer job actions and blips remain on the <a href="#roadmap">roadmap</a>.</p>
 </section>
 
 <!-- ================= WEATHER ================= -->

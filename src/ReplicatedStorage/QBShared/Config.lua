@@ -317,6 +317,13 @@ Config.Banking = {
 		-- Optional per-job first-use balances, for example: police = 25000.
 		StartingBalances = {},
 	},
+	SharedAccounts = {
+		Enabled = true,
+		MaxOwned = 2,
+		MaxMembers = 10, -- additional members per account; the owner is not counted
+		MinNameLength = 3,
+		MaxNameLength = 32,
+	},
 	Locations = {
 		{
 			id = "test_bank",
@@ -408,7 +415,6 @@ Config.Management = {
 	PromptDistance = 10,
 	ActionDistance = 14,
 	HireDistance = 12,
-	MaxTransactionAmount = 1000000,
 	Locations = {
 		{
 			id = "job_management_1",

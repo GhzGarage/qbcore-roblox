@@ -4,7 +4,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 
 - Account profile loading with DataStore-backed session locking.
 - Character select, create, delete, and spawn.
-- Persistence for money, banking statements, society accounts, queued transfers, owned vehicles, job, crew, charinfo, position, and metadata.
+- Persistence for money, banking statements, player-shared and organization accounts, queued transfers, owned vehicles, job, crew, charinfo, position, and metadata.
 - Client-side QBCore player data cache.
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
 - Death screen with timer-based self-respawn.
@@ -20,8 +20,8 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Public garages with persistent storage state, condition values, and safe retrieval.
 - QBMenu-style client menu, emotes menu, and proximity stage music controls.
 - Synced Roblox-native weather with clouds/fog/rain/thunder/snow presets and blackout.
-- Proximity-prompt personal/society banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
-- Standalone job/crew management with rosters, nearby hiring, grades, removal, offline queues, and shared funds.
+- Proximity-prompt personal, player-shared, job, and crew banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
+- Standalone job/crew management with rosters, nearby hiring, grades, removal, and offline queues.
 - Inventory-opened StudOS smartphone with Roblox-filtered messaging, eligible voice calls, StudSpace social posts, and native captures.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
@@ -52,7 +52,7 @@ src/
       ProfileStore.lua     -- simplified session-locked DataStore wrapper
       PlayerService.lua    -- account, character, spawn, save, status loop
       PaycheckService.lua  -- configurable job-grade paycheck loop
-      BankingService.lua   -- personal/society banking, cards, ATMs, and transfer queue
+      BankingService.lua   -- personal/shared/organization banking, cards, ATMs, and transfer queue
       PlayerClass.lua      -- player money/job/crew/metadata methods
       AdminService.lua     -- permission-checked admin menu context/actions
       CommandService.lua   -- TextChatService command registry
@@ -66,14 +66,14 @@ src/
       VehicleService.lua   -- vehicle template spawn/delete helpers
       VehicleShopService.lua -- showroom, purchases, ownership, financing, test drives
       GarageService.lua    -- public garage deposit/retrieval and persistent state
-      ManagementService.lua -- job/crew rosters, hiring, grades, and shared funds
+      ManagementService.lua -- job/crew rosters, hiring, grades, and offline queues
       WeatherService.lua   -- synced weather cycling and tagged-light blackout
       StageMusicService.lua -- proximity speaker playback and Creator Store search
       PhoneService.lua    -- item access, private text channels, voice-call routing, and phone profile state
   StarterPlayer/StarterPlayerScripts/
     QBCoreClient.client.lua -- character select/create/delete UI
     QBAppearance.client.lua -- appearance/shop editor and outfit manager
-    QBBanking.client.lua    -- personal/society account, ATM, and history UI
+    QBBanking.client.lua    -- personal/shared/organization accounts, ATM, and history UI
     QBVehicleShop.client.lua -- dealership catalog, owned vehicles, and finance UI
     QBGarage.client.lua     -- public garage vehicle list and storage UI
     QBManagement.client.lua -- standalone job/crew boss management UI
@@ -276,6 +276,7 @@ Config.Banking.CardPrice = 50
 Config.Banking.UseDailyWithdrawalLimit = true
 Config.Banking.DailyWithdrawalLimit = 5000
 Config.Banking.Society = { Enabled = true, DefaultBalance = 0, StartingBalances = {} }
+Config.Banking.SharedAccounts = { Enabled = true, MaxOwned = 2, MaxMembers = 10 }
 Config.Banking.Locations = {
     { id = "test_bank", label = "QBCore Bank", position = Vector3.new(6.21, 3.45, -1492.88) },
 }
@@ -284,7 +285,10 @@ Config.Banking.ATMLocations = {
 }
 ```
 
-Boss grades can deposit, withdraw, and transfer from their job's society account.
+Players can open shared accounts, add or remove members by citizen ID, rename accounts
+they own, and close empty accounts. Boss grades can deposit, withdraw, and transfer
+from their job or crew organization account. All account money controls live in the
+banking UI; the management panel does not expose balances or transactions.
 Transfers use citizen IDs; online recipients are credited immediately, while
 offline recipients receive a durable, deduplicated transfer on their next login.
 Cards are issued from the bank UI and are required with their PIN at ATM prompts.
@@ -345,8 +349,8 @@ Config.Management.Locations = {
 
 Every request revalidates proximity, the current organization, and boss grade on
 the server. Bosses can view indexed online/offline rosters, hire nearby loaded
-characters, assign grades no higher than their own, remove members, and deposit or
-withdraw cash from job or crew shared accounts. Session-locked offline profiles are
+characters, assign grades no higher than their own, and remove members. Job and crew
+accounts are accessed exclusively through banking. Session-locked offline profiles are
 never edited unsafely: changes are queued and applied on that character's next load.
 Existing characters enter the roster index the first time they load after this
 system is installed. The Wardrobe shortcut opens the clothing-only saved-outfit

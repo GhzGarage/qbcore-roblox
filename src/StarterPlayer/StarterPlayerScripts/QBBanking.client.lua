@@ -56,6 +56,12 @@ local ACTIONS = {
 		button = "Issue card",
 		color = COLORS.green,
 	},
+	manage = {
+		title = "Shared accounts",
+		hint = "Open a player-shared account or manage one that you own.",
+		button = "Open shared account",
+		color = COLORS.green,
+	},
 }
 
 local snapshot = nil
@@ -65,6 +71,9 @@ local accessContext = { mode = "bank", locationId = "" }
 local isOpen = false
 local busy = false
 local refreshQueued = false
+local renderedManageAccountId = nil
+local submitIdleText = ACTIONS.deposit.button
+local deleteConfirmAccountId = nil
 
 local function addCorner(parent, radius)
 	local corner = Instance.new("UICorner")
@@ -321,22 +330,26 @@ local cashCaption = makeLabel(cashCard, "Caption", "Depositable funds", 11, COLO
 cashCaption.Position = UDim2.fromOffset(0, 71)
 cashCaption.Size = UDim2.new(1, 0, 0, 18)
 
-local accountSelector = Instance.new("Frame")
+local accountSelector = Instance.new("ScrollingFrame")
 accountSelector.Name = "AccountSelector"
 accountSelector.BackgroundTransparency = 1
+accountSelector.BorderSizePixel = 0
 accountSelector.Position = UDim2.fromOffset(0, 122)
 accountSelector.Size = UDim2.new(1, 0, 0, 34)
+accountSelector.AutomaticCanvasSize = Enum.AutomaticSize.X
+accountSelector.CanvasSize = UDim2.fromOffset(0, 0)
+accountSelector.ScrollingDirection = Enum.ScrollingDirection.X
+accountSelector.ScrollBarImageColor3 = COLORS.stroke
+accountSelector.ScrollBarThickness = 3
 accountSelector.Parent = leftColumn
 
-local checkingAccountButton = makeButton(accountSelector, "Checking", "Checking", COLORS.blueDark)
-checkingAccountButton.Size = UDim2.new(0.5, -4, 1, 0)
-checkingAccountButton.TextSize = 12
+local accountSelectorLayout = Instance.new("UIListLayout")
+accountSelectorLayout.FillDirection = Enum.FillDirection.Horizontal
+accountSelectorLayout.SortOrder = Enum.SortOrder.LayoutOrder
+accountSelectorLayout.Padding = UDim.new(0, 8)
+accountSelectorLayout.Parent = accountSelector
 
-local societyAccountButton = makeButton(accountSelector, "Society", "Society", COLORS.panelSoft)
-societyAccountButton.Position = UDim2.new(0.5, 4, 0, 0)
-societyAccountButton.Size = UDim2.new(0.5, -4, 1, 0)
-societyAccountButton.TextSize = 12
-societyAccountButton.Visible = false
+local accountButtons = {}
 
 local historyHeader = Instance.new("Frame")
 historyHeader.Name = "HistoryHeader"
@@ -388,15 +401,15 @@ tabLayout.Padding = UDim.new(0, 6)
 tabLayout.Parent = actionTabs
 
 local tabButtons = {}
-for order, actionName in ipairs({ "deposit", "withdraw", "transfer", "card" }) do
+for order, actionName in ipairs({ "deposit", "withdraw", "transfer", "card", "manage" }) do
 	local button = makeButton(
 		actionTabs,
 		"Tab_" .. actionName,
-		actionName:sub(1, 1):upper() .. actionName:sub(2),
+		actionName == "manage" and "Accounts" or (actionName:sub(1, 1):upper() .. actionName:sub(2)),
 		COLORS.panelSoft
 	)
 	button.LayoutOrder = order
-	button.Size = UDim2.new(1 / 4, -5, 1, 0)
+	button.Size = UDim2.new(1 / 5, -5, 1, 0)
 	button.TextSize = 12
 	tabButtons[actionName] = button
 end
@@ -436,6 +449,19 @@ reasonBox.Size = UDim2.new(1, 0, 0, 42)
 
 local submitButton = makeButton(rightColumn, "Submit", "Deposit funds", COLORS.green)
 submitButton.Size = UDim2.new(1, 0, 0, 44)
+
+local addMemberButton = makeButton(rightColumn, "AddMember", "Add member", COLORS.blueDark)
+addMemberButton.Size = UDim2.new(0.5, -4, 0, 40)
+addMemberButton.Visible = false
+
+local removeMemberButton = makeButton(rightColumn, "RemoveMember", "Remove member", COLORS.panelSoft)
+removeMemberButton.Position = UDim2.new(0.5, 4, 0, 0)
+removeMemberButton.Size = UDim2.new(0.5, -4, 0, 40)
+removeMemberButton.Visible = false
+
+local deleteAccountButton = makeButton(rightColumn, "DeleteAccount", "Close empty account", COLORS.red)
+deleteAccountButton.Size = UDim2.new(1, 0, 0, 40)
+deleteAccountButton.Visible = false
 
 local statusLabel = makeLabel(rightColumn, "Status", "", 12, COLORS.muted, Enum.Font.GothamMedium)
 statusLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -507,14 +533,20 @@ local function setBusy(nextBusy)
 		button.Active = not busy
 		button.AutoButtonColor = not busy
 	end
+	for _, button in ipairs(accountButtons) do
+		button.Active = not busy
+		button.AutoButtonColor = not busy
+	end
 	closeButton.Active = not busy
 	closeButton.AutoButtonColor = not busy
-	submitButton.Active = not busy
-	submitButton.AutoButtonColor = not busy
+	for _, button in ipairs({ submitButton, addMemberButton, removeMemberButton, deleteAccountButton }) do
+		button.Active = not busy
+		button.AutoButtonColor = not busy
+	end
 	amountBox.TextEditable = not busy
 	recipientBox.TextEditable = not busy
 	reasonBox.TextEditable = not busy
-	submitButton.Text = busy and "Processing..." or ACTIONS[currentAction].button
+	submitButton.Text = busy and "Processing..." or submitIdleText
 	submitButton.BackgroundColor3 = busy and COLORS.disabled or ACTIONS[currentAction].color
 end
 
@@ -563,6 +595,39 @@ end
 local function renderStatements()
 	clearStatements()
 	local account = selectedAccount()
+	if currentAction == "manage" and account.type == "shared" and account.isOwner == true then
+		local members = account.members or {}
+		historyTitle.Text = "Account members"
+		historyCount.Text = ("%d participant%s"):format(#members, #members == 1 and "" or "s")
+		for index, member in ipairs(members) do
+			local row = makeButton(
+				history,
+				"SharedMember_" .. tostring(member.citizenId or index),
+				("%s  |  %s%s"):format(
+					tostring(member.name or "Citizen"),
+					tostring(member.citizenId or "-"),
+					member.isOwner and "  |  OWNER" or ""
+				),
+				member.isOwner and COLORS.blueDark or COLORS.panelSoft
+			)
+			row.LayoutOrder = index
+			row.Size = UDim2.new(1, 0, 0, 46)
+			row.TextSize = 12
+			row.TextXAlignment = Enum.TextXAlignment.Left
+			row.TextTruncate = Enum.TextTruncate.AtEnd
+			addPadding(row, 12, 0, 12, 0)
+			row.Active = not member.isOwner
+			row.AutoButtonColor = row.Active
+			row.Activated:Connect(function()
+				if row.Active and not busy then
+					recipientBox.Text = tostring(member.citizenId or "")
+					setStatus("Member selected. Choose Remove member to revoke access.", COLORS.muted)
+				end
+			end)
+		end
+		return
+	end
+	historyTitle.Text = "Recent activity"
 	local statements = account.statements or (snapshot and snapshot.statements) or {}
 	historyCount.Text = ("%d statement%s"):format(#statements, #statements == 1 and "" or "s")
 
@@ -639,13 +704,23 @@ local function renderStatements()
 	end
 end
 
+local render
+
 local function renderBalances()
 	local account = selectedAccount()
 	checkingBalance.Text = formatMoney(account.balance)
 	cashBalance.Text = formatMoney((snapshot and snapshot.account and snapshot.account.cash) or account.cash)
 	cashCaption.Text = accessContext.mode == "atm" and "Deposit at a bank" or "Depositable funds"
 	checkingTitle.Text = string.upper(tostring(account.name or "Checking")) .. " BALANCE"
-	checkingCaption.Text = account.type == "society" and "Boss-managed job funds" or "Available immediately"
+	if account.type == "society" then
+		checkingCaption.Text = "Boss-managed job funds"
+	elseif account.type == "crew" then
+		checkingCaption.Text = "Boss-managed crew funds"
+	elseif account.type == "shared" then
+		checkingCaption.Text = account.isOwner and "Player-shared account | Owner" or "Player-shared account | Member"
+	else
+		checkingCaption.Text = "Available immediately"
+	end
 	local location = snapshot and snapshot.location or {}
 	titleLabel.Text = tostring(location.label or "Banking")
 	accountLabel.Text = ("%s  ·  %s"):format(
@@ -653,20 +728,47 @@ local function renderBalances()
 		account.type == "society" and ("Job " .. tostring(account.citizenId or "—"))
 			or ("Citizen ID " .. tostring(account.citizenId or "—"))
 	)
-	local societyAccount = nil
-	for _, candidate in ipairs(snapshot and snapshot.accounts or {}) do
-		if candidate.type == "society" then
-			societyAccount = candidate
-		end
+	if account.type == "crew" then
+		accountLabel.Text = ("%s | Crew %s"):format(tostring(account.holder or player.DisplayName), tostring(account.citizenId or "-"))
+	elseif account.type == "shared" then
+		accountLabel.Text = ("%s | Shared #%s"):format(
+			tostring(account.holder or player.DisplayName),
+			tostring(account.accountNumber or "-")
+		)
 	end
-	local allowSociety = societyAccount ~= nil and accessContext.mode == "bank"
-	societyAccountButton.Visible = allowSociety
-	checkingAccountButton.Size = allowSociety and UDim2.new(0.5, -4, 1, 0) or UDim2.new(1, 0, 1, 0)
-	if societyAccount then
-		societyAccountButton.Text = societyAccount.name
+	for _, button in ipairs(accountButtons) do
+		button:Destroy()
 	end
-	checkingAccountButton.BackgroundColor3 = selectedAccountId == "checking" and COLORS.blueDark or COLORS.panelSoft
-	societyAccountButton.BackgroundColor3 = selectedAccountId ~= "checking" and COLORS.blueDark or COLORS.panelSoft
+	table.clear(accountButtons)
+	local accounts = snapshot and snapshot.accounts or {}
+	for index, candidate in ipairs(accounts) do
+		local button = makeButton(
+			accountSelector,
+			"Account_" .. tostring(index),
+			tostring(candidate.name or "Account"),
+			candidate.id == selectedAccountId and COLORS.blueDark or COLORS.panelSoft
+		)
+		button.LayoutOrder = index
+		button.Size = #accounts == 2 and UDim2.new(0.5, -4, 1, -3) or UDim2.fromOffset(145, 31)
+		button.TextSize = 12
+		button.TextTruncate = Enum.TextTruncate.AtEnd
+		button.Activated:Connect(function()
+			if busy or not snapshot then
+				return
+			end
+			selectedAccountId = candidate.id
+			renderedManageAccountId = nil
+			deleteConfirmAccountId = nil
+			setStatus("")
+			render()
+		end)
+		table.insert(accountButtons, button)
+	end
+	local showSelector = #accounts > 1
+	accountSelector.Visible = showSelector
+	historyHeader.Position = UDim2.fromOffset(0, showSelector and 168 or 122)
+	history.Position = UDim2.fromOffset(0, showSelector and 204 or 158)
+	history.Size = UDim2.new(1, 0, 1, showSelector and -204 or -158)
 	local limits = snapshot and snapshot.limits or {}
 	if accessContext.mode == "atm" and limits.useDailyWithdrawalLimit then
 		limitLabel.Text = ("ATM today: %s / %s"):format(
@@ -679,35 +781,82 @@ local function renderBalances()
 end
 
 local function renderAction()
-	if accessContext.mode == "atm" and (currentAction == "deposit" or currentAction == "card") then
+	if accessContext.mode == "atm" and (currentAction == "deposit" or currentAction == "card" or currentAction == "manage") then
 		currentAction = "withdraw"
 	end
 	local info = ACTIONS[currentAction]
+	local account = selectedAccount()
 	actionTitle.Text = info.title
 	actionHint.Text = info.hint
+	submitIdleText = info.button
 	if currentAction == "card" and snapshot and snapshot.limits then
 		actionHint.Text = info.hint .. " Issuance fee: " .. formatMoney(snapshot.limits.cardPrice or 0) .. "."
+	elseif currentAction == "deposit" then
+		actionHint.Text = "Move cash on hand into " .. tostring(account.name or "this account") .. "."
+	elseif currentAction == "withdraw" then
+		actionHint.Text = "Move money from " .. tostring(account.name or "this account") .. " into cash on hand."
+	elseif currentAction == "transfer" then
+		actionHint.Text = "Send funds from " .. tostring(account.name or "this account") .. " by citizen ID."
 	end
 	for actionName, button in pairs(tabButtons) do
 		button.Visible = not (
-			accessContext.mode == "atm" and (actionName == "deposit" or actionName == "card")
+			accessContext.mode == "atm" and (actionName == "deposit" or actionName == "card" or actionName == "manage")
 		)
-		button.Size = accessContext.mode == "atm" and UDim2.new(1 / 2, -3, 1, 0) or UDim2.new(1 / 4, -5, 1, 0)
+		button.Size = accessContext.mode == "atm" and UDim2.new(1 / 2, -3, 1, 0) or UDim2.new(1 / 5, -5, 1, 0)
 		button.BackgroundColor3 = actionName == currentAction and COLORS.blueDark or COLORS.panelSoft
 		button.TextColor3 = actionName == currentAction and COLORS.text or COLORS.muted
 	end
 
 	local transfer = currentAction == "transfer"
 	local card = currentAction == "card"
+	local manage = currentAction == "manage"
+	local ownsShared = manage and account.type == "shared" and account.isOwner == true
+	addMemberButton.Visible = ownsShared
+	removeMemberButton.Visible = ownsShared
+	deleteAccountButton.Visible = ownsShared
 	amountLabel.Visible = not card
 	amountBox.Visible = not card
-	recipientLabel.Visible = transfer or card
-	recipientBox.Visible = transfer or card
-	reasonLabel.Visible = not card
-	reasonBox.Visible = not card
+	recipientLabel.Visible = transfer or card or manage
+	recipientBox.Visible = transfer or card or manage
+	reasonLabel.Visible = not card and not manage
+	reasonBox.Visible = not card and not manage
 	recipientLabel.Text = card and "4-DIGIT PIN" or "RECIPIENT CITIZEN ID"
 	recipientBox.PlaceholderText = card and "Choose a 4-digit PIN" or "Example: ABC12345"
-	if transfer then
+	amountLabel.Text = "AMOUNT"
+	amountBox.PlaceholderText = "Whole dollars"
+	if manage then
+		if renderedManageAccountId ~= account.id then
+			renderedManageAccountId = account.id
+			amountBox.Text = ownsShared and tostring(account.name or "") or ""
+			recipientBox.Text = ""
+		end
+		amountLabel.Text = ownsShared and "ACCOUNT NAME" or "NEW SHARED ACCOUNT NAME"
+		amountBox.PlaceholderText = ownsShared and "Shared account name" or "Example: Household"
+		recipientLabel.Text = ownsShared and "MEMBER CITIZEN ID" or "INITIAL DEPOSIT"
+		recipientBox.PlaceholderText = ownsShared and "Example: ABC12345" or "0"
+		if ownsShared then
+			local memberCount = #(account.members or {})
+			actionTitle.Text = "Manage " .. tostring(account.name or "shared account")
+			actionHint.Text = ("Owner controls | %d member%s | Shared #%s"):format(
+				memberCount,
+				memberCount == 1 and "" or "s",
+				tostring(account.accountNumber or "-")
+			)
+			submitIdleText = "Rename account"
+			addMemberButton.Position = UDim2.fromOffset(0, 276)
+			removeMemberButton.Position = UDim2.new(0.5, 4, 0, 276)
+			submitButton.Position = UDim2.fromOffset(0, 326)
+			deleteAccountButton.Position = UDim2.fromOffset(0, 380)
+			deleteAccountButton.Text = deleteConfirmAccountId == account.id and "Confirm close account" or "Close empty account"
+			statusLabel.Position = UDim2.fromOffset(0, 426)
+		else
+			local maximum = snapshot and snapshot.limits and snapshot.limits.maxSharedAccounts or 2
+			actionHint.Text = ("Open a player-shared account and invite members after creation. You may own up to %d."):format(maximum)
+			submitIdleText = "Open shared account"
+			submitButton.Position = UDim2.fromOffset(0, 276)
+			statusLabel.Position = UDim2.fromOffset(0, 323)
+		end
+	elseif transfer then
 		reasonLabel.Position = UDim2.fromOffset(0, 276)
 		reasonBox.Position = UDim2.fromOffset(0, 297)
 		submitButton.Position = UDim2.fromOffset(0, 351)
@@ -726,7 +875,7 @@ local function renderAction()
 	setBusy(busy)
 end
 
-local function render()
+render = function()
 	renderBalances()
 	renderStatements()
 	renderAction()
@@ -752,6 +901,7 @@ local function closeBank(force)
 	pinBox.Text = ""
 	pinGate.Visible = false
 	accessContext = { mode = "bank", locationId = "" }
+	deleteConfirmAccountId = nil
 	setStatus("")
 end
 
@@ -802,6 +952,8 @@ local function openBank(context)
 	updateResponsiveLayout()
 	currentAction = accessContext.mode == "atm" and "withdraw" or "deposit"
 	selectedAccountId = "checking"
+	renderedManageAccountId = nil
+	deleteConfirmAccountId = nil
 	amountBox.Text = ""
 	recipientBox.Text = ""
 	reasonBox.Text = ""
@@ -822,29 +974,6 @@ local function openBank(context)
 		end)
 	end
 end
-
-checkingAccountButton.Activated:Connect(function()
-	if busy or not snapshot then
-		return
-	end
-	selectedAccountId = "checking"
-	setStatus("")
-	render()
-end)
-
-societyAccountButton.Activated:Connect(function()
-	if busy or not snapshot then
-		return
-	end
-	for _, account in ipairs(snapshot.accounts or {}) do
-		if account.type == "society" then
-			selectedAccountId = account.id
-			break
-		end
-	end
-	setStatus("")
-	render()
-end)
 
 pinButton.Activated:Connect(function()
 	if busy or not isOpen or accessContext.mode ~= "atm" then
@@ -872,10 +1001,40 @@ for actionName, button in pairs(tabButtons) do
 		if busy then
 			return
 		end
+		if currentAction ~= selectedAction then
+			amountBox.Text = ""
+			recipientBox.Text = ""
+			reasonBox.Text = ""
+			renderedManageAccountId = nil
+		end
 		currentAction = selectedAction
 		setStatus("")
-		renderAction()
+		render()
 	end)
+end
+
+local function performBankingAction(serverAction, payload)
+	if busy or not isOpen then
+		return false
+	end
+	payload = type(payload) == "table" and payload or {}
+	payload.access = accessContext
+	setBusy(true)
+	setStatus("Processing transaction...", COLORS.muted)
+	local ok, result = callRemote(Remotes.BankingAction, serverAction, payload)
+	setBusy(false)
+	if ok ~= true then
+		setStatus(result or "The transaction was declined.", COLORS.red)
+		return false
+	end
+	snapshot = result.snapshot
+	amountBox.Text = ""
+	recipientBox.Text = ""
+	reasonBox.Text = ""
+	renderedManageAccountId = nil
+	setStatus(result.message or "Transaction complete.", COLORS.green)
+	render()
+	return true
 end
 
 submitButton.Activated:Connect(function()
@@ -887,7 +1046,22 @@ submitButton.Activated:Connect(function()
 		return
 	end
 	if currentAction ~= "card" and amountBox.Text == "" then
-		setStatus("Enter a transaction amount.", COLORS.red)
+		setStatus(currentAction == "manage" and "Enter an account name." or "Enter a transaction amount.", COLORS.red)
+		return
+	end
+	if currentAction == "manage" then
+		local account = selectedAccount()
+		if account.type == "shared" and account.isOwner == true then
+			performBankingAction("rename_shared", {
+				accountId = selectedAccountId,
+				name = amountBox.Text,
+			})
+		else
+			performBankingAction("create_shared", {
+				name = amountBox.Text,
+				amount = recipientBox.Text ~= "" and recipientBox.Text or "0",
+			})
+		end
 		return
 	end
 	if currentAction == "card" and not recipientBox.Text:match("^%d%d%d%d$") then
@@ -895,31 +1069,56 @@ submitButton.Activated:Connect(function()
 		return
 	end
 
-	setBusy(true)
-	setStatus("Processing transaction...", COLORS.muted)
 	local serverAction = currentAction == "card" and "order_card" or currentAction
-	local ok, result = callRemote(Remotes.BankingAction, serverAction, {
+	performBankingAction(serverAction, {
 		amount = amountBox.Text,
 		citizenId = recipientBox.Text,
 		reason = reasonBox.Text,
 		pin = recipientBox.Text,
 		accountId = selectedAccountId,
-		access = accessContext,
 	})
-	setBusy(false)
-	if ok ~= true then
-		setStatus(result or "The transaction was declined.", COLORS.red)
+end)
+
+addMemberButton.Activated:Connect(function()
+	if recipientBox.Text == "" then
+		setStatus("Enter the member's citizen ID.", COLORS.red)
 		return
 	end
+	performBankingAction("add_shared_member", {
+		accountId = selectedAccountId,
+		citizenId = recipientBox.Text,
+	})
+end)
 
-	snapshot = result.snapshot
-	amountBox.Text = ""
-	if currentAction == "transfer" or currentAction == "card" then
-		recipientBox.Text = ""
+removeMemberButton.Activated:Connect(function()
+	if recipientBox.Text == "" then
+		setStatus("Enter the member's citizen ID.", COLORS.red)
+		return
 	end
-	reasonBox.Text = ""
-	setStatus(result.message or "Transaction complete.", COLORS.green)
-	render()
+	performBankingAction("remove_shared_member", {
+		accountId = selectedAccountId,
+		citizenId = recipientBox.Text,
+	})
+end)
+
+deleteAccountButton.Activated:Connect(function()
+	if deleteConfirmAccountId ~= selectedAccountId then
+		deleteConfirmAccountId = selectedAccountId
+		deleteAccountButton.Text = "Confirm close account"
+		setStatus("Click again to permanently close this empty account.", COLORS.red)
+		local confirmingAccountId = selectedAccountId
+		task.delay(4, function()
+			if deleteConfirmAccountId == confirmingAccountId then
+				deleteConfirmAccountId = nil
+				if isOpen and currentAction == "manage" then
+					deleteAccountButton.Text = "Close empty account"
+				end
+			end
+		end)
+		return
+	end
+	deleteConfirmAccountId = nil
+	performBankingAction("delete_shared", { accountId = selectedAccountId })
 end)
 
 closeButton.Activated:Connect(closeBank)

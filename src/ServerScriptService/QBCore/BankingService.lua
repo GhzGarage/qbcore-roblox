@@ -23,6 +23,8 @@ local PlayerService = requireSiblingModule("PlayerService")
 local BankingService = {}
 
 local societyStore = DataStoreService:GetDataStore("QBCore_SocietyAccounts")
+local sharedAccountStore = DataStoreService:GetDataStore("QBCore_PlayerSharedAccounts")
+local sharedIndexStore = DataStoreService:GetDataStore("QBCore_PlayerSharedAccountIndex")
 local transferStore = DataStoreService:GetDataStore("QBCore_BankTransferInbox")
 local INTERACTION_FOLDER_NAME = "QBBankingLocations"
 local ACTION_COOLDOWN = 0.35
@@ -181,6 +183,10 @@ local function societyConfig()
 	return type(config().Society) == "table" and config().Society or {}
 end
 
+local function sharedConfig()
+	return type(config().SharedAccounts) == "table" and config().SharedAccounts or {}
+end
+
 local function validOrganization(organizationType, organizationName)
 	if type(organizationName) ~= "string" or organizationName == "" then
 		return false
@@ -291,15 +297,180 @@ local function getSocietyRecord(organizationName, organizationType)
 	return reconcileSociety(record, organizationName, organizationType)
 end
 
-local function bossJob(playerObj)
-	local job = playerObj and playerObj.PlayerData.job
-	local grade = type(job) == "table" and job.grade or nil
+local function sharedAccountKey(accountId)
+	return "Shared_" .. tostring(accountId)
+end
+
+local function sharedIndexKey(citizenId)
+	return "Citizen_" .. tostring(citizenId)
+end
+
+local function reconcileSharedRecord(record, accountId)
+	if type(record) ~= "table" or record.deleted == true then
+		return nil
+	end
+	record.id = tostring(record.id or accountId or "")
+	record.name = trim(record.name)
+	record.ownerCitizenId = tostring(record.ownerCitizenId or "")
+	record.ownerName = tostring(record.ownerName or ("Citizen " .. record.ownerCitizenId))
+	record.balance = math.max(0, math.floor(tonumber(record.balance) or 0))
+	record.nextStatementId = math.max(1, math.floor(tonumber(record.nextStatementId) or 1))
+	record.createdAt = math.floor(tonumber(record.createdAt) or os.time())
+	record.members = type(record.members) == "table" and record.members or {}
+	record.statements = type(record.statements) == "table" and record.statements or {}
+	return record.id ~= "" and record.ownerCitizenId ~= "" and record.name ~= "" and record or nil
+end
+
+local function getSharedRecord(accountId)
+	local record
+	local ok, err = pcall(function()
+		record = sharedAccountStore:GetAsync(sharedAccountKey(accountId))
+	end)
+	if not ok then
+		warn(("[QBCore.BankingService] Shared-account read failed for %s: %s"):format(accountId, tostring(err)))
+		return nil, "Shared accounts are temporarily unavailable."
+	end
+	return reconcileSharedRecord(record, accountId)
+end
+
+local function hasSharedAccess(record, citizenId)
+	return record
+		and citizenId ~= ""
+		and (record.ownerCitizenId == citizenId or record.members[citizenId] ~= nil)
+end
+
+local function updateSharedIndex(citizenId, accountId, present)
+	local ok, err = pcall(function()
+		sharedIndexStore:UpdateAsync(sharedIndexKey(citizenId), function(record)
+			record = type(record) == "table" and record or {}
+			record.accounts = type(record.accounts) == "table" and record.accounts or {}
+			record.accounts[accountId] = present and true or nil
+			record.updatedAt = os.time()
+			return record
+		end)
+	end)
+	if not ok then
+		warn(
+			("[QBCore.BankingService] Shared-account index update failed for %s/%s: %s"):format(
+				citizenId,
+				accountId,
+				tostring(err)
+			)
+		)
+	end
+	return ok
+end
+
+local function getSharedAccountsForCitizen(citizenId)
+	local index
+	local ok, err = pcall(function()
+		index = sharedIndexStore:GetAsync(sharedIndexKey(citizenId))
+	end)
+	if not ok then
+		warn(("[QBCore.BankingService] Shared-account index read failed for %s: %s"):format(citizenId, tostring(err)))
+		return {}, "Shared accounts are temporarily unavailable."
+	end
+	local accountIds = type(index) == "table" and type(index.accounts) == "table" and index.accounts or {}
+	local accounts, staleIds = {}, {}
+	for accountId, included in pairs(accountIds) do
+		if included == true then
+			local record, recordErr = getSharedRecord(tostring(accountId))
+			if record and hasSharedAccess(record, citizenId) then
+				table.insert(accounts, record)
+			elseif not recordErr then
+				table.insert(staleIds, tostring(accountId))
+			end
+		end
+	end
+	if #staleIds > 0 then
+		task.spawn(function()
+			for _, accountId in ipairs(staleIds) do
+				updateSharedIndex(citizenId, accountId, false)
+			end
+		end)
+	end
+	table.sort(accounts, function(a, b)
+		local aName, bName = string.lower(a.name), string.lower(b.name)
+		return aName == bName and a.id < b.id or aName < bName
+	end)
+	return accounts
+end
+
+local function mutateSharedAccount(accountId, citizenId, delta, statement)
+	delta = math.floor(tonumber(delta) or 0)
+	local outcome, refreshCitizenIds
+	local ok, err = pcall(function()
+		sharedAccountStore:UpdateAsync(sharedAccountKey(accountId), function(current)
+			local record = reconcileSharedRecord(current, accountId)
+			if not record then
+				outcome = { false, "That shared account no longer exists." }
+				return current
+			end
+			if not hasSharedAccess(record, citizenId) then
+				outcome = { false, "You do not have access to that shared account." }
+				return current
+			end
+			if delta < 0 and record.balance < -delta then
+				outcome = { false, "This account has insufficient funds.", record.balance }
+				return current
+			end
+			record.balance += delta
+			if statement then
+				local entry = {
+					id = record.nextStatementId,
+					time = os.time(),
+					account = "shared:" .. record.id,
+					kind = statement.kind or (delta >= 0 and "deposit" or "withdraw"),
+					amount = math.abs(delta),
+					reason = statement.reason or "Shared-account transaction",
+					balance = record.balance,
+					counterparty = statement.counterparty or "",
+					counterpartyCitizenId = statement.counterpartyCitizenId or citizenId,
+				}
+				record.nextStatementId += 1
+				table.insert(record.statements, 1, entry)
+				while #record.statements > maxStatements() do
+					table.remove(record.statements)
+				end
+			end
+			record.updatedAt = os.time()
+			refreshCitizenIds = { record.ownerCitizenId }
+			for memberCitizenId in pairs(record.members) do
+				table.insert(refreshCitizenIds, memberCitizenId)
+			end
+			outcome = { true, nil, record.balance }
+			return record
+		end)
+	end)
+	if not ok then
+		warn(("[QBCore.BankingService] Shared-account update failed for %s: %s"):format(accountId, tostring(err)))
+		return false, "The shared account is temporarily unavailable."
+	end
+	if outcome and outcome[1] == true then
+		for _, refreshCitizenId in ipairs(refreshCitizenIds or {}) do
+			if refreshCitizenId ~= citizenId then
+				local memberObj = PlayerService.GetPlayerByCitizenId(refreshCitizenId)
+				if memberObj then
+					memberObj:UpdateClient("banking", memberObj.PlayerData.banking)
+				end
+			end
+		end
+	end
+	return table.unpack(outcome or { false, "The shared account could not be updated." })
+end
+
+local function bossOrganization(playerObj, organizationType)
+	organizationType = organizationType == "crew" and "crew" or "job"
+	local organization = playerObj and playerObj.PlayerData[organizationType]
+	local grade = type(organization) == "table" and organization.grade or nil
 	if
-		type(job) == "table"
-		and validOrganization("job", job.name)
-		and (job.isboss == true or (type(grade) == "table" and grade.isboss == true))
+		type(organization) == "table"
+		and validOrganization(organizationType, organization.name)
+		and (organization.isboss == true or (type(grade) == "table" and grade.isboss == true))
 	then
-		return job.name, tostring(job.label or (QBShared.Jobs[job.name] and QBShared.Jobs[job.name].label) or job.name)
+		local registry = organizationType == "crew" and QBShared.Crews or QBShared.Jobs
+		return organization.name,
+			tostring(organization.label or (registry[organization.name] and registry[organization.name].label) or organization.name)
 	end
 	return nil
 end
@@ -309,11 +480,34 @@ local function getAccount(playerObj, accountId, access)
 		return { id = "checking", type = "checking" }
 	end
 	local jobName = accountId:match("^society:(.+)$")
-	local bossName = bossJob(playerObj)
-	if access.mode ~= "bank" or not jobName or bossName ~= jobName then
-		return nil, "You do not have access to that account."
+	if jobName then
+		local bossName = bossOrganization(playerObj, "job")
+		if bossName ~= jobName then
+			return nil, "You do not have access to that job account."
+		end
+		return { id = accountId, type = "society", organizationType = "job", organizationName = jobName }
 	end
-	return { id = accountId, type = "society", jobName = jobName }
+	local crewName = accountId:match("^crew:(.+)$")
+	if crewName then
+		local bossName = bossOrganization(playerObj, "crew")
+		if bossName ~= crewName then
+			return nil, "You do not have access to that crew account."
+		end
+		return { id = accountId, type = "crew", organizationType = "crew", organizationName = crewName }
+	end
+	local sharedId = accountId:match("^shared:([%w_%-]+)$")
+	if sharedId and sharedConfig().Enabled ~= false then
+		local citizenId = findCitizenId(playerObj)
+		local record, sharedErr = getSharedRecord(sharedId)
+		if not record then
+			return nil, sharedErr or "That shared account no longer exists."
+		end
+		if not hasSharedAccess(record, citizenId) then
+			return nil, "You do not have access to that shared account."
+		end
+		return { id = accountId, type = "shared", sharedId = sharedId, citizenId = citizenId }
+	end
+	return nil, "You do not have access to that account."
 end
 
 local function holderName(playerObj)
@@ -348,21 +542,60 @@ local function getSnapshot(playerObj, location, access)
 		statements = copyStatements(banking.statements),
 	}
 	local accounts = { personal }
-	if access.mode == "bank" and societyConfig().Enabled ~= false then
-		local jobName, label = bossJob(playerObj)
-		if jobName then
-			local society = getSocietyRecord(jobName)
-			if society then
-				table.insert(accounts, {
-					id = "society:" .. jobName,
-					name = label .. " Society",
-					type = "society",
-					holder = label,
-					citizenId = jobName,
-					balance = society.balance,
-					cash = personal.cash,
-					statements = copyStatements(society.statements),
+	if sharedConfig().Enabled ~= false then
+		local sharedAccounts = getSharedAccountsForCitizen(personal.citizenId)
+		for _, shared in ipairs(sharedAccounts) do
+			local members = {}
+			if shared.ownerCitizenId == personal.citizenId then
+				table.insert(members, {
+					citizenId = shared.ownerCitizenId,
+					name = shared.ownerName,
+					isOwner = true,
 				})
+				for citizenId, member in pairs(shared.members) do
+					table.insert(members, {
+						citizenId = citizenId,
+						name = tostring(type(member) == "table" and member.name or ("Citizen " .. citizenId)),
+						isOwner = false,
+					})
+				end
+				table.sort(members, function(a, b)
+					return a.isOwner or (not b.isOwner and string.lower(a.name) < string.lower(b.name))
+				end)
+			end
+			table.insert(accounts, {
+				id = "shared:" .. shared.id,
+				accountNumber = string.upper(shared.id:sub(1, 8)),
+				name = shared.name,
+				type = "shared",
+				holder = shared.ownerName,
+				citizenId = shared.ownerCitizenId,
+				ownerCitizenId = shared.ownerCitizenId,
+				isOwner = shared.ownerCitizenId == personal.citizenId,
+				members = members,
+				balance = shared.balance,
+				cash = personal.cash,
+				statements = copyStatements(shared.statements),
+			})
+		end
+	end
+	if societyConfig().Enabled ~= false then
+		for _, organizationType in ipairs({ "job", "crew" }) do
+			local organizationName, label = bossOrganization(playerObj, organizationType)
+			if organizationName then
+				local organization = getSocietyRecord(organizationName, organizationType)
+				if organization then
+					table.insert(accounts, {
+						id = (organizationType == "crew" and "crew:" or "society:") .. organizationName,
+						name = label .. (organizationType == "crew" and " Crew" or " Society"),
+						type = organizationType == "crew" and "crew" or "society",
+						holder = label,
+						citizenId = organizationName,
+						balance = organization.balance,
+						cash = personal.cash,
+						statements = copyStatements(organization.statements),
+					})
+				end
 			end
 		end
 	end
@@ -382,6 +615,8 @@ local function getSnapshot(playerObj, location, access)
 			dailyWithdrawalLimit = math.max(0, math.floor(tonumber(config().DailyWithdrawalLimit) or 5000)),
 			dailyWithdrawn = atm.withdrawn,
 			useDailyWithdrawalLimit = config().UseDailyWithdrawalLimit ~= false,
+			maxSharedAccounts = math.max(1, math.floor(tonumber(sharedConfig().MaxOwned) or 2)),
+			maxSharedMembers = math.max(1, math.floor(tonumber(sharedConfig().MaxMembers) or 10)),
 		},
 	}
 end
@@ -417,6 +652,24 @@ local function filterForUserId(text, sourcePlayer, targetUserId, fallback)
 		return fallback
 	end
 	local filteredOk, filtered = pcall(result.GetNonChatStringForUserAsync, result, tonumber(targetUserId))
+	return filteredOk and type(filtered) == "string" and filtered ~= "" and filtered:sub(1, 60) or fallback
+end
+
+local function filterForBroadcast(text, sourcePlayer, fallback)
+	if type(text) ~= "string" or not sourcePlayer or not sourcePlayer:IsA("Player") then
+		return fallback
+	end
+	local ok, result = pcall(
+		TextService.FilterStringAsync,
+		TextService,
+		text,
+		sourcePlayer.UserId,
+		Enum.TextFilterContext.PublicChat
+	)
+	if not ok or not result then
+		return fallback
+	end
+	local filteredOk, filtered = pcall(result.GetNonChatStringForBroadcastAsync, result)
 	return filteredOk and type(filtered) == "string" and filtered ~= "" and filtered:sub(1, 60) or fallback
 end
 
@@ -462,7 +715,10 @@ local function debitAccount(playerObj, account, amount, statement)
 		)
 		return true
 	end
-	return mutateSociety(account.jobName, -amount, statement)
+	if account.type == "shared" then
+		return mutateSharedAccount(account.sharedId, account.citizenId, -amount, statement)
+	end
+	return mutateSociety(account.organizationName, -amount, statement, account.organizationType)
 end
 
 local function creditAccount(playerObj, account, amount, statement)
@@ -480,14 +736,24 @@ local function creditAccount(playerObj, account, amount, statement)
 		)
 		return true
 	end
-	return mutateSociety(account.jobName, amount, statement)
+	if account.type == "shared" then
+		return mutateSharedAccount(account.sharedId, account.citizenId, amount, statement)
+	end
+	return mutateSociety(account.organizationName, amount, statement, account.organizationType)
 end
 
 local function rollbackDebit(playerObj, account, amount)
 	if account.type == "checking" then
 		playerObj:AddMoney("bank", amount, "bank-rollback")
+	elseif account.type == "shared" then
+		mutateSharedAccount(account.sharedId, account.citizenId, amount, { kind = "refund", reason = "Reversed transaction" })
 	else
-		mutateSociety(account.jobName, amount, { kind = "refund", reason = "Reversed transaction" })
+		mutateSociety(
+			account.organizationName,
+			amount,
+			{ kind = "refund", reason = "Reversed transaction" },
+			account.organizationType
+		)
 	end
 end
 
@@ -506,7 +772,9 @@ local function deposit(player, playerObj, payload, access)
 	if (tonumber(playerObj:GetMoney("cash")) or 0) < amount then
 		return false, "You do not have enough cash."
 	end
-	local reason = filterForUserId(cleanReason(payload.reason, "Cash deposit"), player, player.UserId, "Cash deposit")
+	local rawReason = cleanReason(payload.reason, "Cash deposit")
+	local reason = account.type == "checking" and filterForUserId(rawReason, player, player.UserId, "Cash deposit")
+		or filterForBroadcast(rawReason, player, "Cash deposit")
 	if not isActivePlayer(player, playerObj) then
 		return false, "Your banking session ended."
 	end
@@ -540,8 +808,9 @@ local function withdraw(player, playerObj, payload, access)
 				("ATM daily withdrawal limit: $%d ($%d remaining)."):format(limit, math.max(0, limit - atm.withdrawn))
 		end
 	end
-	local reason =
-		filterForUserId(cleanReason(payload.reason, "Cash withdrawal"), player, player.UserId, "Cash withdrawal")
+	local rawReason = cleanReason(payload.reason, "Cash withdrawal")
+	local reason = account.type == "checking" and filterForUserId(rawReason, player, player.UserId, "Cash withdrawal")
+		or filterForBroadcast(rawReason, player, "Cash withdrawal")
 	if not isActivePlayer(player, playerObj) then
 		return false, "Your banking session ended."
 	end
@@ -656,12 +925,15 @@ local function transfer(player, playerObj, payload, access)
 		end
 	end
 	local rawReason = cleanReason(payload.reason, "Citizen transfer")
-	local senderReason = filterForUserId(rawReason, player, player.UserId, "Citizen transfer")
+	local senderReason = account.type == "checking" and filterForUserId(rawReason, player, player.UserId, "Citizen transfer")
+		or filterForBroadcast(rawReason, player, "Citizen transfer")
 	local recipientReason = filterForUserId(rawReason, player, targetUserId, "Citizen transfer")
 	local senderName = filterForUserId(playerObj:GetName(), player, targetUserId, "Citizen " .. senderCitizenId)
 	local targetName = "Citizen " .. targetCitizenId
 	if targetPlayer and targetPlayer:IsA("Player") then
-		targetName = filterForUserId(targetObj:GetName(), targetPlayer, player.UserId, targetName)
+		targetName = account.type == "checking"
+			and filterForUserId(targetObj:GetName(), targetPlayer, player.UserId, targetName)
+			or filterForBroadcast(targetObj:GetName(), targetPlayer, targetName)
 	end
 	if not isActivePlayer(player, playerObj) then
 		return false, "Your banking session ended."
@@ -715,7 +987,7 @@ local function transfer(player, playerObj, payload, access)
 		return false, debitErr
 	end
 	-- A personal debit must be durably saved before the recipient can observe a
-	-- ready transfer. Society debits are already committed by UpdateAsync.
+	-- ready transfer. Shared and organization debits are already committed by UpdateAsync.
 	if account.type == "checking" and playerObj:Save() ~= true then
 		rollbackDebit(playerObj, account, amount)
 		addPersonalStatement(playerObj, "refund", amount, "Queued transfer reversed", targetName, targetCitizenId)
@@ -773,7 +1045,329 @@ local function orderCard(player, playerObj, payload, access)
 	return true, ("Card %s issued. Keep your PIN private."):format(cardNumber)
 end
 
-local ACTIONS = { deposit = deposit, withdraw = withdraw, transfer = transfer, order_card = orderCard }
+local function filterSharedAccountName(player, value)
+	local name = trim(value):gsub("[%c]", " "):gsub("%s+", " ")
+	local minimum = math.max(1, math.floor(tonumber(sharedConfig().MinNameLength) or 3))
+	local maximum = math.max(minimum, math.floor(tonumber(sharedConfig().MaxNameLength) or 32))
+	if #name < minimum or #name > maximum then
+		return nil, ("Account names must be %d-%d characters."):format(minimum, maximum)
+	end
+	local ok, filterResult = pcall(
+		TextService.FilterStringAsync,
+		TextService,
+		name,
+		player.UserId,
+		Enum.TextFilterContext.PublicChat
+	)
+	if not ok or not filterResult then
+		return nil, "The account name could not be filtered. Try another name."
+	end
+	local filteredOk, filtered = pcall(filterResult.GetNonChatStringForBroadcastAsync, filterResult)
+	if not filteredOk or trim(filtered) == "" then
+		return nil, "The account name could not be used. Try another name."
+	end
+	return trim(filtered):sub(1, maximum)
+end
+
+local function updateOwnedSharedRecord(accountId, citizenId, callback)
+	local outcome
+	local ok, err = pcall(function()
+		sharedAccountStore:UpdateAsync(sharedAccountKey(accountId), function(current)
+			local record = reconcileSharedRecord(current, accountId)
+			if not record then
+				outcome = { false, "That shared account no longer exists." }
+				return current
+			end
+			if record.ownerCitizenId ~= citizenId then
+				outcome = { false, "Only the account owner can manage this shared account." }
+				return current
+			end
+			local changed, message = callback(record)
+			outcome = { changed == true, message }
+			if changed then
+				record.updatedAt = os.time()
+			end
+			return record
+		end)
+	end)
+	if not ok then
+		warn(("[QBCore.BankingService] Shared-account management failed for %s: %s"):format(accountId, tostring(err)))
+		return false, "The shared account is temporarily unavailable."
+	end
+	return table.unpack(outcome or { false, "The shared account could not be updated." })
+end
+
+local function createSharedAccount(player, playerObj, payload, access)
+	if access.mode ~= "bank" then
+		return false, "Shared accounts can only be opened at a bank counter."
+	end
+	if sharedConfig().Enabled == false then
+		return false, "Shared accounts are disabled."
+	end
+	local name, nameErr = filterSharedAccountName(player, payload.name)
+	if not name then
+		return false, nameErr
+	end
+	local amount = tonumber(payload.amount)
+	local limit = math.max(1, math.floor(tonumber(config().MaxTransactionAmount) or 1000000))
+	if not amount or amount ~= amount or amount == math.huge or amount < 0 then
+		return false, "Enter a non-negative initial deposit."
+	end
+	amount = math.floor(amount)
+	if amount > limit then
+		return false, ("The initial deposit is limited to $%d."):format(limit)
+	end
+	local citizenId = findCitizenId(playerObj)
+	local existing, existingErr = getSharedAccountsForCitizen(citizenId)
+	if existingErr then
+		return false, existingErr
+	end
+	local owned = 0
+	for _, account in ipairs(existing) do
+		if account.ownerCitizenId == citizenId then
+			owned += 1
+		end
+	end
+	local maximum = math.max(1, math.floor(tonumber(sharedConfig().MaxOwned) or 2))
+	if owned >= maximum then
+		return false, ("You can own at most %d shared accounts."):format(maximum)
+	end
+	if (tonumber(playerObj:GetMoney("bank")) or 0) < amount then
+		return false, "Your checking account has insufficient funds."
+	end
+	if amount > 0 then
+		if not playerObj:RemoveMoney("bank", amount, "shared-account-open") then
+			return false, "The initial deposit could not be withdrawn."
+		end
+		addPersonalStatement(playerObj, "transfer_out", amount, "Initial deposit for " .. name, name, "")
+		playerObj:UpdateClient("banking", playerObj.PlayerData.banking)
+		if playerObj:Save() ~= true then
+			playerObj:AddMoney("bank", amount, "shared-account-open-rollback")
+			addPersonalStatement(playerObj, "refund", amount, "Shared-account opening reversed", name, "")
+			playerObj:Save()
+			return false, "Your checking account could not be saved; no shared account was opened."
+		end
+	end
+	local accountId = HttpService:GenerateGUID(false):gsub("%-", ""):lower()
+	local now = os.time()
+	local record = {
+		id = accountId,
+		name = name,
+		ownerCitizenId = citizenId,
+		ownerName = holderName(playerObj),
+		balance = amount,
+		members = {},
+		createdAt = now,
+		updatedAt = now,
+		nextStatementId = amount > 0 and 2 or 1,
+		statements = amount > 0 and {
+			{
+				id = 1,
+				time = now,
+				account = "shared:" .. accountId,
+				kind = "transfer_in",
+				amount = amount,
+				reason = "Initial deposit",
+				balance = amount,
+				counterparty = holderName(playerObj),
+				counterpartyCitizenId = citizenId,
+			},
+		} or {},
+	}
+	local created, createErr = pcall(function()
+		sharedAccountStore:SetAsync(sharedAccountKey(accountId), record)
+	end)
+	if created then
+		created = false
+		for _ = 1, 3 do
+			if updateSharedIndex(citizenId, accountId, true) then
+				created = true
+				break
+			end
+			task.wait(0.1)
+		end
+		if not created then
+			createErr = "owner membership index could not be updated"
+		end
+	end
+	if not created then
+		local discarded = pcall(function()
+			sharedAccountStore:UpdateAsync(sharedAccountKey(accountId), function(current)
+				current = type(current) == "table" and current or record
+				current.deleted = true
+				current.balance = 0
+				return current
+			end)
+		end)
+		if discarded and amount > 0 then
+			playerObj:AddMoney("bank", amount, "shared-account-open-rollback")
+			addPersonalStatement(playerObj, "refund", amount, "Shared-account opening reversed", name, "")
+			playerObj:UpdateClient("banking", playerObj.PlayerData.banking)
+			playerObj:Save()
+		end
+		warn(("[QBCore.BankingService] Shared-account creation failed for %s: %s"):format(citizenId, tostring(createErr)))
+		return false,
+			discarded and "The shared account could not be opened; the initial deposit was returned."
+				or "The shared account was funded but its access index could not be saved. Contact an administrator."
+	end
+	return true, ("Shared account %s opened."):format(name)
+end
+
+local function renameSharedAccount(player, playerObj, payload, access)
+	if access.mode ~= "bank" then
+		return false, "Shared accounts can only be managed at a bank counter."
+	end
+	local name, nameErr = filterSharedAccountName(player, payload.name)
+	if not name then
+		return false, nameErr
+	end
+	local accountId = tostring(payload.accountId or ""):match("^shared:([%w_%-]+)$")
+	if not accountId then
+		return false, "Select a shared account that you own."
+	end
+	local ok, message = updateOwnedSharedRecord(accountId, findCitizenId(playerObj), function(record)
+		record.name = name
+		return true, ("Account renamed to %s."):format(name)
+	end)
+	if ok then
+		local record = getSharedRecord(accountId)
+		for citizenId in pairs(record and record.members or {}) do
+			local memberObj = PlayerService.GetPlayerByCitizenId(citizenId)
+			if memberObj then
+				memberObj:UpdateClient("banking", memberObj.PlayerData.banking)
+			end
+		end
+	end
+	return ok, message
+end
+
+local function deleteSharedAccount(_, playerObj, payload, access)
+	if access.mode ~= "bank" then
+		return false, "Shared accounts can only be managed at a bank counter."
+	end
+	local accountId = tostring(payload.accountId or ""):match("^shared:([%w_%-]+)$")
+	if not accountId then
+		return false, "Select a shared account that you own."
+	end
+	local removedMembers = {}
+	local ok, message = updateOwnedSharedRecord(accountId, findCitizenId(playerObj), function(record)
+		if record.balance > 0 then
+			return false, "Withdraw or transfer the full balance before closing this account."
+		end
+		table.insert(removedMembers, record.ownerCitizenId)
+		for citizenId in pairs(record.members) do
+			table.insert(removedMembers, citizenId)
+		end
+		record.deleted = true
+		return true, "Shared account closed."
+	end)
+	if not ok then
+		return false, message
+	end
+	for _, citizenId in ipairs(removedMembers) do
+		updateSharedIndex(citizenId, accountId, false)
+		local memberObj = PlayerService.GetPlayerByCitizenId(citizenId)
+		if memberObj and memberObj ~= playerObj then
+			memberObj:UpdateClient("banking", memberObj.PlayerData.banking)
+			memberObj:Notify("A shared bank account you used was closed.", "primary", 6000)
+		end
+	end
+	return true, message
+end
+
+local function addSharedMember(_, playerObj, payload, access)
+	if access.mode ~= "bank" then
+		return false, "Shared accounts can only be managed at a bank counter."
+	end
+	local ownerCitizenId = findCitizenId(playerObj)
+	local memberCitizenId = string.upper(trim(payload.citizenId))
+	if not memberCitizenId:match("^%u%u%u%d%d%d%d%d$") then
+		return false, "Enter a valid member citizen ID (for example, ABC12345)."
+	end
+	if memberCitizenId == ownerCitizenId then
+		return false, "The owner already has access to this account."
+	end
+	if not PlayerService.GetAccountUserIdByCitizenId(memberCitizenId) then
+		return false, "That citizen account does not exist."
+	end
+	local accountId = tostring(payload.accountId or ""):match("^shared:([%w_%-]+)$")
+	if not accountId then
+		return false, "Select a shared account that you own."
+	end
+	local targetObj = PlayerService.GetPlayerByCitizenId(memberCitizenId)
+	local memberDisplayName = targetObj and targetObj:GetName() or ("Citizen " .. memberCitizenId)
+	local ok, message = updateOwnedSharedRecord(accountId, ownerCitizenId, function(record)
+		if record.members[memberCitizenId] ~= nil then
+			return false, "That citizen already has access."
+		end
+		local count = 0
+		for _ in pairs(record.members) do
+			count += 1
+		end
+		local maximum = math.max(1, math.floor(tonumber(sharedConfig().MaxMembers) or 10))
+		if count >= maximum then
+			return false, ("This account can have at most %d additional members."):format(maximum)
+		end
+		record.members[memberCitizenId] = { name = memberDisplayName, addedAt = os.time() }
+		return true, ("Added %s to the shared account."):format(memberDisplayName)
+	end)
+	if not ok then
+		return false, message
+	end
+	if not updateSharedIndex(memberCitizenId, accountId, true) then
+		updateOwnedSharedRecord(accountId, ownerCitizenId, function(record)
+			record.members[memberCitizenId] = nil
+			return true, "Membership rollback completed."
+		end)
+		return false, "The member could not be added right now."
+	end
+	if targetObj then
+		targetObj:UpdateClient("banking", targetObj.PlayerData.banking)
+		targetObj:Notify("You were added to a shared bank account.", "success", 6000)
+	end
+	return true, message
+end
+
+local function removeSharedMember(_, playerObj, payload, access)
+	if access.mode ~= "bank" then
+		return false, "Shared accounts can only be managed at a bank counter."
+	end
+	local ownerCitizenId = findCitizenId(playerObj)
+	local memberCitizenId = string.upper(trim(payload.citizenId))
+	local accountId = tostring(payload.accountId or ""):match("^shared:([%w_%-]+)$")
+	if not accountId or memberCitizenId == "" then
+		return false, "Select an owned shared account and enter a member citizen ID."
+	end
+	local ok, message = updateOwnedSharedRecord(accountId, ownerCitizenId, function(record)
+		if record.members[memberCitizenId] == nil then
+			return false, "That citizen is not a member of this account."
+		end
+		record.members[memberCitizenId] = nil
+		return true, ("Removed %s from the shared account."):format(memberCitizenId)
+	end)
+	if not ok then
+		return false, message
+	end
+	updateSharedIndex(memberCitizenId, accountId, false)
+	local targetObj = PlayerService.GetPlayerByCitizenId(memberCitizenId)
+	if targetObj then
+		targetObj:UpdateClient("banking", targetObj.PlayerData.banking)
+		targetObj:Notify("Your access to a shared bank account was removed.", "primary", 6000)
+	end
+	return true, message
+end
+
+local ACTIONS = {
+	deposit = deposit,
+	withdraw = withdraw,
+	transfer = transfer,
+	order_card = orderCard,
+	create_shared = createSharedAccount,
+	rename_shared = renameSharedAccount,
+	delete_shared = deleteSharedAccount,
+	add_shared_member = addSharedMember,
+	remove_shared_member = removeSharedMember,
+}
 
 local function createInteraction(location, index, folder, mode)
 	local position = locationPosition(location)
@@ -863,8 +1457,8 @@ function BankingService.AddSocietyFunds(jobName, amount, reason)
 	)
 end
 
--- Shared account API used by the management service. Job keys intentionally retain
--- the original Society_<job> storage format; crew accounts use Crew_<crew> keys.
+-- Organization-account API for paycheck and other server-side integrations. Job keys
+-- intentionally retain the original Society_<job> format; crew accounts use Crew_<crew> keys.
 function BankingService.GetOrganizationFunds(organizationType, organizationName)
 	if not validOrganization(organizationType, organizationName) then
 		return nil, "Unknown organization account."

@@ -1,5 +1,5 @@
 -- Standalone native management panel for jobs and crews. Authorization, proximity,
--- membership changes, nearby-player validation, and money changes stay on the server.
+-- membership changes and nearby-player validation stay on the server.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -16,7 +16,6 @@ local COLORS = {
 	shell = Color3.fromRGB(25, 31, 39),
 	panel = Color3.fromRGB(32, 39, 49),
 	panelSoft = Color3.fromRGB(38, 46, 58),
-	input = Color3.fromRGB(19, 24, 31),
 	stroke = Color3.fromRGB(73, 87, 104),
 	strokeSoft = Color3.fromRGB(57, 69, 84),
 	text = Color3.fromRGB(240, 244, 248),
@@ -50,15 +49,6 @@ local function addStroke(parent, color, transparency, thickness)
 	stroke.Parent = parent
 end
 
-local function addPadding(parent, left, top, right, bottom)
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, left or 0)
-	padding.PaddingTop = UDim.new(0, top or 0)
-	padding.PaddingRight = UDim.new(0, right or left or 0)
-	padding.PaddingBottom = UDim.new(0, bottom or top or 0)
-	padding.Parent = parent
-end
-
 local function makeLabel(parent, name, text, size, color, font)
 	local label = Instance.new("TextLabel")
 	label.Name = name
@@ -88,38 +78,6 @@ local function makeButton(parent, name, text, color)
 	button.Parent = parent
 	addCorner(button, 7)
 	return button
-end
-
-local function makeTextBox(parent, name, placeholder)
-	local box = Instance.new("TextBox")
-	box.Name = name
-	box.BackgroundColor3 = COLORS.input
-	box.BorderSizePixel = 0
-	box.ClearTextOnFocus = false
-	box.Font = Enum.Font.Gotham
-	box.PlaceholderColor3 = COLORS.muted
-	box.PlaceholderText = placeholder or ""
-	box.Text = ""
-	box.TextColor3 = COLORS.text
-	box.TextSize = 14
-	box.TextXAlignment = Enum.TextXAlignment.Left
-	box.Parent = parent
-	addCorner(box, 7)
-	addStroke(box, COLORS.strokeSoft, 0.15, 1)
-	addPadding(box, 12, 0, 12, 0)
-	return box
-end
-
-local function formatMoney(value)
-	local formatted = tostring(math.floor(tonumber(value) or 0))
-	while true do
-		local nextFormatted, replacements = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
-		formatted = nextFormatted
-		if replacements == 0 then
-			break
-		end
-	end
-	return "$" .. formatted
 end
 
 local function callRemote(remote, ...)
@@ -173,23 +131,13 @@ titleLabel.Size = UDim2.new(0.62, 0, 0, 31)
 local subtitleLabel = makeLabel(
 	header,
 	"Subtitle",
-	"Employees, grades, recruitment, and shared funds.",
+	"Employees, grades, recruitment, and appearance.",
 	12,
 	COLORS.muted,
 	Enum.Font.GothamMedium
 )
 subtitleLabel.Position = UDim2.fromOffset(0, 47)
 subtitleLabel.Size = UDim2.new(0.7, 0, 0, 18)
-local balanceLabel = makeLabel(header, "Balance", "$0", 22, COLORS.green, Enum.Font.GothamBold)
-balanceLabel.AnchorPoint = Vector2.new(1, 0)
-balanceLabel.Position = UDim2.new(1, -56, 0, 13)
-balanceLabel.Size = UDim2.fromOffset(180, 28)
-balanceLabel.TextXAlignment = Enum.TextXAlignment.Right
-local balanceCaption = makeLabel(header, "BalanceCaption", "SHARED BALANCE", 10, COLORS.muted, Enum.Font.GothamBold)
-balanceCaption.AnchorPoint = Vector2.new(1, 0)
-balanceCaption.Position = UDim2.new(1, -56, 0, 42)
-balanceCaption.Size = UDim2.fromOffset(180, 15)
-balanceCaption.TextXAlignment = Enum.TextXAlignment.Right
 local closeButton = makeButton(header, "Close", "X", COLORS.panelSoft)
 closeButton.AnchorPoint = Vector2.new(1, 0)
 closeButton.Position = UDim2.new(1, 0, 0, 2)
@@ -217,8 +165,6 @@ local membersTab = makeButton(tabs, "Members", "Members", COLORS.blueDark)
 membersTab.Size = UDim2.fromOffset(130, 38)
 local hireTab = makeButton(tabs, "Hire", "Nearby Hiring", COLORS.panelSoft)
 hireTab.Size = UDim2.fromOffset(150, 38)
-local fundsTab = makeButton(tabs, "Funds", "Shared Funds", COLORS.panelSoft)
-fundsTab.Size = UDim2.fromOffset(140, 38)
 local wardrobeButton = makeButton(tabs, "Wardrobe", "Appearance", COLORS.panelSoft)
 wardrobeButton.Size = UDim2.fromOffset(130, 38)
 local refreshButton = makeButton(tabs, "Refresh", "Refresh", COLORS.panelSoft)
@@ -247,7 +193,6 @@ end
 
 local membersPage = makePage("MembersPage")
 local hirePage = makePage("HirePage")
-local fundsPage = makePage("FundsPage")
 
 local memberListPanel = Instance.new("Frame")
 memberListPanel.BackgroundColor3 = COLORS.panel
@@ -346,46 +291,6 @@ local hireLayout = Instance.new("UIListLayout")
 hireLayout.Padding = UDim.new(0, 8)
 hireLayout.Parent = hireList
 
-local fundsPanel = Instance.new("Frame")
-fundsPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-fundsPanel.BackgroundColor3 = COLORS.panel
-fundsPanel.BorderSizePixel = 0
-fundsPanel.Position = UDim2.fromScale(0.5, 0.47)
-fundsPanel.Size = UDim2.fromOffset(520, 330)
-fundsPanel.Parent = fundsPage
-addCorner(fundsPanel, 9)
-addStroke(fundsPanel, COLORS.strokeSoft, 0.2, 1)
-local fundsHeading =
-	makeLabel(fundsPanel, "Heading", "SHARED ORGANIZATION ACCOUNT", 11, COLORS.muted, Enum.Font.GothamBold)
-fundsHeading.Position = UDim2.fromOffset(24, 22)
-fundsHeading.Size = UDim2.new(1, -48, 0, 18)
-local fundsBalance = makeLabel(fundsPanel, "Balance", "$0", 34, COLORS.green, Enum.Font.GothamBold)
-fundsBalance.Position = UDim2.fromOffset(24, 48)
-fundsBalance.Size = UDim2.new(1, -48, 0, 44)
-local cashLabel = makeLabel(fundsPanel, "Cash", "Your cash: $0", 13, COLORS.muted, Enum.Font.GothamMedium)
-cashLabel.Position = UDim2.fromOffset(24, 93)
-cashLabel.Size = UDim2.new(1, -48, 0, 22)
-local amountBox = makeTextBox(fundsPanel, "Amount", "Whole-dollar amount")
-amountBox.Position = UDim2.fromOffset(24, 139)
-amountBox.Size = UDim2.new(1, -48, 0, 44)
-local depositButton = makeButton(fundsPanel, "Deposit", "Deposit Cash", COLORS.green)
-depositButton.Position = UDim2.fromOffset(24, 199)
-depositButton.Size = UDim2.new(0.5, -30, 0, 44)
-local withdrawButton = makeButton(fundsPanel, "Withdraw", "Withdraw Cash", COLORS.blueDark)
-withdrawButton.Position = UDim2.new(0.5, 6, 0, 199)
-withdrawButton.Size = UDim2.new(0.5, -30, 0, 44)
-local fundsHint = makeLabel(
-	fundsPanel,
-	"Hint",
-	"All transactions are recorded by the banking service.",
-	11,
-	COLORS.muted,
-	Enum.Font.GothamMedium
-)
-fundsHint.Position = UDim2.fromOffset(24, 264)
-fundsHint.Size = UDim2.new(1, -48, 0, 20)
-fundsHint.TextXAlignment = Enum.TextXAlignment.Center
-
 local renderAll
 
 local function setStatus(message, color)
@@ -441,10 +346,8 @@ end
 local function renderTabs()
 	membersPage.Visible = activeTab == "members"
 	hirePage.Visible = activeTab == "hire"
-	fundsPage.Visible = activeTab == "funds"
 	membersTab.BackgroundColor3 = activeTab == "members" and COLORS.blueDark or COLORS.panelSoft
 	hireTab.BackgroundColor3 = activeTab == "hire" and COLORS.blueDark or COLORS.panelSoft
-	fundsTab.BackgroundColor3 = activeTab == "funds" and COLORS.blueDark or COLORS.panelSoft
 end
 
 local function renderMembers()
@@ -573,11 +476,6 @@ local function renderHiring()
 	end
 end
 
-local function renderFunds()
-	fundsBalance.Text = formatMoney(snapshot and snapshot.balance)
-	cashLabel.Text = "Your cash: " .. formatMoney(snapshot and snapshot.cash)
-end
-
 renderAll = function()
 	if not snapshot then
 		return
@@ -587,11 +485,9 @@ renderAll = function()
 		snapshot.organization.type == "crew" and "Crew" or "Job",
 		snapshot.organization.gradeName
 	)
-	balanceLabel.Text = formatMoney(snapshot.balance)
 	renderTabs()
 	renderMembers()
 	renderHiring()
-	renderFunds()
 end
 
 local function fetchSnapshot(showLoading)
@@ -644,10 +540,6 @@ hireTab.Activated:Connect(function()
 	activeTab = "hire"
 	renderAll()
 end)
-fundsTab.Activated:Connect(function()
-	activeTab = "funds"
-	renderAll()
-end)
 wardrobeButton.Activated:Connect(function()
 	if busy then
 		return
@@ -671,12 +563,6 @@ fireButton.Activated:Connect(function()
 	if member and not member.isSelf then
 		performAction("fire", { citizenId = member.citizenId })
 	end
-end)
-depositButton.Activated:Connect(function()
-	performAction("deposit", { amount = amountBox.Text })
-end)
-withdrawButton.Activated:Connect(function()
-	performAction("withdraw", { amount = amountBox.Text })
 end)
 Remotes.OpenManagement.OnClientEvent:Connect(openManagement)
 
