@@ -67,7 +67,13 @@ SpawnService.Start(PlayerService, ApartmentService, function(player, playerObj)
 	BankingService.DeliverPendingTransfers(player, playerObj)
 	ManagementService.OnCharacterLoaded(player, playerObj)
 	PhoneService.OnCharacterLoaded(player, playerObj)
-	PlayerService.OpenInitialAppearance(player, playerObj)
+	-- Apartment and direct-location spawns both converge here. Give the character
+	-- and client UI time to settle before opening first-time character creation.
+	task.delay(2, function()
+		if player.Parent == Players and PlayerService.GetPlayer(player.UserId) == playerObj then
+			PlayerService.OpenInitialAppearance(player, playerObj)
+		end
+	end)
 end)
 VehicleService.Start()
 VehicleShopService.Start(VehicleService)
