@@ -27,6 +27,7 @@ return {
 		"PhonePush", -- server -> client: (action, payload) incoming calls and phone state
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
 		"WeatherStateUpdated", -- server -> client: (weather snapshot) authoritative weather/blackout state
+		"JobRouteUpdated", -- server -> client: (objective snapshot or nil) route-job waypoint/progress state
 	},
 	RemoteFunctions = {
 		"GetCharacters", -- client -> server: () -> array of {citizenId, cid, firstname, lastname}

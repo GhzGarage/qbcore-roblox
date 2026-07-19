@@ -58,6 +58,46 @@ Config.HUD = {
 				symbol = "C",
 				displayRadius = 950,
 			},
+			{
+				id = "sanitation_depot",
+				label = "Sanitation Depot",
+				position = Vector3.new(-1750, 0, -250),
+				color = Color3.fromRGB(126, 158, 107),
+				symbol = "G",
+				displayRadius = 950,
+			},
+			{
+				id = "parcel_warehouse",
+				label = "Parcel Warehouse",
+				position = Vector3.new(-2350, 0, 150),
+				color = Color3.fromRGB(196, 132, 74),
+				symbol = "D",
+				displayRadius = 950,
+			},
+			{
+				id = "transit_yard",
+				label = "Transit Yard",
+				position = Vector3.new(350, 0, -700),
+				color = Color3.fromRGB(94, 156, 189),
+				symbol = "B",
+				displayRadius = 950,
+			},
+			{
+				id = "cab_stand",
+				label = "Cab Stand",
+				position = Vector3.new(100, 0, -950),
+				color = Color3.fromRGB(235, 200, 76),
+				symbol = "T",
+				displayRadius = 950,
+			},
+			{
+				id = "impound_lot",
+				label = "Impound Lot",
+				position = Vector3.new(-1500, 0, 450),
+				color = Color3.fromRGB(170, 120, 190),
+				symbol = "W",
+				displayRadius = 950,
+			},
 		},
 	},
 }
@@ -890,6 +930,175 @@ Config.Player = {
 		items = {},
 		-- Roblox spawn CFrame components (position + Y rotation), replaces the vector4 DefaultSpawn
 		position = { x = -175.00, y = 3.70, z = 333.57, ry = 358.6 },
+	},
+}
+
+-- ─────────────────────────── route jobs ───────────────────────────
+-- Shared conventions: positions are authored with y = 0 and ground-snapped by
+-- JobRouteKit at runtime, so only X/Z matter here. Vehicles are stand-ins until
+-- dedicated models (garbage truck, bus, tow truck) are added to
+-- ServerStorage/QBVehicleModels — swap the Vehicle field when they land.
+-- Earnings accrue per stop and pay out (bank) when the shift ends; FinishBonus
+-- is only added when the full route was completed and the vehicle returned.
+
+Config.GarbageJob = {
+	Enabled = true,
+	Vehicle = "van_white", -- stand-in for a garbage truck
+	Depot = { position = Vector3.new(-1750, 0, -250), label = "Sanitation Depot" }, -- Industrial Port
+	VehicleSpawn = { position = Vector3.new(-1735, 0, -232), heading = 0 },
+	PromptDistance = 10,
+	ActionDistance = 14,
+	TruckDistance = 45, -- the truck must be parked within this range of the dumpster to collect
+	RouteSize = 8, -- stops drawn at random from DumpsterStops each shift
+	BagsPerStop = { min = 1, max = 3 },
+	PayPerBag = 10,
+	FinishBonus = 60,
+	DumpsterStops = {
+		-- Downtown
+		Vector3.new(-900, 0, -1700),
+		Vector3.new(-450, 0, -1500),
+		Vector3.new(50, 0, -1750),
+		Vector3.new(450, 0, -1300),
+		Vector3.new(700, 0, -800),
+		Vector3.new(150, 0, -600),
+		Vector3.new(-350, 0, -900),
+		Vector3.new(-800, 0, -500),
+		-- South Side
+		Vector3.new(-600, 0, 400),
+		Vector3.new(-150, 0, 700),
+		Vector3.new(300, 0, 1000),
+		Vector3.new(650, 0, 1400),
+		Vector3.new(-450, 0, 1300),
+		Vector3.new(50, 0, 1600),
+	},
+}
+
+Config.DeliveryJob = {
+	Enabled = true,
+	Vehicle = "van_pro",
+	Depot = { position = Vector3.new(-2350, 0, 150), label = "Parcel Warehouse" }, -- Industrial Port
+	VehicleSpawn = { position = Vector3.new(-2335, 0, 168), heading = 0 },
+	PromptDistance = 10,
+	ActionDistance = 14,
+	VanDistance = 40, -- the van must be parked within this range to take a package out
+	RouteSize = 7,
+	PayBase = 12, -- per package
+	PayPerStud = 0.012, -- distance bonus, straight line from the depot
+	FinishBonus = 75,
+	Doorsteps = {
+		-- Downtown
+		Vector3.new(-700, 0, -1200),
+		Vector3.new(0, 0, -1500),
+		Vector3.new(500, 0, -1000),
+		Vector3.new(-1100, 0, -800),
+		-- South Side
+		Vector3.new(-800, 0, 800),
+		Vector3.new(-200, 0, 1200),
+		Vector3.new(400, 0, 700),
+		Vector3.new(800, 0, 1500),
+		-- Grapeseed Farms
+		Vector3.new(-900, 0, 2200),
+		Vector3.new(-200, 0, 2700),
+		Vector3.new(500, 0, 2400),
+		Vector3.new(900, 0, 3000),
+	},
+}
+
+Config.BusJob = {
+	Enabled = true,
+	Vehicle = "van_1970", -- stand-in for a bus
+	Depot = { position = Vector3.new(350, 0, -700), label = "Transit Yard" }, -- Downtown
+	VehicleSpawn = { position = Vector3.new(368, 0, -685), heading = 0 },
+	PromptDistance = 10,
+	ActionDistance = 14,
+	BusDistance = 30, -- the bus must be stopped within this range of the stop sign
+	DwellSeconds = 3, -- boarding/unloading wait at each stop
+	PassengersPerStop = { min = 0, max = 2 },
+	Routes = {
+		{
+			id = "downtown_loop",
+			label = "Downtown Loop",
+			payPerStop = 18,
+			finishBonus = 50,
+			stops = {
+				Vector3.new(-100, 0, -1600),
+				Vector3.new(-700, 0, -1400),
+				Vector3.new(-1100, 0, -900),
+				Vector3.new(-600, 0, -400),
+				Vector3.new(100, 0, -300),
+				Vector3.new(600, 0, -900),
+			},
+		},
+		{
+			id = "coastal_line",
+			label = "Coastal Line (Paleto Bay)",
+			payPerStop = 30,
+			finishBonus = 120,
+			stops = {
+				Vector3.new(-1400, 0, -1900), -- Downtown NW
+				Vector3.new(-2400, 0, -3300), -- North Marina
+				Vector3.new(-400, 0, -4900), -- Paleto approach
+				Vector3.new(0, 0, -5200), -- Paleto Bay
+			},
+		},
+	},
+}
+
+Config.TaxiJob = {
+	Enabled = true,
+	Vehicle = "taxi",
+	Depot = { position = Vector3.new(100, 0, -950), label = "Downtown Cab Stand" },
+	VehicleSpawn = { position = Vector3.new(118, 0, -935), heading = 0 },
+	PromptDistance = 10,
+	ActionDistance = 14,
+	PickupDistance = 20, -- cab must stop within this range of the fare
+	MinFareDistance = 800, -- pickup and dropoff are drawn at least this far apart
+	FareBase = 10,
+	PayPerStud = 0.02,
+	NextFareDelay = 6, -- seconds between dropoff and the next dispatch
+	FareStops = {
+		Vector3.new(200, 0, -1400), -- Downtown
+		Vector3.new(-500, 0, -1700),
+		Vector3.new(-1000, 0, -1000),
+		Vector3.new(-300, 0, -500),
+		Vector3.new(-500, 0, 900), -- South Side
+		Vector3.new(200, 0, 1300),
+		Vector3.new(700, 0, 600),
+		Vector3.new(0, 0, 2500), -- Grapeseed Farms
+		Vector3.new(-700, 0, 2800),
+		Vector3.new(1800, 0, 1200), -- Sandy Shores
+		Vector3.new(2400, 0, 2000),
+		Vector3.new(-2000, 0, 0), -- Industrial Port
+		Vector3.new(-2600, 0, -1200),
+		Vector3.new(1730, 0, -2240), -- Golf Club
+		Vector3.new(0, 0, -5100), -- Paleto Bay
+	},
+}
+
+Config.TowJob = {
+	Enabled = true,
+	Vehicle = "pickup_white", -- stand-in for a tow truck
+	Depot = { position = Vector3.new(-1500, 0, 450), label = "Impound Lot" }, -- Industrial Port
+	VehicleSpawn = { position = Vector3.new(-1485, 0, 468), heading = 0 },
+	DropZone = { position = Vector3.new(-1530, 0, 480) }, -- unhook bay inside the lot
+	PromptDistance = 10,
+	ActionDistance = 14,
+	HookDistance = 25, -- tow truck must be parked within this range of the wreck
+	PayPerVehicle = 50,
+	NextJobDelay = 6,
+	-- Vehicles drawn at random as the broken-down wreck.
+	WreckPool = { "sedan_white", "sedan_black", "sedan_red", "pickup_blue", "suv_blue" },
+	BreakdownSpots = {
+		Vector3.new(-800, 0, -2000), -- Downtown north
+		Vector3.new(600, 0, -1500), -- Downtown east
+		Vector3.new(-1800, 0, -1500), -- Port road
+		Vector3.new(-2200, 0, 1200), -- Airport
+		Vector3.new(300, 0, 300), -- South Side
+		Vector3.new(-900, 0, 1600), -- South Side west
+		Vector3.new(200, 0, 2900), -- Grapeseed Farms
+		Vector3.new(1900, 0, 1700), -- Sandy Shores
+		Vector3.new(-2500, 0, -3300), -- North Marina
+		Vector3.new(-300, 0, -4900), -- Paleto highway
 	},
 }
 

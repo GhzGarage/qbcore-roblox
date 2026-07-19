@@ -101,6 +101,9 @@
         "QBPoliceJob": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBPoliceJob.client.lua"
         },
+        "QBJobRoute": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBJobRoute.client.lua"
+        },
         "QBNotify": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBNotify.client.lua"
         },
