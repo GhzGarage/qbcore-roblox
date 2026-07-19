@@ -595,6 +595,44 @@ Config.Clothing = {
 	},
 }
 
+-- qb-spawn and qb-apartments-style character entry. Apartment positions are
+-- placeholders until the map entrance is chosen. Install a Model named
+-- "StarterApartment" under ServerStorage/QBApartmentInteriors to replace the
+-- generated blockout; marker parts are documented in README.md.
+Config.Spawn = {
+	Enabled = true, -- master QBSpawn UI switch; false always uses automatic destinations
+	AllowSelectionForExistingCharacters = true, -- false resumes returning characters at their last location
+	DefaultSpawn = {
+		position = Vector3.new(-175, 3.7, 333.57),
+		heading = 358.6,
+	},
+	Locations = {
+		{ id = "city_hall", label = "City Hall", position = Vector3.new(-175, 3.7, 333.57), heading = 358.6 },
+		{ id = "legion_square", label = "Legion Square", position = Vector3.new(0, 0, 0), heading = 0 },
+	},
+}
+
+Config.Apartments = {
+	Enabled = true,
+	Starting = true, -- false sends fresh characters directly to Config.Spawn.DefaultSpawn
+	PromptDistance = 10,
+	ActionDistance = 14,
+	DoorbellTimeout = 30,
+	MaxStashSlots = 50,
+	MaxStashWeight = 250000,
+	InteriorGridOrigin = Vector3.new(20000, 500, 20000),
+	InteriorGridSpacing = 180,
+	Buildings = {
+		{
+			id = "starter_apartments",
+			label = "Starter Apartments",
+			position = Vector3.new(0, 0, 0),
+			heading = 0,
+			interior = "StarterApartment",
+		},
+	},
+}
+
 Config.Player = {
 	MaxCharacterSlots = 5,
 	Bloodtypes = { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" },
@@ -616,6 +654,7 @@ Config.Player = {
 		},
 		vehicles = {},
 		outfits = {},
+		apartment = { id = "", buildingId = "", label = "", stash = {} },
 		charinfo = {
 			firstname = "Firstname",
 			lastname = "Lastname",

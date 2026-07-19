@@ -585,6 +585,8 @@
       Access.lua            <span class="c">-- whitelist, bans, graded permissions</span>
       ProfileStore.lua      <span class="c">-- simplified session-locked DataStore wrapper</span>
       PlayerService.lua     <span class="c">-- account, character, spawn, save, status loop</span>
+      SpawnService.lua      <span class="c">-- validated post-character spawn selection</span>
+      ApartmentService.lua  <span class="c">-- apartment shells, doorbells, visitors, stashes</span>
       PaycheckService.lua   <span class="c">-- configurable job-grade paycheck loop</span>
       BankingService.lua    <span class="c">-- personal/shared/organization banking, cards, ATMs, and queued transfers</span>
       PlayerClass.lua       <span class="c">-- player money/job/crew/metadata methods</span>
@@ -611,6 +613,8 @@
     QBGarage.client.lua      <span class="c">-- public garage list and storage UI</span>
     QBManagement.client.lua  <span class="c">-- standalone job/crew management UI</span>
     QBAdmin.client.lua      <span class="c">-- native admin menu</span>
+    QBSpawn.client.lua      <span class="c">-- last/public/apartment spawn selector</span>
+    QBApartments.client.lua <span class="c">-- apartment, doorbell, and stash panels</span>
     QBAmbulance.client.lua  <span class="c">-- death screen and self-respawn UI</span>
     QBEmotes.client.lua     <span class="c">-- emote menu</span>
     QBHUD.client.lua        <span class="c">-- health, armor, hunger, thirst HUD</span>
@@ -649,7 +653,8 @@ Players.PlayerAdded
   → PlayerService.OnPlayerJoin()    <span class="c">-- claim Account_&lt;UserId&gt; session lock</span>
   → client: character select UI
   → Remotes.SelectCharacter
-  → PlayerService.SelectCharacter() <span class="c">-- build PlayerClass, spawn, fire PlayerLoaded</span>
+  → PlayerService.SelectCharacter() <span class="c">-- create a pending session; no Roblox Character yet</span>
+  → QBSpawn choice <span class="c">-- validate destination, LoadCharacter, then fire PlayerLoaded</span>
   → status loop ticks               <span class="c">-- position capture + hunger/thirst decay</span>
   → PlayerRemoving / BindToClose    <span class="c">-- Save() + profile:Release()</span></code></pre>
   <p>
@@ -683,7 +688,7 @@ Players.PlayerAdded
         <li><code>GetAccountUserIdByCitizenId(citizenId) → UserId?</code><span class="desc">Read-only citizen-index lookup used for validated queued transfers and text filtering.</span></li>
         <li><code>StartStatusLoop()</code><span class="desc">Every <code>Config.StatusInterval</code> seconds: capture position, decay hunger/thirst per <code>Config.StatusDecay</code>.</span></li>
         <li><code>GetCharacterList(player)</code><span class="desc">Returns <code>{citizenId, cid, firstname, lastname, job, cash, bank}[]</code> for the select screen.</span></li>
-        <li><code>SelectCharacter(player, citizenId) → ok, err?</code><span class="desc">Builds the PlayerClass, spawns the character, fires <code>PlayerLoaded</code>; opens the appearance editor on first spawn.</span></li>
+        <li><code>SelectCharacter(player, citizenId) → ok, err?</code><span class="desc">Builds a pending PlayerClass without creating a Roblox Character. SpawnService activates it only after a validated QBSpawn choice.</span></li>
         <li><code>CreateCharacter(player, firstname, lastname) → citizenId, err?</code><span class="desc">Enforces slot limit and 20-char names, generates a citizen ID, seeds starter items.</span></li>
         <li><code>DeleteCharacter(player, citizenId) → ok, err?</code></li>
         <li><code>RespawnPlayer(player, playerObj, spawnCFrame?, health?) → ok, err?</code></li>
@@ -1047,7 +1052,7 @@ playerObj:<span class="f">Notify</span>(<span class="s">"You earned $250"</span>
     ScreenGuis built in Luau, no web views.
   </p>
   <div class="card-grid">
-    <div class="card"><h4><span class="badge b-client">client</span> QBCoreClient</h4><p>Character select / create / delete UI. Card list with Play/Delete (confirm step) plus a create panel. Destroys itself once <code>PlayerLoaded</code> fires. Responsive with compact/tiny breakpoints.</p></div>
+    <div class="card"><h4><span class="badge b-client">client</span> QBCoreClient</h4><p>Character select / create / delete UI. Card list with Play/Delete (confirm step) plus a create panel. Hands off to QBSpawn after selection without loading a Roblox Character. Responsive with compact/tiny breakpoints.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBHUD</h4><p>Compact HUD: name, job + duty, cash and bank, and status bars for HP / AR / FOOD / WATR / STRS. Also renders the ammo panel for the equipped weapon. Disables the core health GUI and reset button.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBInventory</h4><p>30-slot inventory + 5-slot hotbar. Personal access stays single-pane; shops/external providers add a responsive second pane with product price, stock, quantity, and Buy controls.</p></div>
     <div class="card"><h4><span class="badge b-client">client</span> QBNotify</h4><p>Toast stack (max 5 visible) fed by the <code>Notify</code> remote. Types: success, error, warning, info, primary. Durations auto-convert ms→s, clamped 1.5–12s.</p></div>
@@ -1285,6 +1290,9 @@ Config.Clothing = {
       <tr><td><code>Notify</code></td><td><span class="badge b-event">event</span></td><td>S → C</td><td><code>(text, notifyType, length)</code> toast</td></tr>
     </tbody>
   </table></div>
+
+  <p><code>OpenSpawnSelector</code> / <code>SelectSpawn</code> present and validate last-location, public, and apartment entry choices. <code>OpenApartment</code> / <code>ApartmentAction</code> cover entrances, doorbells, visitors, wardrobes, and personal stashes.</p>
+  <p><code>Config.Spawn.AllowSelectionForExistingCharacters = false</code> resumes returning characters at their saved location without opening QBSpawn. <code>Config.Apartments.Starting = false</code> sends fresh characters directly to <code>Config.Spawn.DefaultSpawn</code>. The master <code>Config.Spawn.Enabled = false</code> applies both automatic paths.</p>
 
   <h3>Inventory &amp; medical</h3>
   <div class="table-scroll"><table>
@@ -1560,7 +1568,7 @@ ServerStorage
   </p>
   <div class="card-grid">
     <div class="card"><h4>Foundation</h4><p>Battle-tested profile library (or hardened retries/telemetry), Luau static checks and Studio smoke tests, structured audit logs, schema-migration helpers, localization.</p></div>
-    <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, optional backstory), spawn selection, deeper deletion cleanup for external records.</p></div>
+    <div class="card"><h4>Characters &amp; sessions</h4><p>True in-session character switching (logout currently kicks), richer creation fields (birthdate, gender, nationality, optional backstory), deeper deletion cleanup for external records, and production apartment/map assets.</p></div>
     <div class="card"><h4>Economy</h4><p>Shop selling and persistent stock, world drops, stashes/trunks/gloveboxes, crafting, item metadata (durability and serials), invoices, loans, and management stashes.</p></div>
     <div class="card"><h4>Jobs &amp; crews</h4><p>Map duty prompts, blips, and grade-gated actions; police/EMS/mechanic/taxi/delivery jobs; dispatch, fines, warrants, evidence; crew progression.</p></div>
     <div class="card"><h4>Vehicles</h4><p>Templates for every catalog entry, impound/depot and persistent world parking, job/house garages, keys/locks, real fuel/repair integrations, and trunk/glovebox inventories.</p></div>
@@ -1570,7 +1578,7 @@ ServerStorage
   </div>
   <h3>Major resource slices still missing</h3>
   <p>
-    Housing/apartments, impound, door locks,
+    Impound, door locks,
     a general target/interact abstraction, progress bars and minigames, dispatch/radio, crafting/shared stashes,
     drug loops, police MDT/jail/evidence, and EMS
     hospitals/beds/billing.

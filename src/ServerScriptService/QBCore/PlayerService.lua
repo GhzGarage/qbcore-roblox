@@ -73,6 +73,7 @@ local PlayerService = {}
 
 PlayerService.Players = {} -- [UserId] = Player instance (online only)
 PlayerService.PlayersByCitizenId = {} -- [citizenId] = Player instance (online only)
+PlayerService.PendingPlayers = {} -- selected in multicharacter, not spawned/online yet
 
 local accountProfiles = {} -- [UserId] = Profile instance, held for the account's whole connection
 local statusLoopStarted = false
@@ -149,6 +150,10 @@ end
 
 function PlayerService.GetPlayer(userId)
 	return PlayerService.Players[userId]
+end
+
+function PlayerService.GetSelectedPlayer(userId)
+	return PlayerService.Players[userId] or PlayerService.PendingPlayers[userId]
 end
 
 function PlayerService.GetPlayerByCitizenId(citizenId)
@@ -262,8 +267,12 @@ end
 
 -- ─────────────────────────── join / character select / leave ───────────────────────────
 
--- Claims the account profile; does NOT spawn a character (character select does that).
+-- Claims the account profile; neither joining nor character selection creates a
+-- Roblox character. SpawnService does that only after a destination is confirmed.
 function PlayerService.OnPlayerJoin(player)
+	-- Covers Studio/hot-reload races where Roblox created an avatar before the
+	-- server entrypoint disabled CharacterAutoLoads.
+	if player.Character then player.Character:Destroy() end
 	applyCameraSettings(player)
 
 	local profile, err = accountStore:StartSessionAsync("Account_" .. player.UserId, defaultAccountData())
@@ -544,17 +553,43 @@ local function hideSpawnForceFields(character)
 	end)
 end
 
-local function loadCharacterIntoWorld(player, playerObj)
-	local pos = playerObj.PlayerData.position
-	local spawnCFrame, spawnReason = resolveSpawnCFrame(pos)
-	print(("[QBCore.PlayerService] Spawning %s via %s"):format(player.Name, spawnReason))
+function PlayerService.SpawnSelectedCharacter(player, playerObj, spawnCFrame)
+	if not player or not playerObj or PlayerService.PendingPlayers[player.UserId] ~= playerObj then
+		return false, "Character not selected."
+	end
+	if player.Character then return false, "Your character is already in the world." end
+	if typeof(spawnCFrame) ~= "CFrame" then return false, "Invalid spawn destination." end
 
 	applyWorldEnvironment()
 	player:LoadCharacter()
 	local character = player.Character or player.CharacterAdded:Wait()
 	hideSpawnForceFields(character)
-	local root = character:WaitForChild("HumanoidRootPart")
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	local root = character:WaitForChild("HumanoidRootPart", 10)
+	if not humanoid or not root then
+		if character.Parent then character:Destroy() end
+		return false, "Character did not finish loading."
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
 	root.CFrame = spawnCFrame
+	return true
+end
+
+
+function PlayerService.FinalizeSelectedCharacter(player, playerObj)
+	if not player or not playerObj or PlayerService.PendingPlayers[player.UserId] ~= playerObj or not player.Character then
+		return false, "Character did not finish entering the world."
+	end
+	PlayerService.PendingPlayers[player.UserId] = nil
+	PlayerService.Players[player.UserId] = playerObj
+	PlayerService.PlayersByCitizenId[playerObj.PlayerData.citizenid] = playerObj
+	playerObj._deferClientUpdates = false
+	AppearanceService.OnCharacterSelected(player, playerObj)
+	playerObj:UpdateClient()
+	Remotes.PlayerLoaded:FireClient(player)
+	playerObj:Notify(("Welcome, %s."):format(playerObj:GetName()), "success", 4000)
+	return true
 end
 
 function PlayerService.RespawnPlayer(player, playerObj, spawnCFrame, health)
@@ -582,6 +617,9 @@ function PlayerService.RespawnPlayer(player, playerObj, spawnCFrame, health)
 end
 
 function PlayerService.SelectCharacter(player, citizenId)
+	if PlayerService.Players[player.UserId] or PlayerService.PendingPlayers[player.UserId] then
+		return false, "A character is already selected."
+	end
 	local profile = getAccountProfile(player)
 	if not profile then
 		return false, "Your data is not loaded."
@@ -606,8 +644,8 @@ function PlayerService.SelectCharacter(player, citizenId)
 		end
 	)
 
-	PlayerService.Players[player.UserId] = playerObj
-	PlayerService.PlayersByCitizenId[citizenId] = playerObj
+	PlayerService.PendingPlayers[player.UserId] = playerObj
+	playerObj._deferClientUpdates = true
 
 	-- CharacterRemoving still has the intact character; this is the last reliable
 	-- moment to record where the player was before a despawn/disconnect.
@@ -615,24 +653,19 @@ function PlayerService.SelectCharacter(player, citizenId)
 		playerObj:CapturePosition(character)
 	end)
 
-	loadCharacterIntoWorld(player, playerObj)
-	AppearanceService.OnCharacterSelected(player, playerObj)
+	return true
+end
 
-	playerObj:UpdateClient()
-	Remotes.PlayerLoaded:FireClient(player)
-	playerObj:Notify(("Welcome, %s."):format(playerObj:GetName()), "success", 4000)
-
-	-- First spawn on a fresh character: hand them the appearance editor. Fired after
-	-- PlayerLoaded so the client's character-select UI is already gone when it opens.
+function PlayerService.OpenInitialAppearance(player, playerObj)
 	local appearanceConfig = QBShared.Config.Appearance
 	if
-		not playerObj.PlayerData.appearance
+		playerObj
+		and not playerObj.PlayerData.appearance
 		and (not appearanceConfig or appearanceConfig.PromptNewCharacters ~= false)
 	then
-		AppearanceService.OpenEditor(player, playerObj, true)
+		return AppearanceService.OpenEditor(player, playerObj, true)
 	end
-
-	return true
+	return false
 end
 
 function PlayerService.CreateCharacter(player, firstname, lastname)
@@ -694,6 +727,11 @@ function PlayerService.DeleteCharacter(player, citizenId)
 	if PlayerService.PlayersByCitizenId[citizenId] then
 		return false, "That character is currently loaded."
 	end
+	for _, pendingPlayer in pairs(PlayerService.PendingPlayers) do
+		if pendingPlayer.PlayerData.citizenid == citizenId then
+			return false, "That character is currently selected."
+		end
+	end
 
 	AppearanceService.DeleteOutfitCodes(profile.Data.characters[citizenId])
 	profile.Data.characters[citizenId] = nil
@@ -720,6 +758,7 @@ local function unregisterPlayer(player, playerObj)
 	end
 
 	PlayerService.Players[player.UserId] = nil
+	PlayerService.PendingPlayers[player.UserId] = nil
 	for citizenId, p in pairs(PlayerService.PlayersByCitizenId) do
 		if p == playerObj then
 			PlayerService.PlayersByCitizenId[citizenId] = nil
@@ -741,7 +780,7 @@ function PlayerService.Logout(player)
 end
 
 function PlayerService.OnPlayerLeave(player)
-	local playerObj = PlayerService.Players[player.UserId]
+	local playerObj = PlayerService.Players[player.UserId] or PlayerService.PendingPlayers[player.UserId]
 	if playerObj then
 		playerObj:Save()
 		unregisterPlayer(player, playerObj)
@@ -757,6 +796,9 @@ end
 -- Saves and releases every still-open session so a server shutdown never loses data.
 function PlayerService.SaveAllAndRelease()
 	for _, playerObj in pairs(PlayerService.Players) do
+		playerObj:Save()
+	end
+	for _, playerObj in pairs(PlayerService.PendingPlayers) do
 		playerObj:Save()
 	end
 	for _, profile in pairs(accountProfiles) do

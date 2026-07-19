@@ -6,6 +6,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Disable platform auto-spawning before any service startup work can yield.
+Players.CharacterAutoLoads = false
+
 local function requireLocalModule(name)
 	local module = script:FindFirstChild(name) or script.Parent:FindFirstChild(name)
 	if not module or not module:IsA("ModuleScript") then
@@ -39,6 +42,8 @@ local AdminService = requireLocalModule("AdminService")
 local PaycheckService = requireLocalModule("PaycheckService")
 local BankingService = requireLocalModule("BankingService")
 local PhoneService = requireLocalModule("PhoneService")
+local ApartmentService = requireLocalModule("ApartmentService")
+local SpawnService = requireLocalModule("SpawnService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
 
@@ -55,14 +60,18 @@ WeatherService.Start()
 MedicalService.Start(InventoryService)
 WeaponService.Start(InventoryService)
 ShopService.Start(InventoryService)
+ApartmentService.Start(PlayerService, InventoryService, AppearanceService)
+SpawnService.Start(PlayerService, ApartmentService, function(player, playerObj)
+	BankingService.DeliverPendingTransfers(player, playerObj)
+	ManagementService.OnCharacterLoaded(player, playerObj)
+	PhoneService.OnCharacterLoaded(player, playerObj)
+	PlayerService.OpenInitialAppearance(player, playerObj)
+end)
 VehicleService.Start()
 VehicleShopService.Start(VehicleService)
 GarageService.Start(VehicleService)
 StageMusicService.Start()
 Commands.Register()
-
--- We control spawn timing ourselves: no character should exist until a citizen is selected.
-Players.CharacterAutoLoads = false
 
 local function handlePlayerAdded(player)
 	local ok, kickReason = Access.CheckJoin(player.UserId)
@@ -82,6 +91,8 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
+	SpawnService.OnPlayerLeave(player)
+	ApartmentService.OnPlayerLeave(player)
 	PhoneService.OnPlayerLeave(player)
 	AppearanceService.OnPlayerLeave(player)
 	PlayerService.OnPlayerLeave(player)
@@ -104,9 +115,8 @@ Remotes.SelectCharacter.OnServerInvoke = function(player, citizenId)
 	end
 	local ok, err = PlayerService.SelectCharacter(player, citizenId)
 	if ok then
-		BankingService.DeliverPendingTransfers(player, PlayerService.GetPlayer(player.UserId))
-		ManagementService.OnCharacterLoaded(player, PlayerService.GetPlayer(player.UserId))
-		PhoneService.OnCharacterLoaded(player, PlayerService.GetPlayer(player.UserId))
+		local playerObj = PlayerService.GetSelectedPlayer(player.UserId)
+		SpawnService.BeginSelection(player, playerObj)
 	end
 	return ok, err
 end

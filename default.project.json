@@ -27,6 +27,10 @@
       "QBVehicleModels": {
         "$className": "Folder",
         "$ignoreUnknownInstances": true
+      },
+      "QBApartmentInteriors": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
       }
     },
     "ServerScriptService": {
@@ -69,6 +73,12 @@
         },
         "QBAdmin": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBAdmin.client.lua"
+        },
+        "QBSpawn": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBSpawn.client.lua"
+        },
+        "QBApartments": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBApartments.client.lua"
         },
         "QBMenu": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBMenu.client.lua"

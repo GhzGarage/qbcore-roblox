@@ -115,7 +115,9 @@ it is still not a full QBCore ecosystem.
 - [ ] Expand character creation fields beyond first/last name:
       birthdate, gender, nationality, and optional backstory fields. Phone numbers
       are already generated automatically when a character loads.
-- [ ] Add spawn-selection support once apartments/housing/hospitals/garages exist.
+- [x] Add QBSpawn-style selection after multicharacter with last-location, public
+      spawn, starter-apartment, and owned-apartment choices, plus configurable
+      automatic last-location/default-spawn bypass paths.
 - [ ] Add stronger character deletion cleanup for external per-character records
       such as phone-directory claims and future houses or warrants. Owned vehicles
       are profile-local, and outfit share codes are already removed with a character.
@@ -205,7 +207,10 @@ it is still not a full QBCore ecosystem.
 
 ### QBCore Ecosystem Coverage
 
-- [ ] Housing/apartments.
+- [x] Add first-pass apartments with configurable entrances, temporary instanced
+      shells, persistent assignments/stashes, wardrobes, logout points, and
+      expiring same-server doorbell/visitor access. A production interior model
+      and real map entrance coordinates still need to replace the blockout.
 - [ ] Impound/depot plus job/house garages beyond the public garage system.
 - [x] Inventory-backed smartphone with messaging, eligible voice calls, social
       posts, camera captures, settings, and persistent per-character state.

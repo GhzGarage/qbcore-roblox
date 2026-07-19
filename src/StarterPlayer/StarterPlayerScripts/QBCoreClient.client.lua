@@ -388,6 +388,7 @@ local pendingDeleteCitizenId = nil
 local deleteButtonsByCitizenId = {}
 local refreshGeneration = 0
 local characterSelectDestroyed = false
+local viewportConnection
 local refreshList
 
 local function setStatus(text)
@@ -410,6 +411,16 @@ local function clearCharacterCards()
 	end
 end
 
+local function destroyCharacterSelect()
+	if characterSelectDestroyed then return end
+	characterSelectDestroyed = true
+	if viewportConnection then
+		viewportConnection:Disconnect()
+		viewportConnection = nil
+	end
+	screenGui:Destroy()
+end
+
 local function selectCharacter(citizenId)
 	if busy then
 		return
@@ -420,8 +431,11 @@ local function selectCharacter(citizenId)
 	if not ok then
 		setStatus(err or "Failed to load character.")
 		setBusy(false)
+		return
 	end
-	-- success case: server fires PlayerLoaded, handled below, which destroys this UI
+	-- Selection only hands control to QBSpawn. No Roblox character exists yet;
+	-- PlayerLoaded fires later after a spawn destination is confirmed.
+	destroyCharacterSelect()
 end
 
 local function makeCharacterCard(info, layoutOrder)
@@ -596,15 +610,8 @@ createButton.Activated:Connect(function()
 	selectCharacter(citizenId)
 end)
 
-local viewportConnection
-
 QBCoreClient.OnPlayerLoaded.Event:Connect(function()
-	characterSelectDestroyed = true
-	if viewportConnection then
-		viewportConnection:Disconnect()
-		viewportConnection = nil
-	end
-	screenGui:Destroy()
+	destroyCharacterSelect()
 end)
 
 local function bindResponsiveLayout()

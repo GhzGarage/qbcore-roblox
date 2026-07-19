@@ -56,7 +56,7 @@ function Player:GetPlayerData()
 end
 
 function Player:UpdateClient(key, val)
-	if self.Offline then
+	if self.Offline or self._deferClientUpdates then
 		return
 	end
 	if key then
@@ -348,7 +348,7 @@ end
 -- PlayerRemoving/BindToClose handlers run the Character reference is often already nil
 -- and a capture attempted only at save time silently keeps the stale/default position.
 function Player:CapturePosition(character)
-	if self.Offline then
+	if self.Offline or self._suppressPositionCapture then
 		return nil
 	end
 
@@ -361,7 +361,7 @@ function Player:CapturePosition(character)
 end
 
 function Player:Save()
-	if not self.Offline then
+	if not self.Offline and not self._suppressPositionCapture then
 		self:CapturePosition()
 	end
 

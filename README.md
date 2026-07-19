@@ -3,7 +3,7 @@
 This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 
 - Account profile loading with DataStore-backed session locking.
-- Character select, create, delete, and spawn.
+- Character select/create/delete plus QBSpawn-style location selection.
 - Persistence for money, banking statements, player-shared and organization accounts, queued transfers, owned vehicles, job, crew, charinfo, position, and metadata.
 - Client-side QBCore player data cache.
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
@@ -23,6 +23,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Proximity-prompt personal, player-shared, job, and crew banking with cards, PIN-gated ATMs, queued citizen transfers, and statements.
 - Standalone job/crew management with rosters, nearby hiring, grades, removal, and offline queues.
 - Inventory-opened StudOS smartphone with Roblox-filtered messaging, eligible voice calls, StudSpace social posts, and native captures.
+- Instanced starter apartments with doorbells, visitors, wardrobes, logout points, and persistent personal stashes.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
 
@@ -51,6 +52,8 @@ src/
       Access.lua           -- whitelist, bans, graded permissions
       ProfileStore.lua     -- simplified session-locked DataStore wrapper
       PlayerService.lua    -- account, character, spawn, save, status loop
+      SpawnService.lua     -- post-multicharacter spawn selection and validation
+      ApartmentService.lua -- apartment shells, prompts, doorbells, visitors, and stashes
       PaycheckService.lua  -- configurable job-grade paycheck loop
       BankingService.lua   -- personal/shared/organization banking, cards, ATMs, and transfer queue
       PlayerClass.lua      -- player money/job/crew/metadata methods
@@ -78,6 +81,8 @@ src/
     QBGarage.client.lua     -- public garage vehicle list and storage UI
     QBManagement.client.lua -- standalone job/crew boss management UI
     QBAdmin.client.lua      -- native admin menu
+    QBSpawn.client.lua      -- last/public/apartment spawn selector
+    QBApartments.client.lua -- apartment entrance, doorbell, and stash panels
     QBAmbulance.client.lua  -- death screen and self-respawn UI
     QBEmotes.client.lua     -- emote menu
     QBHUD.client.lua        -- health, armor, hunger, thirst HUD
@@ -383,6 +388,71 @@ accessories; hair, face, makeup/future identity fields, body parts, scales, and
 skin color never enter a share code. Deleting an outfit or character revokes its
 code. Set `RequireOwnershipForSharedOutfits` to `true` if recipients should also
 own every catalog asset.
+
+## Spawn Selection And Apartments
+
+Selecting a character now closes multicharacter and opens `QBSpawn`. Returning
+characters can choose their last outdoor location, any `Config.Spawn.Locations`
+entry, or their apartment. With `Config.Apartments.Starting = true`, a fresh
+character chooses one of the configured apartment buildings and is assigned a
+persistent unit before the first appearance editor opens.
+
+The selection paths can be disabled independently:
+
+```lua
+Config.Spawn.Enabled = true -- master QBSpawn UI switch
+Config.Spawn.AllowSelectionForExistingCharacters = false -- auto-resume last location
+Config.Spawn.DefaultSpawn = {
+    position = Vector3.new(-175, 3.7, 333.57),
+    heading = 358.6,
+}
+Config.Apartments.Starting = false -- new characters skip QBSpawn and use DefaultSpawn
+```
+
+`AllowSelectionForExistingCharacters = false` affects returning characters only;
+starter-apartment selection can remain enabled for fresh characters. Turning
+`Starting` off makes fresh characters load directly at `DefaultSpawn` after their
+registration succeeds. Setting `Config.Spawn.Enabled = false` is the master bypass:
+returning characters use their last location and fresh characters use `DefaultSpawn`.
+
+No Roblox `Character` exists during multicharacter or QBSpawn. The selected
+QBCore record remains in a pending session and is excluded from active-character
+lists, paychecks, status decay, transfers, and gameplay services. `LoadCharacter()`
+runs only after the server validates the player's explicit spawn choice; only then
+are player data and `PlayerLoaded` sent to gameplay clients.
+
+Apartment entrances use invisible ProximityPrompt anchors. The included starter
+building is a placeholder at `0, 0, 0`. Replace its `position` and `heading` under
+`Config.Apartments.Buildings`; public spawn points are configured separately under
+`Config.Spawn.Locations`.
+
+Until a real interior is installed, `ApartmentService` creates a simple open-plan
+blockout. To replace it, insert this hierarchy in Studio:
+
+```text
+ServerStorage
+  QBApartmentInteriors
+    StarterApartment (Model)
+      Spawn     (BasePart)
+      Exit      (BasePart)
+      Stash     (BasePart)
+      Wardrobe  (BasePart)
+      Logout    (BasePart)
+      ...your visible interior geometry...
+```
+
+Place the five marker parts exactly where players and prompts belong. They may be
+fully transparent and non-colliding. Keep the model near its own origin; the server
+clones and pivots it into an allocated distant grid cell. If a marker is missing,
+that interaction is omitted (`Spawn` falls back to `Exit`, then the model pivot).
+The model name must match the building's `interior` field. You can add more building
+entries and reuse the same model.
+
+Every unit is server-authoritative and exists only while occupied. Doorbell requests
+expire, visitors must still be waiting at the correct entrance, and guests cannot use
+the resident's stash, wardrobe, or logout point. When the resident leaves or
+disconnects, guests are returned to the exterior. Interior grid coordinates are never
+written as a character's last location.
 
 ## Item Shops
 
