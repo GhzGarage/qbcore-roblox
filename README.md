@@ -13,6 +13,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Server-authoritative hunger/thirst decay.
 - Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu with a live loaded-character economy leaderboard.
 - Proximity-prompt City Hall with public job selection and instant cash purchases for eligible identity/license items.
+- QBAmbulance hospital POIs with patient check-in, staffed-EMS routing, timed bed treatment and billing, duty toggles, and grade-authorized ambulance retrieval.
 - Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
@@ -62,7 +63,7 @@ src/
       CommandService.lua   -- TextChatService command registry
       Commands.lua         -- default player/admin slash commands
       AppearanceService.lua -- appearance, categorized shops, saved outfits, and share codes
-      MedicalService.lua   -- death, respawn, armor, and medical item handlers
+      MedicalService.lua   -- death, respawn, armor, medical items, hospitals, and EMS job POIs
       InventoryService.lua -- player inventory, external-provider contract, and useable item helpers
       ShopService.lua      -- proximity shops, filtered catalogs, stock, and purchases
       TimeSyncService.lua  -- day/night clock, /time and /freezetime commands
@@ -84,7 +85,7 @@ src/
     QBAdmin.client.lua      -- native admin menu
     QBSpawn.client.lua      -- last/public/apartment spawn selector
     QBApartments.client.lua -- apartment entrance, doorbell, and stash panels
-    QBAmbulance.client.lua  -- death screen and self-respawn UI
+    QBAmbulance.client.lua  -- death/respawn UI plus hospital check-in and EMS garage menus
     QBEmotes.client.lua     -- emote menu
     QBHUD.client.lua        -- health, armor, hunger, thirst HUD
     QBInventory.client.lua  -- player/external inventory panes, shops, and hotbar
@@ -243,6 +244,18 @@ Config.Medical.DeathScreen.RespawnDelay = 30
 Config.Medical.Respawn.WipeInventory = false
 Config.Medical.Respawn.UseConfiguredLocation = false
 Config.Medical.Respawn.Location = { x = -175.00, y = 3.70, z = 333.57, ry = 358.6 }
+```
+
+Hospital and EMS POIs live under `Config.Medical.Hospital.Hospitals`. Each
+hospital can define one or more `checkIn`, `duty`, and `vehicle` points, a
+`vehicleSpawn`, grade-authorized vehicles, and treatment beds. The server
+creates the corresponding proximity prompts and revalidates distance, job,
+duty, grade, bed availability, and payment for every action.
+
+```lua
+Config.Medical.Hospital.BillCost = 2000
+Config.Medical.Hospital.MinimalDoctors = 2
+Config.Medical.Hospital.Hospitals[1].checkIn = { Vector3.new(-249.08, 2.43, -1066.27) }
 ```
 
 Weather behavior is configured there too:

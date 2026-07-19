@@ -1,4 +1,4 @@
--- Death screen and self-respawn flow, inspired by qb-ambulancejob.
+-- Death screen, hospital check-in, and EMS job POIs inspired by qb-ambulancejob.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,13 +10,13 @@ local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local menuGui = playerGui:WaitForChild("QBMenu")
+local openMenuFunction = menuGui:WaitForChild("OpenMenu")
 
 local medicalConfig = QBShared.Config.Medical or {}
 local deathConfig = type(medicalConfig.DeathScreen) == "table" and medicalConfig.DeathScreen or {}
-
-if deathConfig.Enabled == false then
-	return
-end
+local deathScreenEnabled = deathConfig.Enabled ~= false
 
 local function getKeyCode(name, fallback)
 	local ok, keyCode = pcall(function()
@@ -57,7 +57,7 @@ screenGui.IgnoreGuiInset = true
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 70
 screenGui.Enabled = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Parent = playerGui
 
 local backdrop = Instance.new("Frame")
 backdrop.Name = "Backdrop"
@@ -247,6 +247,9 @@ local function setStatus(text, color)
 end
 
 local function setDead(nextDead)
+	if not deathScreenEnabled then
+		nextDead = false
+	end
 	if nextDead == isDead then
 		return
 	end
@@ -411,3 +414,125 @@ RunService.RenderStepped:Connect(updateVisualState)
 if QBCoreClient.GetPlayerData() then
 	syncDeathStateFromPlayerData(QBCoreClient.GetPlayerData())
 end
+
+local hospitalSnapshot = nil
+local hospitalRequestBusy = false
+
+local function hospitalNotify(message, notifyType, duration)
+	QBCoreClient.OnNotify:Fire(tostring(message or "Hospital request failed."), notifyType or "error", duration or 3500)
+end
+
+local function openHospitalMenu(items, options)
+	local ok, result = pcall(function()
+		return openMenuFunction:Invoke(items, options)
+	end)
+	if not ok then
+		warn("[QBAmbulance] Could not open QBMenu: " .. tostring(result))
+	end
+	return ok and result
+end
+
+local function runHospitalAction(action, fields)
+	if hospitalRequestBusy or type(hospitalSnapshot) ~= "table" then
+		return false
+	end
+
+	hospitalRequestBusy = true
+	local payload = type(fields) == "table" and fields or {}
+	payload.access = hospitalSnapshot.access
+	local invokeOk, ok, message = pcall(function()
+		return Remotes.HospitalAction:InvokeServer(action, payload)
+	end)
+	hospitalRequestBusy = false
+
+	if not invokeOk then
+		hospitalNotify("Hospital services did not respond. Please try again.")
+		return false
+	end
+	if not ok then
+		hospitalNotify(message)
+		return false
+	end
+	return true
+end
+
+local function openCheckInMenu(snapshot)
+	local cost = math.max(0, math.floor(tonumber(snapshot.cost) or 0))
+	local treatmentSeconds = math.max(0, math.ceil(tonumber(snapshot.treatmentSeconds) or 0))
+	local minimumDoctors = math.max(0, math.floor(tonumber(snapshot.minimumDoctors) or 0))
+	local paymentType = tostring(snapshot.paymentType or "bank")
+	local doctorPolicy = minimumDoctors > 0
+		and ("AI treatment is available when fewer than %d EMS are on duty."):format(minimumDoctors)
+		or "AI treatment is available regardless of EMS staffing."
+
+	openHospitalMenu({
+		{ header = snapshot.label or "Hospital", isMenuHeader = true },
+		{
+			header = "Patient Check-In",
+			txt = ("$%d from %s | about %d seconds"):format(cost, paymentType, treatmentSeconds),
+			disabled = true,
+		},
+		{
+			header = "Staffing Policy",
+			txt = doctorPolicy,
+			disabled = true,
+		},
+		{
+			header = "Check In",
+			txt = "Request treatment or notify the on-duty EMS team",
+			action = function()
+				runHospitalAction("check_in")
+			end,
+		},
+	}, {
+		title = snapshot.label or "Hospital",
+		subtitle = "Medical reception",
+	})
+end
+
+local function openVehicleMenu(snapshot)
+	local vehicles = type(snapshot.vehicles) == "table" and snapshot.vehicles or {}
+	local items = {
+		{ header = snapshot.label or "EMS Garage", isMenuHeader = true },
+	}
+
+	for _, vehicle in ipairs(vehicles) do
+		local vehicleName = vehicle.name
+		local vehicleLabel = vehicle.label
+		table.insert(items, {
+			header = tostring(vehicleLabel or vehicleName or "Emergency Vehicle"),
+			txt = "Retrieve this on-duty EMS vehicle",
+			action = function()
+				runHospitalAction("spawn_vehicle", { vehicle = vehicleName })
+			end,
+		})
+	end
+
+	if #vehicles == 0 then
+		table.insert(items, {
+			header = "No vehicles available",
+			txt = "Your EMS grade has no authorized vehicles.",
+			disabled = true,
+		})
+	end
+
+	openHospitalMenu(items, {
+		title = snapshot.label or "EMS Garage",
+		subtitle = "On-duty emergency fleet",
+	})
+end
+
+Remotes.OpenHospital.OnClientEvent:Connect(function(snapshot)
+	if hospitalRequestBusy or type(snapshot) ~= "table" then
+		return
+	end
+
+	hospitalSnapshot = snapshot
+	if snapshot.view == "checkin" then
+		openCheckInMenu(snapshot)
+	elseif snapshot.view == "vehicles" then
+		openVehicleMenu(snapshot)
+	else
+		hospitalNotify("That hospital service is unavailable.")
+	end
+end)

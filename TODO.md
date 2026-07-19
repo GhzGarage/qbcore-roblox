@@ -186,8 +186,8 @@ it is still not a full QBCore ecosystem.
       thunder audio assets, shelter checks, and interior/exterior attenuation.
 - [ ] Expand blackout beyond tagged Light instances if the map uses neon meshes,
       beam signs, screens, or custom lighting scripts.
-- [ ] Add map-aware spawn/hospital/police/garage/stage configuration instead of
-      hard-coded test coordinates.
+- [ ] Finish replacing remaining hard-coded spawn/police/garage/stage test
+      coordinates; hospitals now use the Palmera map POIs in `Config.Medical`.
 - [ ] Add place asset validation for required folders, stage speaker paths,
       vehicle templates, weapon templates, weather blackout tags, and Lighting
       requirements.
@@ -227,7 +227,8 @@ it is still not a full QBCore ecosystem.
       including category enforcement and clothing-only share codes.
 - [ ] Drugs/black-market loops.
 - [ ] Police MDT/jail/evidence.
-- [ ] EMS hospitals/beds/billing.
+- [x] First-pass EMS hospitals with configurable check-in/duty/vehicle POIs,
+      doctor-threshold routing, bed occupancy, treatment, billing, and ambulances.
 
 ## Useful Next Milestones
 

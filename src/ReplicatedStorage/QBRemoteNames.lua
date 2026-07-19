@@ -22,6 +22,7 @@ return {
 		"OpenSpawnSelector", -- server -> client: (spawn snapshot) choose where the selected character enters
 		"OpenApartment", -- server -> client: (view, payload) apartment menu, doorbell, or stash UI
 		"OpenCityHall", -- server -> client: ({ locationId }) open city services
+		"OpenHospital", -- server -> client: ({ view, access, ... }) open hospital check-in/job menus
 		"PhonePush", -- server -> client: (action, payload) incoming calls and phone state
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
 		"WeatherStateUpdated", -- server -> client: (weather snapshot) authoritative weather/blackout state
@@ -56,5 +57,6 @@ return {
 		"ApartmentAction", -- client -> server: (action, payload) -> boolean, resultOrError
 		"GetCityHall", -- client -> server: (access) -> city hall services snapshot, errorMessage?
 		"CityHallAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
+		"HospitalAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 	},
 }

@@ -2,8 +2,10 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local Remotes = require(ReplicatedStorage.QBRemotes)
 local PlayerService = require(script.Parent.PlayerService)
 
 local MedicalService = {}
@@ -13,6 +15,8 @@ local DEFAULT_REVIVE_DISTANCE = 10
 local DEFAULT_REVIVE_HEALTH = 40
 local FULL_ARMOR = 100
 local REGISTERED_WEAPON_TOOL_ATTRIBUTE = "QBWeaponTool"
+local HOSPITAL_INTERACTION_FOLDER = "QBHospitalInteractions"
+local HOSPITAL_ACTION_COOLDOWN = 0.35
 
 local started = false
 local weaponsBound = false
@@ -20,6 +24,15 @@ local weaponsFolderConnection = nil
 local characterConnections = {}
 local humanoidConnections = {}
 local deathTimes = {}
+local inventoryService
+local vehicleService
+local bankingService
+local treatmentSessions = {}
+local checkInBusy = {}
+local bedOccupancy = {}
+local jobVehicles = {}
+local lastHospitalActionAt = {}
+local lastDoctorCallAt = {}
 
 local function clampPercent(value)
 	return math.clamp(tonumber(value) or 0, 0, 100)
@@ -43,6 +56,59 @@ local function getRespawnHealth()
 	return math.max(1, tonumber(getRespawnConfig().Health) or 100)
 end
 
+local function getHospitalConfig()
+	local medical = QBShared.Config.Medical or {}
+	return type(medical.Hospital) == "table" and medical.Hospital or {}
+end
+
+local function trim(value)
+	return type(value) == "string" and value:match("^%s*(.-)%s*$") or ""
+end
+
+local function vectorFrom(value)
+	if typeof(value) == "Vector3" then
+		return value
+	end
+	if type(value) == "table" then
+		local source = value.position or value.coords or value
+		if typeof(source) == "Vector3" then
+			return source
+		end
+		local x = tonumber(source.x or source.X)
+		local y = tonumber(source.y or source.Y)
+		local z = tonumber(source.z or source.Z)
+		if x and y and z then
+			return Vector3.new(x, y, z)
+		end
+	end
+	return nil
+end
+
+local function cframeFrom(value, fallbackHeading)
+	local position = vectorFrom(value)
+	if not position then
+		return nil
+	end
+	local heading = tonumber(type(value) == "table" and (value.heading or value.ry)) or fallbackHeading or 0
+	return CFrame.new(position) * CFrame.Angles(0, math.rad(heading), 0)
+end
+
+local function hospitalById(id)
+	id = trim(id)
+	for _, hospital in ipairs(getHospitalConfig().Hospitals or {}) do
+		if trim(hospital.id) == id then
+			return hospital
+		end
+	end
+	return nil
+end
+
+local function jobGrade(playerObj)
+	local job = type(playerObj and playerObj.PlayerData.job) == "table" and playerObj.PlayerData.job or {}
+	local grade = type(job.grade) == "table" and job.grade or {}
+	return math.max(0, math.floor(tonumber(grade.level) or 0))
+end
+
 local function getRobloxPlayer(playerObj)
 	local player = playerObj and playerObj._source
 	if typeof(player) == "Instance" and player:IsA("Player") then
@@ -59,6 +125,20 @@ end
 local function getRoot(player)
 	local character = player and player.Character
 	return character and character:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function closeToPoints(player, points, maxDistance)
+	local root = getRoot(player)
+	if not root then
+		return false
+	end
+	for _, point in ipairs(type(points) == "table" and points or {}) do
+		local position = vectorFrom(point)
+		if position and (root.Position - position).Magnitude <= maxDistance then
+			return true
+		end
+	end
+	return false
 end
 
 local function destroyRegisteredWeaponTools(container)
@@ -121,6 +201,236 @@ local function isOnDutyAmbulance(playerObj)
 			and playerObj.PlayerData.job
 		or {}
 	return (job.name == "ambulance" or job.type == "ems") and job.onduty ~= false
+end
+
+local function isAmbulanceEmployee(playerObj)
+	local job = type(playerObj and playerObj.PlayerData and playerObj.PlayerData.job) == "table"
+			and playerObj.PlayerData.job
+		or {}
+	return job.name == "ambulance" or job.type == "ems"
+end
+
+local function authorizedHospitalVehicles(playerObj, hospital)
+	local grade = jobGrade(playerObj)
+	local vehicles = {}
+	for _, entry in ipairs(type(hospital.authorizedVehicles) == "table" and hospital.authorizedVehicles or {}) do
+		local name = type(entry) == "table" and trim(entry.name):lower() or trim(entry):lower()
+		local minimumGrade = type(entry) == "table" and math.max(0, math.floor(tonumber(entry.minGrade) or 0)) or 0
+		local definition = name ~= "" and QBShared.Vehicles[name] or nil
+		if definition and grade >= minimumGrade then
+			table.insert(vehicles, {
+				name = name,
+				label = tostring(type(entry) == "table" and entry.label or definition.label or name),
+			})
+		end
+	end
+	return vehicles
+end
+
+local function findAuthorizedHospitalVehicle(playerObj, hospital, requestedName)
+	requestedName = trim(requestedName):lower()
+	for _, vehicle in ipairs(authorizedHospitalVehicles(playerObj, hospital)) do
+		if vehicle.name == requestedName then
+			return vehicle
+		end
+	end
+	return nil
+end
+
+local function countOnDutyDoctors()
+	local userIds, count = PlayerService.GetPlayersByJob("ambulance", true)
+	return userIds, count
+end
+
+local function alertDoctors(player, playerObj, hospital)
+	local cooldown = math.max(0, tonumber(getHospitalConfig().DoctorCallCooldown) or 60)
+	local now = os.clock()
+	if now - (lastDoctorCallAt[player] or -math.huge) < cooldown then
+		return false, "EMS has already been notified."
+	end
+	lastDoctorCallAt[player] = now
+
+	local userIds = countOnDutyDoctors()
+	for _, userId in ipairs(userIds) do
+		local doctor = PlayerService.GetPlayer(userId)
+		if doctor then
+			doctor:Notify(
+				("Doctor needed at %s for %s."):format(tostring(hospital.label or "Hospital"), playerObj:GetName()),
+				"primary",
+				6000
+			)
+		end
+	end
+	return true, "On-duty EMS has been notified."
+end
+
+local function reserveBed(hospital, player)
+	local hospitalId = trim(hospital.id)
+	bedOccupancy[hospitalId] = bedOccupancy[hospitalId] or {}
+	local occupied = bedOccupancy[hospitalId]
+	for bedIndex, bed in ipairs(type(hospital.beds) == "table" and hospital.beds or {}) do
+		local occupant = occupied[bedIndex]
+		if not occupant or occupant.Parent ~= Players then
+			local bedCFrame = cframeFrom(bed)
+			if bedCFrame then
+				occupied[bedIndex] = player
+				return bedIndex, bedCFrame
+			end
+		end
+	end
+	return nil, nil
+end
+
+local function releaseBed(hospitalId, bedIndex, player)
+	local occupied = bedOccupancy[hospitalId]
+	if occupied and occupied[bedIndex] == player then
+		occupied[bedIndex] = nil
+	end
+end
+
+local function hospitalExitCFrame(hospital)
+	local checkIn = type(hospital.checkIn) == "table" and hospital.checkIn[1] or nil
+	local base = cframeFrom(checkIn)
+	return base and (base + Vector3.new(0, 0, 6)) or nil
+end
+
+local function nearestHospital(position)
+	local closest
+	local closestDistance = math.huge
+	for _, hospital in ipairs(getHospitalConfig().Hospitals or {}) do
+		local checkIn = type(hospital.checkIn) == "table" and vectorFrom(hospital.checkIn[1]) or nil
+		if checkIn then
+			local distance = position and (position - checkIn).Magnitude or 0
+			if distance < closestDistance then
+				closestDistance = distance
+				closest = hospital
+			end
+		end
+	end
+	return closest
+end
+
+local function chargeHospital(playerObj)
+	local hospital = getHospitalConfig()
+	local cost = math.max(0, math.floor(tonumber(hospital.BillCost) or 0))
+	local paymentType = trim(hospital.PaymentType):lower()
+	if paymentType == "" then
+		paymentType = "bank"
+	end
+	if cost <= 0 then
+		return true, 0, paymentType
+	end
+	if not playerObj:RemoveMoney(paymentType, cost, "hospital-treatment") then
+		return false, cost, paymentType
+	end
+	if bankingService and type(bankingService.AddSocietyFunds) == "function" then
+		task.spawn(function()
+			bankingService.AddSocietyFunds("ambulance", cost, "Hospital treatment")
+		end)
+	end
+	return true, cost, paymentType
+end
+
+local function finishTreatment(player)
+	local session = treatmentSessions[player]
+	if not session then
+		return
+	end
+	treatmentSessions[player] = nil
+	releaseBed(session.hospitalId, session.bedIndex, player)
+	if session.root and session.root.Parent then
+		session.root.Anchored = session.wasAnchored == true
+	end
+
+	local playerObj = PlayerService.GetPlayer(player.UserId)
+	if not playerObj or playerObj ~= session.playerObj then
+		return
+	end
+	local exitCFrame = hospitalExitCFrame(session.hospital) or session.bedCFrame
+	if playerObj:GetMetaData("isdead") == true or isDeadCharacter(player) then
+		local ok = MedicalService.RevivePlayer(playerObj, player, exitCFrame, getRespawnHealth())
+		if not ok then
+			playerObj:Notify("Hospital treatment could not revive you.", "error", 4000)
+			return
+		end
+	else
+		local humanoid = getHumanoid(player)
+		local root = getRoot(player)
+		if humanoid then
+			humanoid.Health = humanoid.MaxHealth
+		end
+		if root and exitCFrame then
+			root.CFrame = exitCFrame + Vector3.new(0, 3, 0)
+		end
+		playerObj:SetMetaData("isdead", false)
+	end
+	playerObj:SetMetaData("hunger", 100)
+	playerObj:SetMetaData("thirst", 100)
+	playerObj:Save()
+	playerObj:Notify("Treatment complete. You are healthy again.", "success", 4500)
+end
+
+local function beginHospitalCheckIn(player, playerObj, hospital)
+	if treatmentSessions[player] or checkInBusy[player] then
+		return false, "You are already checking in."
+	end
+	local hospitalConfig = getHospitalConfig()
+	local maxDistance = math.max(1, tonumber(hospitalConfig.ActionDistance) or 14)
+	if not closeToPoints(player, hospital.checkIn, maxDistance) then
+		return false, "Move closer to the hospital check-in desk."
+	end
+
+	local _, doctorCount = countOnDutyDoctors()
+	local minimumDoctors = math.max(0, math.floor(tonumber(hospitalConfig.MinimalDoctors) or 0))
+	if minimumDoctors > 0 and doctorCount >= minimumDoctors then
+		return alertDoctors(player, playerObj, hospital)
+	end
+
+	checkInBusy[player] = true
+	local admissionSeconds = math.max(0, tonumber(hospitalConfig.AdmissionSeconds) or 2)
+	if admissionSeconds > 0 then
+		task.wait(admissionSeconds)
+	end
+	if PlayerService.GetPlayer(player.UserId) ~= playerObj or not closeToPoints(player, hospital.checkIn, maxDistance) then
+		checkInBusy[player] = nil
+		return false, "Hospital check-in was canceled."
+	end
+
+	local root = getRoot(player)
+	if not root then
+		checkInBusy[player] = nil
+		return false, "Your character is not ready for treatment."
+	end
+
+	local bedIndex, bedCFrame = reserveBed(hospital, player)
+	if not bedIndex then
+		checkInBusy[player] = nil
+		return false, "All treatment beds are occupied."
+	end
+	local paid, cost, paymentType = chargeHospital(playerObj)
+	if not paid then
+		releaseBed(trim(hospital.id), bedIndex, player)
+		checkInBusy[player] = nil
+		return false, ("You need $%d available in %s for treatment."):format(cost, paymentType)
+	end
+
+	local wasAnchored = root.Anchored
+	root.CFrame = bedCFrame + Vector3.new(0, 3, 0)
+	root.Anchored = true
+	treatmentSessions[player] = {
+		playerObj = playerObj,
+		hospital = hospital,
+		hospitalId = trim(hospital.id),
+		bedIndex = bedIndex,
+		bedCFrame = bedCFrame,
+		root = root,
+		wasAnchored = wasAnchored,
+	}
+	checkInBusy[player] = nil
+	local treatmentSeconds = math.max(0, tonumber(hospitalConfig.TreatmentSeconds) or 20)
+	playerObj:Notify(("Treatment started. Estimated time: %d seconds."):format(math.ceil(treatmentSeconds)), "primary", 4500)
+	task.delay(treatmentSeconds, finishTreatment, player)
+	return true, ("Checked into %s for $%d (%s)."):format(tostring(hospital.label or "Hospital"), cost, paymentType)
 end
 
 function MedicalService.SetArmor(playerObj, amount)
@@ -268,7 +578,16 @@ function MedicalService.RequestRespawn(player)
 		return false, ("Respawn available in %d seconds."):format(math.ceil(remaining))
 	end
 
-	local ok, err = PlayerService.RespawnPlayer(player, playerObj, nil, getRespawnHealth())
+	local hospitalConfig = getHospitalConfig()
+	local destinationHospital
+	local respawnCFrame
+	if hospitalConfig.Enabled ~= false and hospitalConfig.RespawnAtNearestHospital ~= false then
+		local oldRoot = getRoot(player)
+		destinationHospital = nearestHospital(oldRoot and oldRoot.Position or nil)
+		respawnCFrame = destinationHospital and hospitalExitCFrame(destinationHospital) or nil
+	end
+
+	local ok, err = PlayerService.RespawnPlayer(player, playerObj, respawnCFrame, getRespawnHealth())
 	if not ok then
 		return false, err
 	end
@@ -282,8 +601,33 @@ function MedicalService.RequestRespawn(player)
 	deathTimes[player] = nil
 	playerObj:SetMetaData("isdead", false)
 	MedicalService.SetArmor(playerObj, 0)
+	local paid, cost, paymentType = true, 0, "bank"
+	if destinationHospital then
+		paid, cost, paymentType = chargeHospital(playerObj)
+	end
 	playerObj:Save()
-	playerObj:Notify("You respawned.", "success", 2500)
+	if destinationHospital and paid and cost > 0 then
+		playerObj:Notify(
+			("You respawned at %s. Hospital bill: $%d (%s)."):format(
+				tostring(destinationHospital.label or "Hospital"),
+				cost,
+				paymentType
+			),
+			"success",
+			4500
+		)
+	elseif destinationHospital and not paid then
+		playerObj:Notify(
+			("You respawned at %s. The $%d hospital bill could not be collected."):format(
+				tostring(destinationHospital.label or "Hospital"),
+				cost
+			),
+			"warning",
+			4500
+		)
+	else
+		playerObj:Notify("You respawned.", "success", 2500)
+	end
 	return true
 end
 
@@ -382,6 +726,22 @@ local function unwatchPlayer(player)
 		humanoidConnections[player]:Disconnect()
 		humanoidConnections[player] = nil
 	end
+	local session = treatmentSessions[player]
+	if session then
+		releaseBed(session.hospitalId, session.bedIndex, player)
+		if session.root and session.root.Parent then
+			session.root.Anchored = session.wasAnchored == true
+		end
+		treatmentSessions[player] = nil
+	end
+	local vehicle = jobVehicles[player]
+	if vehicle and vehicle.Parent then
+		vehicle:Destroy()
+	end
+	jobVehicles[player] = nil
+	checkInBusy[player] = nil
+	lastHospitalActionAt[player] = nil
+	lastDoctorCallAt[player] = nil
 	deathTimes[player] = nil
 end
 
@@ -448,16 +808,222 @@ local function watchWeaponsSystem()
 	end)
 end
 
-function MedicalService.Start(InventoryService)
+local function spawnHospitalVehicle(player, playerObj, hospital, payload)
+	local hospitalConfig = getHospitalConfig()
+	local maxDistance = math.max(1, tonumber(hospitalConfig.ActionDistance) or 14)
+	if not closeToPoints(player, hospital.vehicle, maxDistance) then
+		return false, "Move closer to the ambulance retrieval point."
+	end
+	if not isOnDutyAmbulance(playerObj) then
+		return false, "You need to be on-duty EMS to retrieve an ambulance."
+	end
+	local requested = findAuthorizedHospitalVehicle(playerObj, hospital, payload.vehicle)
+	if not requested then
+		return false, "That emergency vehicle is not authorized for your grade."
+	end
+	local spawnCFrame = cframeFrom(hospital.vehicleSpawn)
+	if not spawnCFrame then
+		return false, "This hospital does not have a valid vehicle spawn."
+	end
+	if not vehicleService or type(vehicleService.SpawnVehicle) ~= "function" then
+		return false, "Vehicle service is unavailable."
+	end
+
+	local previous = jobVehicles[player]
+	if previous and previous.Parent then
+		previous:Destroy()
+	end
+	jobVehicles[player] = nil
+
+	local vehicle, definitionOrError = vehicleService.SpawnVehicle(player, requested.name, {
+		cframe = spawnCFrame,
+	})
+	if not vehicle then
+		return false, definitionOrError or "The ambulance could not be spawned."
+	end
+	jobVehicles[player] = vehicle
+	return true, ("%s is ready outside."):format(tostring(requested.label or "Ambulance"))
+end
+
+local HOSPITAL_ACTIONS = {
+	check_in = function(player, playerObj, hospital)
+		return beginHospitalCheckIn(player, playerObj, hospital)
+	end,
+	spawn_vehicle = spawnHospitalVehicle,
+}
+
+local function safeInteractionName(hospitalId, kind, index)
+	local id = trim(hospitalId):gsub("[^%w_%-]", "_")
+	return ("%s_%s_%d"):format(id ~= "" and id or "Hospital", kind, index)
+end
+
+local function createInteractionPart(folder, hospital, hospitalIndex, kind, point, pointIndex, actionText, callback)
+	local position = vectorFrom(point)
+	if not position then
+		warn(("[QBCore.MedicalService] Invalid %s point %d for hospital %d."):format(kind, pointIndex, hospitalIndex))
+		return
+	end
+	local partName = safeInteractionName(hospital.id, kind, pointIndex)
+	local part = folder:FindFirstChild(partName)
+	if part and not part:IsA("BasePart") then
+		warn(("[QBCore.MedicalService] %s must be a BasePart."):format(part:GetFullName()))
+		return
+	end
+	if not part then
+		part = Instance.new("Part")
+		part.Name = partName
+		part.Parent = folder
+	end
+	part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch = true, false, false, false
+	part.CastShadow, part.Transparency, part.Size = false, 1, Vector3.new(2, 2, 2)
+	part.CFrame = cframeFrom(point) or CFrame.new(position)
+	part:SetAttribute("QBHospitalId", trim(hospital.id))
+	part:SetAttribute("QBHospitalLabel", tostring(hospital.label or "Hospital"))
+	part:SetAttribute("QBHospitalPOI", kind)
+
+	local prompt = part:FindFirstChild("HospitalPrompt")
+	if prompt and not prompt:IsA("ProximityPrompt") then
+		warn(("[QBCore.MedicalService] %s.HospitalPrompt must be a ProximityPrompt."):format(part:GetFullName()))
+		return
+	end
+	if not prompt then
+		prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "HospitalPrompt"
+		prompt.Parent = part
+	end
+	prompt.ActionText = actionText
+	prompt.ObjectText = tostring(hospital.label or "Hospital")
+	prompt.KeyboardKeyCode, prompt.GamepadKeyCode = Enum.KeyCode.E, Enum.KeyCode.ButtonX
+	prompt.HoldDuration = 0.15
+	prompt.MaxActivationDistance = math.max(1, tonumber(getHospitalConfig().PromptDistance) or 10)
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = getHospitalConfig().Enabled ~= false
+	prompt.Triggered:Connect(function(player)
+		local playerObj = PlayerService.GetPlayer(player.UserId)
+		if not playerObj then
+			return
+		end
+		local maxDistance = math.max(1, tonumber(getHospitalConfig().ActionDistance) or 14)
+		if not closeToPoints(player, { point }, maxDistance) then
+			playerObj:Notify("Move closer to the hospital point.", "error", 3500)
+			return
+		end
+		callback(player, playerObj)
+	end)
+end
+
+local function createHospitalInteractions()
+	local folder = Workspace:FindFirstChild(HOSPITAL_INTERACTION_FOLDER)
+	if folder and not folder:IsA("Folder") then
+		warn(("[QBCore.MedicalService] Workspace.%s must be a Folder."):format(HOSPITAL_INTERACTION_FOLDER))
+		return
+	end
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = HOSPITAL_INTERACTION_FOLDER
+		folder.Parent = Workspace
+	end
+
+	local hospitalConfig = getHospitalConfig()
+	for hospitalIndex, hospital in ipairs(hospitalConfig.Hospitals or {}) do
+		local hospitalId = trim(hospital.id)
+		if hospitalId == "" then
+			warn(("[QBCore.MedicalService] Hospital %d needs a unique id."):format(hospitalIndex))
+			continue
+		end
+		for pointIndex, point in ipairs(type(hospital.checkIn) == "table" and hospital.checkIn or {}) do
+			createInteractionPart(folder, hospital, hospitalIndex, "CheckIn", point, pointIndex, "Check In", function(player)
+				Remotes.OpenHospital:FireClient(player, {
+					view = "checkin",
+					access = { hospitalId = hospitalId },
+					label = tostring(hospital.label or "Hospital"),
+					cost = math.max(0, math.floor(tonumber(hospitalConfig.BillCost) or 0)),
+					paymentType = trim(hospitalConfig.PaymentType):lower(),
+					admissionSeconds = math.max(0, tonumber(hospitalConfig.AdmissionSeconds) or 2),
+					treatmentSeconds = math.max(0, tonumber(hospitalConfig.TreatmentSeconds) or 20),
+					minimumDoctors = math.max(0, math.floor(tonumber(hospitalConfig.MinimalDoctors) or 0)),
+				})
+			end)
+		end
+		for pointIndex, point in ipairs(type(hospital.duty) == "table" and hospital.duty or {}) do
+			createInteractionPart(folder, hospital, hospitalIndex, "Duty", point, pointIndex, "Toggle Duty", function(_, playerObj)
+				if not isAmbulanceEmployee(playerObj) then
+					playerObj:Notify("Only EMS employees can use this duty point.", "error", 3500)
+					return
+				end
+				local nextDuty = playerObj.PlayerData.job.onduty == false
+				playerObj:SetJobDuty(nextDuty)
+				playerObj:Save()
+				playerObj:Notify(nextDuty and "You are now on duty." or "You are now off duty.", "success", 3500)
+			end)
+		end
+		for pointIndex, point in ipairs(type(hospital.vehicle) == "table" and hospital.vehicle or {}) do
+			createInteractionPart(folder, hospital, hospitalIndex, "Vehicle", point, pointIndex, "Retrieve Ambulance", function(player, playerObj)
+				if not isOnDutyAmbulance(playerObj) then
+					playerObj:Notify("You need to be on-duty EMS to use this point.", "error", 3500)
+					return
+				end
+				Remotes.OpenHospital:FireClient(player, {
+					view = "vehicles",
+					access = { hospitalId = hospitalId },
+					label = tostring(hospital.label or "Hospital"),
+					vehicles = authorizedHospitalVehicles(playerObj, hospital),
+				})
+			end)
+		end
+	end
+end
+
+function MedicalService.Start(InventoryService, VehicleService, BankingService)
 	if started then
 		return
 	end
+	assert(type(InventoryService) == "table", "MedicalService.Start requires InventoryService")
+	inventoryService = InventoryService
+	vehicleService = VehicleService
+	bankingService = BankingService
 	started = true
 
 	for itemName, definition in pairs(QBShared.Items) do
 		if type(definition.medical) == "table" then
-			InventoryService.CreateUseableItem(itemName, handleMedicalItem)
+			inventoryService.CreateUseableItem(itemName, handleMedicalItem)
 		end
+	end
+
+	Remotes.HospitalAction.OnServerInvoke = function(player, action, payload)
+		local playerObj = PlayerService.GetPlayer(player.UserId)
+		if not playerObj then
+			return false, "Character not loaded."
+		end
+		local hospitalConfig = getHospitalConfig()
+		if hospitalConfig.Enabled == false then
+			return false, "Hospital services are unavailable."
+		end
+		payload = type(payload) == "table" and payload or {}
+		local access = type(payload.access) == "table" and payload.access or {}
+		local hospital = hospitalById(access.hospitalId)
+		if not hospital then
+			return false, "That hospital is unavailable."
+		end
+		local now = os.clock()
+		if now - (lastHospitalActionAt[player] or 0) < HOSPITAL_ACTION_COOLDOWN then
+			return false, "Please wait before submitting another hospital request."
+		end
+		lastHospitalActionAt[player] = now
+		action = trim(action):lower()
+		local handler = HOSPITAL_ACTIONS[action]
+		if not handler then
+			return false, "That hospital action is not supported."
+		end
+		local handlerOk, ok, message = pcall(handler, player, playerObj, hospital, payload)
+		if not handlerOk then
+			warn(("[QBCore.MedicalService] %s failed for %s: %s"):format(action, player.Name, tostring(ok)))
+			return false, "The hospital request could not be completed."
+		end
+		if ok and message then
+			playerObj:Notify(tostring(message), "success", 4000)
+		end
+		return ok, message
 	end
 
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -466,6 +1032,9 @@ function MedicalService.Start(InventoryService)
 	Players.PlayerAdded:Connect(watchPlayer)
 	Players.PlayerRemoving:Connect(unwatchPlayer)
 
+	if getHospitalConfig().Enabled ~= false then
+		createHospitalInteractions()
+	end
 	watchWeaponsSystem()
 end
 

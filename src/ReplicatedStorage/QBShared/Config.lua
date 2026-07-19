@@ -543,6 +543,61 @@ Config.Medical = {
 		UseConfiguredLocation = false,
 		Location = { x = -175.00, y = 3.70, z = 333.57, ry = 358.6 },
 	},
+	Hospital = {
+		Enabled = true,
+		PromptDistance = 10,
+		ActionDistance = 14,
+		AdmissionSeconds = 2,
+		TreatmentSeconds = 20,
+		BillCost = 2000,
+		PaymentType = "bank",
+		MinimalDoctors = 2,
+		DoctorCallCooldown = 60,
+		RespawnAtNearestHospital = true,
+		Hospitals = {
+			{
+				id = "palmera_medical",
+				label = "Palmera Medical Center",
+				checkIn = { Vector3.new(-249.08, 2.43, -1066.27) },
+				duty = { Vector3.new(-254.39, 2.43, -1064.81) },
+				vehicle = { Vector3.new(-205.90, 2.35, -982.20) },
+				vehicleSpawn = { position = Vector3.new(-195.90, 3.35, -982.20), heading = 90 },
+				authorizedVehicles = {
+					{ name = "ambulance", label = "Ambulance", minGrade = 0 },
+				},
+				beds = {
+					{ position = Vector3.new(-259.64, 3.06, -1025.53), heading = 121 },
+					{ position = Vector3.new(-265.69, 3.06, -1029.15), heading = 121 },
+					{ position = Vector3.new(-267.92, 3.06, -1031.34), heading = 125 },
+					{ position = Vector3.new(-273.79, 3.06, -1034.69), heading = 125 },
+					{ position = Vector3.new(-281.93, 3.06, -1040.41), heading = 122 },
+					{ position = Vector3.new(-284.33, 3.06, -1042.07), heading = 120 },
+					{ position = Vector3.new(-287.67, 3.06, -1044.71), heading = 127 },
+					{ position = Vector3.new(-290.27, 3.06, -1046.18), heading = 126 },
+				},
+			},
+			{
+				id = "palmera_trauma",
+				label = "Palmera Trauma Center",
+				checkIn = { Vector3.new(-290.11, 2.43, -1005.73) },
+				duty = { Vector3.new(-293.99, 2.43, -1003.28) },
+				vehicle = { Vector3.new(-240.04, 2.35, -931.98) },
+				vehicleSpawn = { position = Vector3.new(-230.04, 3.35, -931.98), heading = 90 },
+				authorizedVehicles = {
+					{ name = "ambulance", label = "Ambulance", minGrade = 0 },
+				},
+				beds = {
+					{ position = Vector3.new(-308.02, 3.06, -991.67), heading = 215 },
+					{ position = Vector3.new(-309.98, 3.06, -988.42), heading = 212 },
+					{ position = Vector3.new(-312.17, 3.06, -985.41), heading = 211 },
+					{ position = Vector3.new(-314.45, 3.06, -982.20), heading = 215 },
+					{ position = Vector3.new(-303.85, 3.06, -979.02), heading = 31 },
+					{ position = Vector3.new(-305.96, 3.06, -975.94), heading = 33 },
+					{ position = Vector3.new(-308.16, 3.06, -972.82), heading = 37 },
+				},
+			},
+		},
+	},
 }
 
 -- Per-character appearance (qb-clothing-style). Each character slot stores a serialized

@@ -272,6 +272,19 @@ local Vehicles = {
 		description = "A taxi-service sedan template.",
 	}),
 
+	ambulance = vehicle({
+		name = "ambulance",
+		label = "Ambulance",
+		modelName = "Ambulance",
+		category = "emergency",
+		color = "white",
+		trunkSlots = 50,
+		trunkWeight = 100000,
+		attributeProfile = "emergency",
+		aliases = { "ems", "medical", "bp_ambulance" },
+		description = "An emergency medical response vehicle for on-duty EMS.",
+	}),
+
 	light_utility_black = vehicle({
 		name = "light_utility_black",
 		label = "Light Utility Vehicle (Black)",
