@@ -21,6 +21,7 @@ return {
 		"OpenPhone", -- server -> client: (phone snapshot) open from the inventory phone item
 		"OpenSpawnSelector", -- server -> client: (spawn snapshot) choose where the selected character enters
 		"OpenApartment", -- server -> client: (view, payload) apartment menu, doorbell, or stash UI
+		"OpenCityHall", -- server -> client: ({ locationId }) open city services
 		"PhonePush", -- server -> client: (action, payload) incoming calls and phone state
 		"StageMusicControl", -- client -> server: ({ action, stationId, trackId }) control nearby stage music
 		"WeatherStateUpdated", -- server -> client: (weather snapshot) authoritative weather/blackout state
@@ -53,5 +54,7 @@ return {
 		"PhoneRequest", -- client -> server: (action, payload) -> boolean, resultOrError
 		"SelectSpawn", -- client -> server: (choice id) -> boolean, errorMessage?
 		"ApartmentAction", -- client -> server: (action, payload) -> boolean, resultOrError
+		"GetCityHall", -- client -> server: (access) -> city hall services snapshot, errorMessage?
+		"CityHallAction", -- client -> server: (action, payloadWithAccess) -> boolean, resultOrError
 	},
 }

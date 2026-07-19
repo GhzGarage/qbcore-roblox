@@ -490,6 +490,44 @@ Config.Shops = {
 	},
 }
 
+-- qb-cityhall-style public services. Jobs listed here are the only jobs that can
+-- be selected at City Hall; RestrictedJobs is also enforced independently so a
+-- future config edit cannot accidentally make emergency or whitelisted roles public.
+Config.CityHall = {
+	Enabled = true,
+	PromptDistance = 10,
+	ActionDistance = 14,
+	AvailableJobs = {
+		"trucker",
+		"taxi",
+		"tow",
+		"reporter",
+		"garbage",
+		"bus",
+		"hotdog",
+		"realestate",
+		"cardealer",
+		"delivery",
+	},
+	RestrictedJobs = {
+		police = true,
+		ambulance = true,
+		mechanic = true,
+	},
+	Documents = {
+		{ name = "id_card", label = "ID Card", cost = 50 },
+		{ name = "driver_license", label = "Driver License", cost = 50, requiredLicense = "driver" },
+		{ name = "weaponlicense", label = "Weapon License", cost = 50, requiredLicense = "weapon" },
+	},
+	Locations = {
+		{
+			id = "city_hall",
+			label = "City Hall",
+			position = Vector3.new(-175, 3.7, 333.57),
+		},
+	},
+}
+
 Config.Medical = {
 	DeathScreen = {
 		Enabled = true,

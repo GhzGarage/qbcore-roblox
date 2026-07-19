@@ -124,6 +124,42 @@ return {
 		description = "A StudOS smartphone. Use this item to open it.",
 	},
 
+	id_card = {
+		name = "id_card",
+		label = "ID Card",
+		weight = 10,
+		type = "item",
+		image = "",
+		unique = true,
+		useable = false,
+		shouldClose = true,
+		description = "A government-issued identity card containing character information.",
+	},
+
+	driver_license = {
+		name = "driver_license",
+		label = "Driver License",
+		weight = 10,
+		type = "item",
+		image = "",
+		unique = true,
+		useable = false,
+		shouldClose = true,
+		description = "A Class C driver license issued by City Hall.",
+	},
+
+	weaponlicense = {
+		name = "weaponlicense",
+		label = "Weapon License",
+		weight = 10,
+		type = "item",
+		image = "",
+		unique = true,
+		useable = false,
+		shouldClose = true,
+		description = "Proof that the holder is licensed to purchase regulated weapons.",
+	},
+
 	-- Ammo items: one item is one bullet. A weapon lists which item it reloads
 	-- from via weapon.ammoItem; reload pulls from these and is refused without them.
 	pistol_ammo = {

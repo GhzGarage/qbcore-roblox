@@ -12,6 +12,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Shared QBCore-style proximity prompt UI for keyboard, gamepad, and touch.
 - Server-authoritative hunger/thirst decay.
 - Player inventory, five-slot hotbar, two-pane external inventory UI, item shops, and native admin menu with a live loaded-character economy leaderboard.
+- Proximity-prompt City Hall with public job selection and instant cash purchases for eligible identity/license items.
 - Per-character appearance editor plus categorized clothing/barber shops, saved outfits, and clothing-only share codes.
 - TextChatService slash commands for player/admin flows.
 - Inventory-backed weapon Tool equip flow with ammo item consumption.
@@ -469,6 +470,15 @@ access, stock, weight/slot capacity, and payment before changing money or invent
 Normal `Tab`/Bag access remains a single pane. Future stashes, trunks, and gloveboxes
 can register an external provider through `InventoryService.RegisterExternalProvider`
 and reuse the same snapshot/action path.
+
+## City Hall
+
+`Config.CityHall.Locations` places City Hall prompts, `AvailableJobs` controls the
+public job list, and `Documents` controls document prices and license eligibility.
+Police, ambulance, and mechanic are denied independently through `RestrictedJobs`.
+The server rechecks proximity and eligibility for every request, takes cash only
+after confirming inventory capacity, and immediately adds character-specific item
+metadata for the issued document.
 
 ## Extending It
 

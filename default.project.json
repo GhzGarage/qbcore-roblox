@@ -98,6 +98,9 @@
         "QBPrompt": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBPrompt.client.lua"
         },
+        "QBCityHall": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBCityHall.client.lua"
+        },
         "QBTimeCycle": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBTimeCycle.client.lua"
         },

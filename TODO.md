@@ -142,6 +142,7 @@ it is still not a full QBCore ecosystem.
 
 ### Jobs, Crews, And Gameplay Loops
 
+- [x] Add City Hall public job selection and paid ID/license document issuance.
 - [x] Add proximity-prompt job/crew management with indexed rosters, nearby
       hiring, grade changes, removal, and offline change queues; shared funds live in banking.
 - [ ] Turn the current job/crew registries into real gameplay systems with map
