@@ -7,6 +7,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Persistence for money, banking statements, player-shared and organization accounts, queued transfers, owned vehicles, job, crew, charinfo, position, and metadata.
 - Client-side QBCore player data cache.
 - Basic QBCore-style HUD for health, armor, hunger, and thirst.
+- Native fixed-zoom rotating minimap with short-range and perimeter-clamped blips.
 - Death screen with timer-based self-respawn.
 - Toast notification UI for `Player:Notify`.
 - Shared QBCore-style proximity prompt UI for keyboard, gamepad, and touch.
@@ -90,7 +91,8 @@ src/
     QBAmbulance.client.lua  -- death/respawn UI plus hospital check-in and EMS garage menus
     QBPoliceJob.client.lua  -- police fleet and fingerprint result menus
     QBEmotes.client.lua     -- emote menu
-    QBHUD.client.lua        -- health, armor, hunger, thirst HUD
+    QBHUD.client.lua        -- identity, money, status, and ammo HUD
+    QBMinimap.client.lua    -- starts the fixed-zoom native minimap
     QBInventory.client.lua  -- player/external inventory panes, shops, and hotbar
     QBMenu.client.lua       -- reusable QBCore-style menu
     QBNotify.client.lua     -- toast notifications
@@ -225,6 +227,30 @@ Config.StatusDecay = {
 
 The current defaults are slower and closer to live gameplay; lower
 `StatusInterval` temporarily when you want the HUD to move quickly in Studio.
+
+The minimap is configured in the same file. Import `ref_final/roads.png` through
+Studio, then set `Image` to the resulting image asset ID. `StudsAcross` controls
+the fixed zoom. A normal blip disappears beyond `displayRadius`; an
+`alwaysShow = true` blip remains visible and clamps to the minimap perimeter.
+
+```lua
+Config.HUD.Minimap.Image = "rbxassetid://123456789"
+Config.HUD.Minimap.StudsAcross = 1900
+Config.HUD.Minimap.Blips = {
+    {
+        id = "hospital",
+        position = Vector3.new(-249.08, 2.43, -1066.27),
+        symbol = "+",
+        alwaysShow = true,
+    },
+}
+```
+
+Client systems can also use `ReplicatedStorage.QBMinimap.AddBlip()`, or tag a
+Part, Attachment, or Model with `QBMinimapBlip`. Tagged instances accept the
+`MinimapAlwaysShow`, `MinimapDisplayRadius`, `MinimapColor`, `MinimapSymbol`,
+`MinimapImage`, `MinimapSize`, `MinimapLabel`, and optional `MinimapId`
+attributes.
 
 Character slots are also configured there:
 

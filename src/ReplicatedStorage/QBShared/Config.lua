@@ -16,6 +16,52 @@ Config.StatusDecay = {
 	Thirst = 1, -- percent removed every StatusInterval
 }
 
+Config.HUD = {
+	Minimap = {
+		Enabled = true,
+		-- Import ref_final/roads.png through Studio and paste its image asset ID here.
+		-- Both "123456" and "rbxassetid://123456" are accepted.
+		Image = "",
+		Size = 216,
+		Gap = 10,
+		StudsAcross = 1900, -- fixed zoom; this never changes with speed or movement state
+		RotateWithHeading = true,
+		DefaultDisplayRadius = 950,
+		EdgePadding = 13,
+		MapPixelSize = Vector2.new(2752, 1536),
+		-- Exact ref_final image-space transform from mapgen_ref_final.lua.
+		WorldOriginPixel = Vector2.new(1426.50, 761.00),
+		StudsPerPixel = Vector2.new(4.470588, 4.469771),
+		CollectionTag = "QBMinimapBlip",
+		Blips = {
+			{
+				id = "pillbox_hospital",
+				label = "Hospital",
+				position = Vector3.new(-249.08, 2.43, -1066.27),
+				color = Color3.fromRGB(214, 76, 86),
+				symbol = "+",
+				alwaysShow = true,
+			},
+			{
+				id = "mission_row_police",
+				label = "Police",
+				position = Vector3.new(-255, 3.7, 315.57),
+				color = Color3.fromRGB(72, 141, 213),
+				symbol = "P",
+				displayRadius = 950,
+			},
+			{
+				id = "city_hall",
+				label = "City Hall",
+				position = Vector3.new(-175, 3.7, 333.57),
+				color = Color3.fromRGB(235, 184, 76),
+				symbol = "C",
+				displayRadius = 950,
+			},
+		},
+	},
+}
+
 Config.World = {
 	ForceClearNoon = true, -- master switch for everything below
 	ClockTime = 0, -- static time of day; only used when Time.Enabled below is false

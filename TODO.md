@@ -34,6 +34,8 @@ it is still not a full QBCore ecosystem.
       transfers, cards/PINs, daily ATM limits, and persistent statements.
 - [x] HUD for identity, job, cash/bank, health, armor, hunger, thirst, and
       equipped weapon ammo.
+- [x] Fixed-zoom rotating minimap with configurable short-range and
+      perimeter-clamped always-visible blips.
 - [x] Toast notification UI.
 - [x] Shared Roblox-native proximity prompt UI for keyboard, gamepad, and touch,
       reused by banks, shops, garages, management, clothing, and other world

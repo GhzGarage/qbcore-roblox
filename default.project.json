@@ -15,6 +15,9 @@
       },
       "QBCoreClient": {
         "$path": "src/ReplicatedStorage/QBCoreClient.lua"
+      },
+      "QBMinimap": {
+        "$path": "src/ReplicatedStorage/QBMinimap.lua"
       }
     },
     "ServerStorage": {
@@ -52,6 +55,9 @@
         },
         "QBHUD": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBHUD.client.lua"
+        },
+        "QBMinimap": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/QBMinimap.client.lua"
         },
         "QBInventory": {
           "$path": "src/StarterPlayer/StarterPlayerScripts/QBInventory.client.lua"
