@@ -88,12 +88,7 @@ local function updateResponsiveLayout()
 	local viewport = getViewportSize()
 	local scale = math.clamp(math.min(viewport.X / 980, viewport.Y / 720), MIN_HUD_SCALE, 1)
 	minimapScale.Scale = scale
-	minimapFrame.Position = UDim2.new(
-		0,
-		math.floor(18 * scale + 0.5),
-		1,
-		-math.floor(STATUS_TOP_OFFSET * scale + 0.5)
-	)
+	minimapFrame.Position = UDim2.new(0, math.floor(18 * scale + 0.5), 1, -math.floor(STATUS_TOP_OFFSET * scale + 0.5))
 end
 
 local function bindResponsiveLayout()
@@ -242,8 +237,7 @@ local function addTaggedBlip(instance)
 
 	taggedBlipSequence += 1
 	local configuredId = instance:GetAttribute("MinimapId")
-	local id = type(configuredId) == "string" and configuredId ~= ""
-		and configuredId
+	local id = type(configuredId) == "string" and configuredId ~= "" and configuredId
 		or ("tagged_%d"):format(taggedBlipSequence)
 	taggedBlipIds[instance] = id
 
@@ -438,9 +432,7 @@ local function updateMap(root)
 		local alwaysShow = blip.options.alwaysShow == true
 		local displayRadius = math.max(
 			0,
-			tonumber(blip.options.displayRadius)
-				or tonumber(config.DefaultDisplayRadius)
-				or DEFAULT_DISPLAY_RADIUS
+			tonumber(blip.options.displayRadius) or tonumber(config.DefaultDisplayRadius) or DEFAULT_DISPLAY_RADIUS
 		)
 
 		gui.Visible = alwaysShow or (distance <= displayRadius and not wasClamped)
