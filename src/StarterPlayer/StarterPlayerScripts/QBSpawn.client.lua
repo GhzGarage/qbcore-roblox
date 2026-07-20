@@ -137,13 +137,24 @@ local busy = false
 local previousCameraType
 local previousCameraSubject
 
+local function getCharacterHumanoid()
+	local character = player.Character
+	if not character then
+		character = player.CharacterAdded:Wait()
+	end
+	return character:WaitForChild("Humanoid", 10)
+end
+
 local function restoreCamera()
 	local camera = workspace.CurrentCamera
 	if not camera then
 		return
 	end
-	camera.CameraType = previousCameraType or Enum.CameraType.Custom
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	local humanoid = getCharacterHumanoid()
+	-- The character is created while this selector owns a Scriptable camera. Always
+	-- bind the live character before returning control to Roblox's camera script;
+	-- restoring only CameraType can leave the camera following the pre-spawn subject.
+	camera.CameraType = Enum.CameraType.Custom
 	camera.CameraSubject = humanoid or previousCameraSubject
 end
 

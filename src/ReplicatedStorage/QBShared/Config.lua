@@ -21,12 +21,12 @@ Config.HUD = {
 		Enabled = true,
 		-- Import ref_final/roads.png through Studio and paste its image asset ID here.
 		-- Both "123456" and "rbxassetid://123456" are accepted.
-		Image = "",
+		Image = "rbxassetid://84932210632976",
 		Size = 216,
 		Gap = 10,
-		StudsAcross = 1900, -- fixed zoom; this never changes with speed or movement state
+		StudsAcross = 12300, -- fit the full 2752px-wide ref_final map inside the minimap
 		RotateWithHeading = true,
-		DefaultDisplayRadius = 950,
+		DefaultDisplayRadius = 6150,
 		EdgePadding = 13,
 		MapPixelSize = Vector2.new(2752, 1536),
 		-- Exact ref_final image-space transform from mapgen_ref_final.lua.

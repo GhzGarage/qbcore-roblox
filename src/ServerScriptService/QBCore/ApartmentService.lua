@@ -24,6 +24,7 @@ local doorbells = {} -- [requestId] = request
 local busy = {}
 local lastRemoteAt = {}
 local usedSlots = {}
+local CHARACTER_ROOT_HEIGHT = 3
 
 local function config()
 	return type(QBShared.Config.Apartments) == "table" and QBShared.Config.Apartments or {}
@@ -317,7 +318,11 @@ local function prepareEntry(player, playerObj, apartment, asGuest)
 		instance = createInstance(player, playerObj, apartment, building)
 	end
 	local spawnMarker = findMarker(instance.model, "Spawn") or findMarker(instance.model, "Exit")
-	local spawnCFrame = spawnMarker and (spawnMarker.CFrame + Vector3.new(0, 3, 0))
+	-- Markers are modeled as parts sitting on the floor. Place the HumanoidRootPart
+	-- three studs above the marker's bottom rather than three studs above its center;
+	-- the latter leaves the first-time apartment character visibly hovering.
+	local markerOffset = spawnMarker and math.max(0, CHARACTER_ROOT_HEIGHT - spawnMarker.Size.Y / 2)
+	local spawnCFrame = spawnMarker and (spawnMarker.CFrame + Vector3.new(0, markerOffset, 0))
 		or (instance.model:GetPivot() + Vector3.new(0, 4, 0))
 	return true, {
 		apartmentId = apartment.id,

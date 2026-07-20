@@ -572,6 +572,7 @@ function PlayerService.SpawnSelectedCharacter(player, playerObj, spawnCFrame)
 	end
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
+	root.Anchored = false
 	root.CFrame = spawnCFrame
 	return true
 end

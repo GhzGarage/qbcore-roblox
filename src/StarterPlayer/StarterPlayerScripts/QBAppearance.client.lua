@@ -172,6 +172,7 @@ local inventoryAllowed = nil -- nil = not asked yet this session
 local inventoryCache = {} -- [category.key] = { {id, name}, ... }
 local previewScheduled = false
 local savedCameraType = nil
+local savedCameraSubject = nil
 local activeConnections = {} -- input connections owned by the current content view
 local responsive = {
 	compact = false,
@@ -497,6 +498,7 @@ local function focusCamera()
 	end
 
 	savedCameraType = camera.CameraType
+	savedCameraSubject = camera.CameraSubject
 	camera.CameraType = Enum.CameraType.Scriptable
 	local focus = root.Position + Vector3.new(0, 0.5, 0)
 	-- Aim slightly past the character's left shoulder so they sit left of the panel.
@@ -509,9 +511,16 @@ end
 local function restoreCamera()
 	local camera = Workspace.CurrentCamera
 	if camera then
-		camera.CameraType = savedCameraType or Enum.CameraType.Custom
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		-- Setting CameraType back to Custom does not reliably recover a subject after
+		-- the character was created while the spawn selector had a Scriptable camera.
+		-- Rebind to this character explicitly so the normal Roblox camera follows the
+		-- avatar as soon as the appearance editor closes.
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid or savedCameraSubject
 	end
 	savedCameraType = nil
+	savedCameraSubject = nil
 end
 
 -- ─────────────────────────── inventory access ───────────────────────────
