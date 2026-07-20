@@ -462,7 +462,7 @@ local function openCheckInMenu(snapshot)
 	local minimumDoctors = math.max(0, math.floor(tonumber(snapshot.minimumDoctors) or 0))
 	local paymentType = tostring(snapshot.paymentType or "bank")
 	local doctorPolicy = minimumDoctors > 0
-		and ("AI treatment is available when fewer than %d EMS are on duty."):format(minimumDoctors)
+			and ("AI treatment is available when fewer than %d EMS are on duty."):format(minimumDoctors)
 		or "AI treatment is available regardless of EMS staffing."
 
 	openHospitalMenu({

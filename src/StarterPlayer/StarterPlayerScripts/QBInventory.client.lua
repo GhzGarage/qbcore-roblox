@@ -634,8 +634,9 @@ local function renderOtherSlotView(view, slot)
 	view.number.Text = tostring(slot)
 	view.name.Text = item and item.label or ""
 	view.amount.Text = item
-		and (otherInventory and otherInventory.type == "shop" and (("$%d · x%d"):format(item.price, item.stock))
-			or ("x%d"):format(item.stock))
+			and (otherInventory and otherInventory.type == "shop" and (("$%d · x%d"):format(item.price, item.stock)) or ("x%d"):format(
+				item.stock
+			))
 		or ""
 	view.empty.Visible = item == nil
 	view.icon.Visible = item ~= nil and type(item.image) == "string" and item.image ~= ""
@@ -665,7 +666,7 @@ local function renderOtherInventory()
 	if selectedItem then
 		purchaseAmount = math.clamp(purchaseAmount, 1, math.max(1, selectedItem.stock))
 		otherSelectedNameLabel.Text = otherInventory.type == "shop"
-			and ("%s · $%d each"):format(selectedItem.label, selectedItem.price)
+				and ("%s · $%d each"):format(selectedItem.label, selectedItem.price)
 			or ("%s x%d"):format(selectedItem.label, selectedItem.stock)
 		otherSelectedDescLabel.Text = selectedItem.stock > 0 and selectedItem.description or "Empty"
 	elseif isDeposit then

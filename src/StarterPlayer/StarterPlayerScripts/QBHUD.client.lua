@@ -33,8 +33,7 @@ local BAR_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirectio
 local MIN_HUD_SCALE = 0.58
 local MINIMAP_CONFIG = (QBShared.Config.HUD and QBShared.Config.HUD.Minimap) or {}
 local MINIMAP_GAP = tonumber(MINIMAP_CONFIG.Gap) or 10
-local AMMO_BOTTOM_OFFSET = MINIMAP_CONFIG.Enabled == false
-	and 198
+local AMMO_BOTTOM_OFFSET = MINIMAP_CONFIG.Enabled == false and 198
 	or (188 + (tonumber(MINIMAP_CONFIG.Size) or 216) + MINIMAP_GAP * 2)
 
 local function clampPercent(value)
@@ -458,12 +457,7 @@ local function updateResponsiveLayout()
 	infoPanel.Position = UDim2.new(1, -math.floor(24 * scale + 0.5), 0, math.floor(24 * scale + 0.5))
 	statusPanel.Position = UDim2.new(0, math.floor(18 * scale + 0.5), 1, -math.floor(22 * scale + 0.5))
 	-- Sits above the minimap when enabled, or directly above status otherwise.
-	ammoPanel.Position = UDim2.new(
-		0,
-		math.floor(18 * scale + 0.5),
-		1,
-		-math.floor(AMMO_BOTTOM_OFFSET * scale + 0.5)
-	)
+	ammoPanel.Position = UDim2.new(0, math.floor(18 * scale + 0.5), 1, -math.floor(AMMO_BOTTOM_OFFSET * scale + 0.5))
 end
 
 local viewportConnection

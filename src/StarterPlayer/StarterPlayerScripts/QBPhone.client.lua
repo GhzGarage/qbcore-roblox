@@ -640,8 +640,14 @@ local photoGrid = Instance.new("UIGridLayout")
 photoGrid.CellPadding = UDim2.fromOffset(7, 7)
 photoGrid.CellSize = UDim2.new(0.5, -4, 0, 155)
 photoGrid.Parent = photoList
-local photosEmpty =
-	label(photosScreen, "Empty", "No photos yet — open the Camera and take some.", 13, COLORS.muted, Enum.Font.GothamMedium)
+local photosEmpty = label(
+	photosScreen,
+	"Empty",
+	"No photos yet — open the Camera and take some.",
+	13,
+	COLORS.muted,
+	Enum.Font.GothamMedium
+)
 photosEmpty.Position = UDim2.fromOffset(10, 70)
 photosEmpty.Size = UDim2.new(1, -20, 0, 40)
 photosEmpty.TextXAlignment = Enum.TextXAlignment.Center

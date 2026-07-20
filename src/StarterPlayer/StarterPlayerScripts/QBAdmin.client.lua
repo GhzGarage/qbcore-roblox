@@ -1758,14 +1758,16 @@ local function leaderboardEntries()
 	for _, info in ipairs(context.players or {}) do
 		local job = type(info.job) == "table" and info.job or {}
 		local crew = type(info.crew) == "table" and info.crew or {}
-		local haystack = table.concat({
-			tostring(info.character or ""),
-			tostring(info.displayName or ""),
-			tostring(info.name or ""),
-			tostring(info.citizenId or ""),
-			tostring(job.label or job.name or ""),
-			tostring(crew.label or crew.name or ""),
-		}, " "):lower()
+		local haystack = table
+			.concat({
+				tostring(info.character or ""),
+				tostring(info.displayName or ""),
+				tostring(info.name or ""),
+				tostring(info.citizenId or ""),
+				tostring(job.label or job.name or ""),
+				tostring(crew.label or crew.name or ""),
+			}, " ")
+			:lower()
 
 		if query == "" or haystack:find(query, 1, true) then
 			local cash, bank, crypto, wealth = leaderboardMoney(info)
@@ -1797,7 +1799,10 @@ local function leaderboardEntries()
 end
 
 local function makeLeaderboardRank(parent, rank)
-	local tint = rank == 1 and COLORS.accent or rank == 2 and COLORS.muted or rank == 3 and COLORS.orange or COLORS.stroke
+	local tint = rank == 1 and COLORS.accent
+		or rank == 2 and COLORS.muted
+		or rank == 3 and COLORS.orange
+		or COLORS.stroke
 	local badge = Instance.new("Frame")
 	badge.Name = "Rank"
 	badge.BackgroundColor3 = rank <= 3 and COLORS.input or COLORS.panel
@@ -1833,7 +1838,8 @@ local function renderLeaderboard()
 	addVerticalLayout(controls, 8)
 
 	local searchRow = makeFieldRow(controls, 36)
-	local searchBox = makeTextBox(searchRow, "Search", "Search player, citizen ID, job, or crew", leaderboardSearchQuery)
+	local searchBox =
+		makeTextBox(searchRow, "Search", "Search player, citizen ID, job, or crew", leaderboardSearchQuery)
 	local fixedWidth = responsive.tiny and 128 or 184
 	searchBox.Size = UDim2.new(1, -fixedWidth, 1, 0)
 	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1912,9 +1918,30 @@ local function renderLeaderboard()
 		local playerHeader = makeLabel(header, "Player", "PLAYER", 10, COLORS.muted, Enum.Font.GothamBold)
 		playerHeader.Position = UDim2.new(0.08, 0, 0, 0)
 		playerHeader.Size = UDim2.new(0.35, 0, 1, 0)
-		makeLeaderboardValue(header, "Cash", "CASH", 0.43, 0.18, leaderboardMetric == "cash" and COLORS.accent or COLORS.muted)
-		makeLeaderboardValue(header, "Bank", "BANK", 0.61, 0.2, leaderboardMetric == "bank" and COLORS.accent or COLORS.muted)
-		makeLeaderboardValue(header, "Crypto", "CRYPTO", 0.81, 0.19, leaderboardMetric == "crypto" and COLORS.accent or COLORS.muted)
+		makeLeaderboardValue(
+			header,
+			"Cash",
+			"CASH",
+			0.43,
+			0.18,
+			leaderboardMetric == "cash" and COLORS.accent or COLORS.muted
+		)
+		makeLeaderboardValue(
+			header,
+			"Bank",
+			"BANK",
+			0.61,
+			0.2,
+			leaderboardMetric == "bank" and COLORS.accent or COLORS.muted
+		)
+		makeLeaderboardValue(
+			header,
+			"Crypto",
+			"CRYPTO",
+			0.81,
+			0.19,
+			leaderboardMetric == "crypto" and COLORS.accent or COLORS.muted
+		)
 	end
 
 	for index, entry in ipairs(entries) do

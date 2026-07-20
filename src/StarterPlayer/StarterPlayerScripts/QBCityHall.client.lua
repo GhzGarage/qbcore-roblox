@@ -16,7 +16,11 @@ local currentSnapshot
 local requestBusy = false
 
 local function notify(message, notifyType, duration)
-	QBCoreClient.OnNotify:Fire(tostring(message or "City Hall request failed."), notifyType or "error", duration or 3500)
+	QBCoreClient.OnNotify:Fire(
+		tostring(message or "City Hall request failed."),
+		notifyType or "error",
+		duration or 3500
+	)
 end
 
 local function openMenu(items, options)

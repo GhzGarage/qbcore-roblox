@@ -412,7 +412,9 @@ local function clearCharacterCards()
 end
 
 local function destroyCharacterSelect()
-	if characterSelectDestroyed then return end
+	if characterSelectDestroyed then
+		return
+	end
 	characterSelectDestroyed = true
 	if viewportConnection then
 		viewportConnection:Disconnect()

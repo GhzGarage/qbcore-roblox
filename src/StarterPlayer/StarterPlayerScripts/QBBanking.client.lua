@@ -729,7 +729,10 @@ local function renderBalances()
 			or ("Citizen ID " .. tostring(account.citizenId or "—"))
 	)
 	if account.type == "crew" then
-		accountLabel.Text = ("%s | Crew %s"):format(tostring(account.holder or player.DisplayName), tostring(account.citizenId or "-"))
+		accountLabel.Text = ("%s | Crew %s"):format(
+			tostring(account.holder or player.DisplayName),
+			tostring(account.citizenId or "-")
+		)
 	elseif account.type == "shared" then
 		accountLabel.Text = ("%s | Shared #%s"):format(
 			tostring(account.holder or player.DisplayName),
@@ -781,7 +784,10 @@ local function renderBalances()
 end
 
 local function renderAction()
-	if accessContext.mode == "atm" and (currentAction == "deposit" or currentAction == "card" or currentAction == "manage") then
+	if
+		accessContext.mode == "atm"
+		and (currentAction == "deposit" or currentAction == "card" or currentAction == "manage")
+	then
 		currentAction = "withdraw"
 	end
 	local info = ACTIONS[currentAction]
@@ -847,11 +853,14 @@ local function renderAction()
 			removeMemberButton.Position = UDim2.new(0.5, 4, 0, 276)
 			submitButton.Position = UDim2.fromOffset(0, 326)
 			deleteAccountButton.Position = UDim2.fromOffset(0, 380)
-			deleteAccountButton.Text = deleteConfirmAccountId == account.id and "Confirm close account" or "Close empty account"
+			deleteAccountButton.Text = deleteConfirmAccountId == account.id and "Confirm close account"
+				or "Close empty account"
 			statusLabel.Position = UDim2.fromOffset(0, 426)
 		else
 			local maximum = snapshot and snapshot.limits and snapshot.limits.maxSharedAccounts or 2
-			actionHint.Text = ("Open a player-shared account and invite members after creation. You may own up to %d."):format(maximum)
+			actionHint.Text = ("Open a player-shared account and invite members after creation. You may own up to %d."):format(
+				maximum
+			)
 			submitIdleText = "Open shared account"
 			submitButton.Position = UDim2.fromOffset(0, 276)
 			statusLabel.Position = UDim2.fromOffset(0, 323)
