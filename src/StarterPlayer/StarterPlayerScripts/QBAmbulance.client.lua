@@ -8,6 +8,8 @@ local UserInputService = game:GetService("UserInputService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -32,7 +34,7 @@ local RESPAWN_DELAY = math.max(0, tonumber(deathConfig.RespawnDelay) or 30)
 local RESPAWN_KEY = getKeyCode(deathConfig.RespawnKey or "E", Enum.KeyCode.E)
 local GAMEPAD_RESPAWN_KEY = getKeyCode(deathConfig.GamepadRespawnKey or "ButtonX", Enum.KeyCode.ButtonX)
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Utility", {
 	backdrop = Color3.fromRGB(9, 10, 13),
 	panel = Color3.fromRGB(24, 28, 34),
 	panelSoft = Color3.fromRGB(34, 39, 48),
@@ -40,9 +42,8 @@ local COLORS = {
 	text = Color3.fromRGB(241, 245, 249),
 	muted = Color3.fromRGB(163, 174, 187),
 	red = Color3.fromRGB(198, 70, 82),
-	green = Color3.fromRGB(62, 166, 105),
 	warning = Color3.fromRGB(232, 170, 73),
-}
+})
 
 local isDead = false
 local busy = false
@@ -192,8 +193,7 @@ statusLabel.LayoutOrder = 4
 statusLabel.Parent = shell
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function updateResponsiveLayout()
@@ -203,7 +203,7 @@ local function updateResponsiveLayout()
 	local margin = tiny and 10 or compact and 16 or 36
 	local width = math.floor(math.min(560, math.max(300, viewport.X - margin * 2)) + 0.5)
 	local height = tiny and 158 or compact and 172 or 182
-	local scale = math.clamp(math.min(viewport.X / 620, viewport.Y / 420), 0.72, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.CompactDialog)
 
 	shellScale.Scale = scale
 	shellConstraint.MinSize = Vector2.new(math.min(300, width), math.min(150, height))

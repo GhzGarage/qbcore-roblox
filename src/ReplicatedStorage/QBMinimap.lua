@@ -8,19 +8,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local QBMinimap = {}
 
 local player = Players.LocalPlayer
 local config = (QBShared.Config.HUD and QBShared.Config.HUD.Minimap) or {}
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Utility", {
 	background = Color3.fromRGB(18, 24, 31),
 	border = Color3.fromRGB(75, 88, 106),
-	text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(158, 170, 184),
 	defaultBlip = Color3.fromRGB(235, 184, 76),
-}
+})
 
 local MIN_HUD_SCALE = 0.58
 local STATUS_TOP_OFFSET = 188 + (tonumber(config.Gap) or 10) -- bottom margin + status height + gap
@@ -76,8 +76,7 @@ local function normalizeImageId(value)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function updateResponsiveLayout()
@@ -86,7 +85,7 @@ local function updateResponsiveLayout()
 	end
 
 	local viewport = getViewportSize()
-	local scale = math.clamp(math.min(viewport.X / 980, viewport.Y / 720), MIN_HUD_SCALE, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.HUD)
 	minimapScale.Scale = scale
 	minimapFrame.Position = UDim2.new(0, math.floor(18 * scale + 0.5), 1, -math.floor(STATUS_TOP_OFFSET * scale + 0.5))
 end

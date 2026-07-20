@@ -10,6 +10,8 @@ local UserInputService = game:GetService("UserInputService")
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
@@ -18,8 +20,7 @@ local SLOT_COUNT = math.max(1, math.floor(tonumber(inventoryConfig.Slots) or 30)
 local HOTBAR_SLOTS = math.clamp(math.floor(tonumber(inventoryConfig.HotbarSlots) or 5), 1, SLOT_COUNT)
 local MAX_WEIGHT = math.max(0, tonumber(inventoryConfig.MaxWeight) or 120000)
 
-local COLORS = {
-	page = Color3.fromRGB(12, 15, 20),
+local COLORS = QBUITheme.Palette("Core", {
 	shell = Color3.fromRGB(27, 32, 40),
 	panel = Color3.fromRGB(35, 42, 52),
 	panelSoft = Color3.fromRGB(42, 50, 62),
@@ -28,13 +29,10 @@ local COLORS = {
 	selected = Color3.fromRGB(88, 172, 116),
 	hotbarSelected = Color3.fromRGB(93, 153, 212),
 	stroke = Color3.fromRGB(78, 91, 109),
-	text = Color3.fromRGB(239, 244, 248),
-	muted = Color3.fromRGB(158, 170, 184),
 	red = Color3.fromRGB(196, 82, 82),
-	green = Color3.fromRGB(62, 166, 105),
 	blue = Color3.fromRGB(66, 132, 196),
 	gold = Color3.fromRGB(185, 132, 60),
-}
+})
 
 local currentItems = {}
 local otherItems = {}
@@ -286,8 +284,7 @@ local function round(value)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function setPaddingOffsets(padding, left, top, right, bottom)

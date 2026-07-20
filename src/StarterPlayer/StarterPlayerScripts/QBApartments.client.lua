@@ -6,18 +6,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Compact", {
 	shade = Color3.fromRGB(6, 9, 13),
-	panel = Color3.fromRGB(14, 18, 24),
 	soft = Color3.fromRGB(23, 29, 38),
 	line = Color3.fromRGB(54, 65, 80),
-	text = Color3.fromRGB(238, 242, 247),
-	muted = Color3.fromRGB(151, 163, 180),
-	green = Color3.fromRGB(38, 166, 112),
-	blue = Color3.fromRGB(52, 126, 190),
-	red = Color3.fromRGB(184, 67, 67),
-}
+})
 
 local function corner(parent, radius)
 	local value = Instance.new("UICorner")

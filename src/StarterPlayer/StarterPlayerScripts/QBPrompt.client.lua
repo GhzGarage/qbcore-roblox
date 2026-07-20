@@ -5,18 +5,13 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local COLORS = {
-	panel = Color3.fromRGB(24, 30, 38),
-	panelSoft = Color3.fromRGB(37, 44, 55),
-	stroke = Color3.fromRGB(75, 88, 106),
-	text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(158, 170, 184),
-	accent = Color3.fromRGB(235, 184, 76),
-}
+local COLORS = QBUITheme.Palette("Utility")
 
 local PROMPT_HEIGHT = 64
 local PROMPT_HEIGHT_COMPACT = 54

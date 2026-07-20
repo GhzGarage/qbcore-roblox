@@ -8,21 +8,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Utility", {
 	shell = Color3.fromRGB(20, 24, 31),
 	panel = Color3.fromRGB(29, 35, 44),
-	panelSoft = Color3.fromRGB(37, 44, 55),
-	stroke = Color3.fromRGB(73, 86, 104),
 	strokeSoft = Color3.fromRGB(55, 67, 83),
-	text = Color3.fromRGB(241, 245, 249),
-	muted = Color3.fromRGB(158, 170, 184),
-	accent = Color3.fromRGB(235, 184, 76),
 	disabled = Color3.fromRGB(82, 91, 104),
 	red = Color3.fromRGB(196, 76, 82),
-}
+})
 
 local DEFAULT_TITLE = "Menu"
 local MENU_WIDTH = 310
@@ -79,8 +76,7 @@ local function round(value)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function toText(value, fallback)
@@ -514,7 +510,7 @@ end
 local function updateResponsiveLayout()
 	local viewport = getViewportSize()
 	local compact = viewport.X < 560 or viewport.Y < 500
-	local scale = math.clamp(math.min(viewport.X / 760, viewport.Y / 640), 0.76, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.Dialog)
 	local margin = compact and 8 or 22
 	local rightMargin = compact and 10 or 30
 	local availableWidth = math.max(MIN_MENU_WIDTH, (viewport.X - margin * 2) / scale)

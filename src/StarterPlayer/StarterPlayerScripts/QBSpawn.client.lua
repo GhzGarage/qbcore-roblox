@@ -6,18 +6,15 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
 
-local COLORS = {
-	backdrop = Color3.fromRGB(7, 10, 14),
-	panel = Color3.fromRGB(14, 18, 24),
+local COLORS = QBUITheme.Palette("Compact", {
 	soft = Color3.fromRGB(23, 29, 38),
 	line = Color3.fromRGB(54, 65, 80),
-	text = Color3.fromRGB(238, 242, 247),
 	muted = Color3.fromRGB(150, 162, 178),
-	green = Color3.fromRGB(38, 166, 112),
 	accent = Color3.fromRGB(52, 126, 190),
 	red = Color3.fromRGB(191, 70, 70),
-}
+})
 
 local function corner(parent, radius)
 	local value = Instance.new("UICorner")

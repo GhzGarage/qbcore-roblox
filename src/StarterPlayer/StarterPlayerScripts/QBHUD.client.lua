@@ -9,16 +9,14 @@ local TweenService = game:GetService("TweenService")
 
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
-local COLORS = {
-	panel = Color3.fromRGB(24, 30, 38),
+local COLORS = QBUITheme.Palette("Utility", {
 	track = Color3.fromRGB(45, 54, 66),
-	stroke = Color3.fromRGB(75, 88, 106),
 	strokeSoft = Color3.fromRGB(58, 70, 86),
-	text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(158, 170, 184),
 	health = Color3.fromRGB(214, 76, 86),
 	armor = Color3.fromRGB(72, 141, 213),
 	hunger = Color3.fromRGB(224, 151, 67),
@@ -26,8 +24,7 @@ local COLORS = {
 	stress = Color3.fromRGB(190, 102, 212),
 	cash = Color3.fromRGB(70, 172, 112),
 	bank = Color3.fromRGB(82, 150, 222),
-	accent = Color3.fromRGB(235, 184, 76),
-}
+})
 
 local BAR_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local MIN_HUD_SCALE = 0.58
@@ -442,13 +439,12 @@ local function bindCharacterWeapons(character)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function updateResponsiveLayout()
 	local viewport = getViewportSize()
-	local scale = math.clamp(math.min(viewport.X / 980, viewport.Y / 720), MIN_HUD_SCALE, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.HUD)
 
 	infoScale.Scale = scale
 	statusScale.Scale = scale

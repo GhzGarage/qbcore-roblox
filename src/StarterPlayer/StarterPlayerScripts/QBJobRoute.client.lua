@@ -9,17 +9,13 @@ local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
 
-local COLORS = {
-	panel = Color3.fromRGB(24, 30, 38),
-	stroke = Color3.fromRGB(75, 88, 106),
-	text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(158, 170, 184),
-	accent = Color3.fromRGB(235, 184, 76),
-}
+local COLORS = QBUITheme.Palette("Utility")
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "QBJobRoute"
+screenGui.IgnoreGuiInset = true
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 40
 screenGui.Parent = player:WaitForChild("PlayerGui")

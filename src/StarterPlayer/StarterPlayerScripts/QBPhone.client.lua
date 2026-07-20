@@ -11,10 +11,12 @@ local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Utility", {
 	ink = Color3.fromRGB(239, 244, 255),
 	muted = Color3.fromRGB(151, 163, 184),
 	bg = Color3.fromRGB(7, 10, 18),
@@ -26,7 +28,7 @@ local COLORS = {
 	red = Color3.fromRGB(225, 76, 92),
 	purple = Color3.fromRGB(151, 91, 235),
 	orange = Color3.fromRGB(237, 145, 54),
-}
+})
 
 local snapshot = nil
 local contacts = {}
@@ -1436,7 +1438,8 @@ local function updateScale()
 	local viewport = camera.ViewportSize
 	local availableHeight = math.max(300, viewport.Y - 28)
 	local availableWidth = math.max(220, viewport.X - 28)
-	scale.Scale = math.min(1, availableHeight / 720, availableWidth / 390)
+	local scaleViewport = Vector2.new(availableWidth, availableHeight)
+	scale.Scale = QBUIScale.FromViewport(scaleViewport, QBUIScale.Profiles.Phone)
 	local margin = viewport.X < 700 and 10 or 24
 	shell.Position = UDim2.new(1, -margin, 1, -math.min(18, margin))
 end

@@ -28,6 +28,7 @@ This is a Rojo project for a Roblox/Luau port of the core QBCore flow:
 - Standalone job/crew management with rosters, nearby hiring, grades, removal, and offline queues.
 - Inventory-opened StudOS smartphone with Roblox-filtered messaging, eligible voice calls, StudSpace social posts, and native captures.
 - Instanced starter apartments with doorbells, visitors, wardrobes, logout points, and persistent personal stashes.
+- Centralized UI theming and resolution scaling profiles for Roblox-native interfaces.
 
 See [TODO.md](TODO.md) for the systems that are intentionally still missing.
 
@@ -50,6 +51,8 @@ src/
     QBRemoteNames.lua  -- remote names used by both server and client
     QBRemotes.lua      -- creates/waits for RemoteEvents and RemoteFunctions
     QBCoreClient.lua   -- client PlayerData cache and BindableEvent signals
+    QBUITheme.lua      -- centralized color/tone palettes and UI tokens
+    QBUIScale.lua      -- centralized viewport scaling profiles/helpers
   ServerScriptService/
     QBCore/
       Main.server.lua      -- server entrypoint and remote wiring
@@ -190,6 +193,8 @@ ReplicatedStorage/QBShared
 ReplicatedStorage/QBRemoteNames
 ReplicatedStorage/QBRemotes
 ReplicatedStorage/QBCoreClient
+ReplicatedStorage/QBUITheme
+ReplicatedStorage/QBUIScale
 ServerScriptService/QBCore
 StarterPlayer/StarterPlayerScripts/QBAppearance
 StarterPlayer/StarterPlayerScripts/QBCoreClient
@@ -260,6 +265,35 @@ Character slots are also configured there:
 ```lua
 Config.Player.MaxCharacterSlots = 5
 ```
+
+## UI Theming And Scaling
+
+Roblox-native UI now shares centralized theme and scaling modules in
+`ReplicatedStorage`:
+
+- `QBUITheme.lua` controls palette families and reusable visual tokens.
+- `QBUIScale.lua` controls resolution scaling profiles and viewport helpers.
+
+Most large LocalScript UIs consume these modules directly. To reskin the
+project, change palette values in `QBUITheme.Palettes`. To retune responsiveness,
+adjust profile baselines and clamps in `QBUIScale.Profiles`.
+
+Palette families:
+
+- `Core`: baseline gameplay panel set.
+- `Service`: wider service-style panels (banking/garage/management/shop/admin).
+- `Compact`: compact panel set (spawn/apartments).
+- `Utility`: HUD/prompt/menu/notify/minimap baseline set.
+
+Scale profiles:
+
+- `HUD`, `Panel`, `WidePanel`, `Dialog`, `CompactDialog`, `Phone`.
+
+Recommended workflow for UI changes:
+
+1. Adjust color/tone intent in `QBUITheme.lua`.
+2. Adjust per-class screen scaling limits in `QBUIScale.lua`.
+3. Verify in Studio at desktop and smaller viewport sizes.
 
 Test lighting/spawn defaults are configured there too:
 

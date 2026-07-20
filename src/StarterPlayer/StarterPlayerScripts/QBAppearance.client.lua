@@ -20,6 +20,8 @@ local Workspace = game:GetService("Workspace")
 
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBShared = require(ReplicatedStorage.QBShared.Main)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 local AppearanceConfig = QBShared.Config.Appearance or {}
@@ -27,19 +29,10 @@ local AppearanceConfig = QBShared.Config.Appearance or {}
 local MAX_ITEMS_PER_CATEGORY = 120
 local PREVIEW_DEBOUNCE = 0.15
 
-local COLORS = {
-	page = Color3.fromRGB(12, 15, 20),
-	shell = Color3.fromRGB(26, 31, 39),
-	panel = Color3.fromRGB(32, 38, 48),
-	panelSoft = Color3.fromRGB(38, 45, 56),
-	stroke = Color3.fromRGB(74, 87, 103),
-	text = Color3.fromRGB(239, 243, 247),
-	muted = Color3.fromRGB(158, 170, 184),
-	green = Color3.fromRGB(62, 166, 105),
-	red = Color3.fromRGB(185, 73, 73),
+local COLORS = QBUITheme.Palette("Core", {
 	tabIdle = Color3.fromRGB(38, 45, 56),
 	tabActive = Color3.fromRGB(62, 166, 105),
-}
+})
 
 -- kind = "accessory" | "clothing" | "face" | "skin" | "body"
 local CATEGORIES = {
@@ -285,8 +278,7 @@ local function round(value)
 end
 
 local function getViewportSize()
-	local camera = Workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(Workspace.CurrentCamera)
 end
 
 local function makeLabel(parent, name, text, size, color, font)
@@ -411,7 +403,7 @@ local function updateResponsiveLayout()
 	local viewport = getViewportSize()
 	local compact = viewport.X < 760 or viewport.Y < 560
 	local tiny = viewport.X < 560 or viewport.Y < 470
-	local scale = compact and math.clamp(math.min(viewport.X / 960, viewport.Y / 760), 0.58, 1) or 1
+	local scale = compact and QBUIScale.FromViewport(viewport, QBUIScale.Profiles.Panel) or 1
 	responsive.compact = compact
 	responsive.tiny = tiny
 	responsive.scale = scale

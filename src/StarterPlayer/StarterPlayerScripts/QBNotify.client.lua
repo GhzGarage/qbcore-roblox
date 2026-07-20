@@ -6,6 +6,8 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
@@ -20,17 +22,14 @@ local TOAST_BODY_Y = 26
 local TOAST_MIN_HEIGHT = 56
 local TOAST_MAX_HEIGHT = 96
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Utility", {
 	background = Color3.fromRGB(24, 30, 38),
-	stroke = Color3.fromRGB(75, 88, 106),
-	text = Color3.fromRGB(242, 246, 250),
-	muted = Color3.fromRGB(159, 171, 185),
 	success = Color3.fromRGB(66, 173, 111),
 	error = Color3.fromRGB(218, 76, 86),
 	warning = Color3.fromRGB(230, 169, 69),
 	info = Color3.fromRGB(82, 150, 222),
 	primary = Color3.fromRGB(111, 136, 166),
-}
+})
 
 local TYPE_META = {
 	success = { title = "Success", color = COLORS.success },
@@ -46,8 +45,7 @@ local function round(value)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local screenGui = Instance.new("ScreenGui")
@@ -79,8 +77,8 @@ local nextLayoutOrder = 0
 
 local function updateResponsiveLayout()
 	local viewport = getViewportSize()
-	local scale = math.clamp(math.min(viewport.X / 900, viewport.Y / 720), 0.58, 1)
-	local hudScale = math.clamp(math.min(viewport.X / 980, viewport.Y / 720), 0.58, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.HUD)
+	local hudScale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.HUD)
 	local margin = round(24 * scale)
 	local topOffset = viewport.Y < 470 and round(58 * scale)
 		or viewport.Y < 560 and round(78 * scale)

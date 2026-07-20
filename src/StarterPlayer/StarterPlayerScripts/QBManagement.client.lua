@@ -9,24 +9,11 @@ local Workspace = game:GetService("Workspace")
 
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
 local Remotes = require(ReplicatedStorage.QBRemotes)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 local player = Players.LocalPlayer
 
-local COLORS = {
-	page = Color3.fromRGB(10, 13, 18),
-	shell = Color3.fromRGB(25, 31, 39),
-	panel = Color3.fromRGB(32, 39, 49),
-	panelSoft = Color3.fromRGB(38, 46, 58),
-	stroke = Color3.fromRGB(73, 87, 104),
-	strokeSoft = Color3.fromRGB(57, 69, 84),
-	text = Color3.fromRGB(240, 244, 248),
-	muted = Color3.fromRGB(157, 170, 184),
-	green = Color3.fromRGB(65, 172, 110),
-	blue = Color3.fromRGB(74, 143, 216),
-	blueDark = Color3.fromRGB(48, 99, 157),
-	gold = Color3.fromRGB(229, 181, 77),
-	red = Color3.fromRGB(202, 79, 83),
-	disabled = Color3.fromRGB(79, 89, 101),
-}
+local COLORS = QBUITheme.Palette("Service")
 
 local snapshot = nil
 local accessContext = { locationId = "" }
@@ -576,9 +563,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 local function updateScale()
-	local camera = Workspace.CurrentCamera
-	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
-	shellScale.Scale = math.min(1, viewport.X / 950, viewport.Y / 670)
+	local viewport = QBUIScale.GetViewportSize(Workspace.CurrentCamera)
+	shellScale.Scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.WidePanel)
 end
 
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(updateScale)

@@ -208,8 +208,10 @@ it is still not a full QBCore ecosystem.
       admin, menu, emotes, and stage music.
 - [ ] Add settings/keybinds for inventory, hotbar, admin, emotes, music, and
       respawn controls.
-- [ ] Add consistent UI theming/components so each LocalScript is not carrying its
-      own duplicated UI helpers forever.
+- [x] Add centralized UI theming and scaling modules (`QBUITheme`, `QBUIScale`) so
+      large LocalScript UIs share one palette/profile source. Duplicated local
+      builder helpers still exist and can be migrated to a shared component
+      factory in a follow-up pass.
 
 ### QBCore Ecosystem Coverage
 

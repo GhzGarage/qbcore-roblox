@@ -7,10 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.QBRemotes)
 local QBCoreClient = require(ReplicatedStorage.QBCoreClient)
+local QBUITheme = require(ReplicatedStorage.QBUITheme)
+local QBUIScale = require(ReplicatedStorage.QBUIScale)
 
 local player = Players.LocalPlayer
 
-local COLORS = {
+local COLORS = QBUITheme.Palette("Service", {
 	backdrop = Color3.fromRGB(7, 9, 12),
 	shell = Color3.fromRGB(18, 21, 27),
 	sidebar = Color3.fromRGB(14, 17, 23),
@@ -28,7 +30,7 @@ local COLORS = {
 	red = Color3.fromRGB(191, 75, 75),
 	orange = Color3.fromRGB(205, 130, 58),
 	disabled = Color3.fromRGB(78, 86, 98),
-}
+})
 
 local PAGES = {
 	"Dashboard",
@@ -102,8 +104,7 @@ local function round(value)
 end
 
 local function getViewportSize()
-	local camera = workspace.CurrentCamera
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+	return QBUIScale.GetViewportSize(workspace.CurrentCamera)
 end
 
 local function responsiveTextSize(size)
@@ -625,7 +626,7 @@ local function updateResponsiveLayout()
 	local viewport = getViewportSize()
 	local compact = viewport.X < 900 or viewport.Y < 600
 	local tiny = viewport.X < 560 or viewport.Y < 470
-	local scale = math.clamp(math.min(viewport.X / 960, viewport.Y / 720), 0.58, 1)
+	local scale = QBUIScale.FromViewport(viewport, QBUIScale.Profiles.Panel)
 	responsive.compact = compact
 	responsive.tiny = tiny
 	responsive.scale = scale
