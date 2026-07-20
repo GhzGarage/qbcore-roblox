@@ -283,4 +283,4 @@ end)
 
 Remotes.OpenSpawnSelector.OnClientEvent:Connect(open)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(resize)
-UserInputService:GetPropertyChangedSignal("CurrentInputType"):Connect(resize)
+UserInputService.LastInputTypeChanged:Connect(resize)

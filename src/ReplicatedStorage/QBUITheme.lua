@@ -83,6 +83,7 @@ QBUITheme.Palettes = {
 		stroke = Color3.fromRGB(75, 88, 106),
 		text = Color3.fromRGB(240, 244, 248),
 		muted = Color3.fromRGB(158, 170, 184),
+		green = Color3.fromRGB(62, 166, 105),
 		accent = Color3.fromRGB(235, 184, 76),
 	},
 }
